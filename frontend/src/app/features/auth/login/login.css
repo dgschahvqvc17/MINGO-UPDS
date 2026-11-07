@@ -1,0 +1,28 @@
+:host {
+  display: block;
+}
+
+.login-page {
+  background:
+    radial-gradient(circle at top left, rgba(13, 110, 253, 0.18), transparent 40%),
+    radial-gradient(circle at bottom right, rgba(111, 66, 193, 0.16), transparent 45%),
+    #f4f6fb;
+}
+
+.login-card {
+  width: 100%;
+  max-width: 430px;
+  border-radius: 1.25rem;
+}
+
+.brand-badge {
+  display: grid;
+  place-items: center;
+  width: 58px;
+  height: 58px;
+  border-radius: 18px;
+  background: linear-gradient(135deg, #0d6efd, #6f42c1);
+  color: #fff;
+  font-size: 1.75rem;
+  font-weight: 700;
+}

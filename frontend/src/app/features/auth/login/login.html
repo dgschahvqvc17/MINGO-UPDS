@@ -1,0 +1,78 @@
+<div class="login-page d-flex align-items-center justify-content-center min-vh-100 px-3">
+  <div class="card border-0 shadow-lg login-card">
+    <div class="card-body p-4 p-md-5">
+      <div class="text-center mb-4">
+        <div class="brand-badge mx-auto mb-3">M</div>
+        <h1 class="h3 fw-bold mb-1">MINGO</h1>
+        <p class="text-secondary mb-0">
+          Tu universidad, tus materiales y tu aprendizaje, organizados con inteligencia.
+        </p>
+      </div>
+
+      @if (!isConfigured) {
+        <div class="alert alert-warning small" role="alert">
+          Supabase no esta configurado. Complete <code>supabaseUrl</code> y
+          <code>supabaseAnonKey</code> en <code>environment.ts</code> para habilitar el inicio de
+          sesion.
+        </div>
+      }
+
+      @if (error()) {
+        <div class="alert alert-danger small" role="alert">{{ error() }}</div>
+      }
+
+      <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
+        <div class="mb-3">
+          <label class="form-label" for="email">Correo electronico</label>
+          <input
+            id="email"
+            type="email"
+            class="form-control"
+            formControlName="email"
+            autocomplete="email"
+            placeholder="estudiante@universidad.edu"
+            [class.is-invalid]="form.controls.email.touched && form.controls.email.invalid"
+          />
+          @if (form.controls.email.touched && form.controls.email.invalid) {
+            <div class="invalid-feedback">
+              @if (form.controls.email.errors?.['required']) {
+                El correo es obligatorio.
+              } @else {
+                Ingrese un correo valido.
+              }
+            </div>
+          }
+        </div>
+
+        <div class="mb-4">
+          <label class="form-label" for="password">Contrasena</label>
+          <input
+            id="password"
+            type="password"
+            class="form-control"
+            formControlName="password"
+            autocomplete="current-password"
+            placeholder="********"
+            [class.is-invalid]="form.controls.password.touched && form.controls.password.invalid"
+          />
+          @if (form.controls.password.touched && form.controls.password.invalid) {
+            <div class="invalid-feedback">
+              @if (form.controls.password.errors?.['required']) {
+                La contrasena es obligatoria.
+              } @else {
+                La contrasena debe tener al menos 6 caracteres.
+              }
+            </div>
+          }
+        </div>
+
+        <button class="btn btn-primary w-100" type="submit" [disabled]="loading()">
+          @if (loading()) {
+            <span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
+          }
+          Iniciar sesion
+        </button>
+      </form>
+    </div>
+  </div>
+</div>

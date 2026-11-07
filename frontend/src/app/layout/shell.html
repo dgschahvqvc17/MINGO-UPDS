@@ -1,0 +1,65 @@
+<div class="app-layout">
+  @if (menuOpen()) {
+    <div class="sidebar-backdrop d-lg-none" (click)="menuOpen.set(false)"></div>
+  }
+
+  <aside class="sidebar" [class.open]="menuOpen()">
+    <div class="brand">
+      <span class="brand-mark">M</span>
+      <div>
+        <div class="brand-name">MINGO</div>
+        <div class="brand-subtitle">Asistente academico</div>
+      </div>
+    </div>
+
+    <nav class="nav flex-column gap-1">
+      @for (item of navItems(); track item.path) {
+        <a
+          class="nav-link d-flex align-items-center gap-2"
+          [routerLink]="item.path"
+          routerLinkActive="active"
+          (click)="menuOpen.set(false)"
+        >
+          <i class="bi {{ item.icon }}"></i>
+          <span>{{ item.label }}</span>
+        </a>
+      }
+    </nav>
+
+    <div class="sidebar-footer">
+      <span class="badge rounded-pill text-bg-light border text-uppercase">
+        {{ role() }}
+      </span>
+      <small class="text-secondary">MINGO v1.0</small>
+    </div>
+  </aside>
+
+  <div class="main-area">
+    <header class="topbar">
+      <div class="d-flex align-items-center gap-2">
+        <button
+          class="btn btn-outline-secondary btn-sm d-lg-none"
+          type="button"
+          aria-label="Abrir menu"
+          (click)="menuOpen.set(true)"
+        >
+          <i class="bi bi-list"></i>
+        </button>
+        <span class="fw-semibold">Panel academico</span>
+      </div>
+
+      <div class="d-flex align-items-center gap-2 gap-md-3">
+        <span class="badge rounded-pill text-bg-primary d-none d-sm-inline">
+          <i class="bi bi-person-circle me-1"></i>{{ role() }}
+        </span>
+        <button class="btn btn-outline-danger btn-sm" type="button" (click)="logout()">
+          <i class="bi bi-box-arrow-right me-1"></i>Salir
+        </button>
+      </div>
+    </header>
+
+    <main class="content">
+      <router-outlet />
+    </main>
+  </div>
+</div>
