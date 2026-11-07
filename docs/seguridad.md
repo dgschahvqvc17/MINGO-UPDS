@@ -131,7 +131,7 @@ Nunca compartir el mismo proyecto Supabase entre producción y desarrollo.
 - Zod valida `body`, `query` y `params`.
 - Lista blanca de campos permitidos; descartar el resto.
 - Límites de longitud en todos los textos.
-- UUID validado con formato estricto.
+- `usuario_id` y `perfiles.id` se validan como UUID estricto; los IDs de dominio (materias, tareas, documentos, etc.) se validan como enteros positivos.
 - Fechas en ISO 8601 y con coherencia (inicio ≤ fin).
 - Enums cerrados: nunca aceptar texto libre donde hay un catálogo.
 - El campo de ordenamiento se valida contra una lista blanca.

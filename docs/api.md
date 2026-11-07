@@ -13,7 +13,7 @@
 3. Toda respuesta usa el sobre `{ success, data }` o `{ success, error }`.
 4. Las fechas viajan en ISO 8601 UTC: `2026-11-07T18:30:00.000Z`.
 5. Las listas se paginan siempre. Sin paginación explícita se aplica `page=1&limit=20`.
-6. Los identificadores son UUID v4.
+6. Los identificadores de usuario (`perfiles.id`, `usuario_id`) son UUID; los identificadores de recursos de dominio (materias, tareas, documentos, conversaciones, etc.) son enteros (`SERIAL`).
 7. Los endpoints que modifican datos validan la entrada con Zod antes de llegar al controlador.
 8. Las operaciones de IA y de carga de archivos tienen límites de uso (ver [seguridad.md](seguridad.md) e [ia-rag.md](ia-rag.md)).
 
@@ -184,7 +184,7 @@ Devuelve el perfil del usuario autenticado (HU01, HU02).
 
 | Parámetro | Tipo | Ejemplo |
 |---|---|---|
-| `periodo_id` | UUID | `?periodo_id=...` |
+| `periodo_id` | entero | `?periodo_id=1` |
 | `estado` | `activa` \| `archivada` | `?estado=activa` |
 | `q` | texto | `?q=calculo` |
 | `page`, `limit` | enteros | `?page=2&limit=10` |
@@ -193,7 +193,7 @@ Devuelve el perfil del usuario autenticado (HU01, HU02).
 
 ```json
 {
-  "periodo_id": "8a1f0f7e-6d1e-4f33-9d2a-11c9b7e4a001",
+  "periodo_id": 1,
   "nombre": "Cálculo Diferencial",
   "codigo": "MAT-101",
   "docente": "Ing. Gómez",
@@ -247,7 +247,7 @@ Devuelve el perfil del usuario autenticado (HU01, HU02).
 
 ```json
 {
-  "materia_id": "b2f7a1c3-9d4e-4a6b-8c1d-2e3f4a5b6c7d",
+  "materia_id": 1,
   "unidad_id": null,
   "titulo": "Taller de derivadas",
   "descripcion": "Ejercicios 1 al 20.",
@@ -286,7 +286,7 @@ Devuelve el perfil del usuario autenticado (HU01, HU02).
 
 ```json
 {
-  "materia_id": "b2f7a1c3-9d4e-4a6b-8c1d-2e3f4a5b6c7d",
+  "materia_id": 1,
   "tarea_id": null,
   "titulo": "Examen parcial",
   "descripcion": "Unidades 1 a 3.",
@@ -331,7 +331,7 @@ Devuelve el perfil del usuario autenticado (HU01, HU02).
   "nombre_archivo": "calculo.pdf",
   "tipo_archivo": "application/pdf",
   "tamano": 4823000,
-  "materia_id": "b2f7a1c3-9d4e-4a6b-8c1d-2e3f4a5b6c7d"
+  "materia_id": 1
 }
 ```
 
@@ -342,7 +342,7 @@ Devuelve el perfil del usuario autenticado (HU01, HU02).
   "success": true,
   "data": {
     "uploadUrl": "https://mingo-documentos.s3.us-east-1.amazonaws.com/...&X-Amz-Expires=900",
-    "objectKey": "usuarios/3f2b7e5c.../documentos/9c1d.../calculo.pdf",
+    "objectKey": "usuarios/3f2b7e5c.../documentos/1/calculo.pdf",
     "expiresInSeconds": 900,
     "maxSizeBytes": 20971520
   }
@@ -361,9 +361,9 @@ Devuelve el perfil del usuario autenticado (HU01, HU02).
 
 ```json
 {
-  "objectKey": "usuarios/3f2b7e5c.../documentos/9c1d.../calculo.pdf",
+  "objectKey": "usuarios/3f2b7e5c.../documentos/1/calculo.pdf",
   "nombre": "Cálculo Diferencial - Unidad 1",
-  "materia_id": "b2f7a1c3-9d4e-4a6b-8c1d-2e3f4a5b6c7d",
+  "materia_id": 1,
   "unidad_id": null
 }
 ```
@@ -381,7 +381,7 @@ Devuelve el perfil del usuario autenticado (HU01, HU02).
 ### 10.3. Búsqueda semántica (HU11)
 
 ```text
-GET /api/documentos/buscar?q=derivadas%20de%20funciones&materia_id=...&limit=8
+GET /api/documentos/buscar?q=derivadas%20de%20funciones&materia_id=1&limit=8
 ```
 
 **Respuesta**
@@ -391,8 +391,8 @@ GET /api/documentos/buscar?q=derivadas%20de%20funciones&materia_id=...&limit=8
   "success": true,
   "data": [
     {
-      "fragmento_id": "e1a2...",
-      "documento_id": "9c1d...",
+      "fragmento_id": 1,
+      "documento_id": 1,
       "documento_nombre": "Cálculo Diferencial - Unidad 1",
       "contenido": "La derivada de una función mide...",
       "numero_pagina": 12,
@@ -426,8 +426,8 @@ GET /api/documentos/buscar?q=derivadas%20de%20funciones&materia_id=...&limit=8
 {
   "conversacion_id": null,
   "mensaje": "Explícame la regla de la cadena con un ejemplo.",
-  "materia_id": "b2f7a1c3-9d4e-4a6b-8c1d-2e3f4a5b6c7d",
-  "documento_ids": ["9c1d..."],
+  "materia_id": 1,
+  "documento_ids": [1],
   "usar_documentos": true
 }
 ```
@@ -438,15 +438,15 @@ GET /api/documentos/buscar?q=derivadas%20de%20funciones&materia_id=...&limit=8
 {
   "success": true,
   "data": {
-    "conversacion_id": "77a1...",
-    "mensaje_id": "88b2...",
+    "conversacion_id": 1,
+    "mensaje_id": 1,
     "respuesta": "La regla de la cadena permite derivar funciones compuestas...",
     "modelo": "gpt-4o-mini",
     "referencias": [
       {
-        "documento_id": "9c1d...",
+        "documento_id": 1,
         "documento_nombre": "Cálculo Diferencial - Unidad 1",
-        "fragmento_id": "e1a2...",
+        "fragmento_id": 1,
         "numero_pagina": 12,
         "extracto": "Si f y g son diferenciables..."
       }
@@ -471,7 +471,7 @@ GET /api/documentos/buscar?q=derivadas%20de%20funciones&materia_id=...&limit=8
 
 ```json
 {
-  "documento_id": "9c1d...",
+  "documento_id": 1,
   "profundidad": "media",
   "guardar": true
 }
@@ -483,7 +483,7 @@ GET /api/documentos/buscar?q=derivadas%20de%20funciones&materia_id=...&limit=8
 
 ```json
 {
-  "materia_id": "b2f7a1c3-...",
+  "materia_id": 1,
   "documento_id": null,
   "cantidad_preguntas": 10,
   "dificultad": "intermedia",
@@ -497,7 +497,7 @@ Límites: 5–20 preguntas, 2–4 opciones por pregunta.
 
 ```json
 {
-  "documento_id": "9c1d...",
+  "documento_id": 1,
   "cantidad": 15
 }
 ```
@@ -506,7 +506,7 @@ Límites: 5–20 preguntas, 2–4 opciones por pregunta.
 
 ```json
 {
-  "materia_id": "b2f7a1c3-...",
+  "materia_id": 1,
   "objetivo": "Prepararme para el examen parcial",
   "fecha_examen": "2026-11-20",
   "minutos_por_dia": 90,
@@ -518,8 +518,8 @@ Límites: 5–20 preguntas, 2–4 opciones por pregunta.
 
 ```json
 {
-  "intento_id": "aa11...",
-  "pregunta_id": "bb22...",
+  "intento_id": 1,
+  "pregunta_id": 1,
   "respuesta": "Texto de la respuesta abierta",
   "criterios": ["claridad", "precisión conceptual"]
 }

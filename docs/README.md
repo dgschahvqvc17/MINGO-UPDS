@@ -8,7 +8,7 @@ Indice de documentos técnicos y de proceso del proyecto.
 |---|---|---|
 | [reglas-aws.md](reglas-aws.md) | Reglas obligatorias: solo serverless y capa gratuita, lista blanca/negra, límites, presupuestos, alertas y apagado de emergencia. | Antes de crear o desplegar cualquier recurso AWS. |
 | [arquitectura.md](arquitectura.md) | Vista general de la arquitectura, componentes, flujos y decisiones. | Para entender el sistema y ubicar un cambio. |
-| [base-datos.md](base-datos.md) | Modelo de datos, relaciones, convenciones, RLS, pgvector y migraciones. | Antes de crear tablas, consultas o políticas. |
+| [base-datos.md](base-datos.md) | Modelo actual de 14 tablas, diccionario de campos, relaciones, DDL, RLS, pgvector y migraciones. | Antes de crear tablas, consultas o políticas. |
 | [api.md](api.md) | Contrato REST: endpoints, formatos, códigos de estado y ejemplos. | Al implementar o consumir endpoints. |
 | [seguridad.md](seguridad.md) | Autenticación, autorización, secretos, archivos, IA y respuesta a incidentes. | En cada cambio que toque datos o accesos. |
 | [ia-rag.md](ia-rag.md) | Pipeline RAG, herramientas del agente, prompts, citas y control de consumo. | Al implementar chat, resúmenes, cuestionarios o embeddings. |

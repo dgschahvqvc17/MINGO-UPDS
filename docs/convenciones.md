@@ -101,7 +101,7 @@ if (!materia) {
 - Un esquema Zod por endpoint, en `models/` o junto al módulo.
 - Validar `body`, `query` y `params`.
 - Mensajes de error en español.
-- Reutilizar esquemas comunes (`uuidSchema`, `paginationSchema`).
+- Reutilizar esquemas comunes (`uuidSchema`, `idSchema`, `paginationSchema`). `uuidSchema` se usa para `usuario_id`; `idSchema` valida enteros positivos para los IDs de dominio.
 
 ```js
 const crearMateriaSchema = z.object({
@@ -193,7 +193,8 @@ getMaterias(): Observable<Materia[]> {
 ## 5. Base de datos
 
 - Tablas y columnas en `snake_case`.
-- Claves primarias UUID.
+- Claves primarias: `UUID` en `perfiles` (igual a `auth.users.id`) y `SERIAL` entero en las tablas de dominio.
+- Las columnas `usuario_id` son `UUID`; las demás claves foráneas son enteras.
 - Fechas `timestamptz`.
 - Estados con `check`.
 - Índices en claves foráneas y columnas de filtro.
