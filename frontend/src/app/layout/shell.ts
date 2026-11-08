@@ -1,4 +1,4 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { AuthService } from '../core/services/auth.service';
 
@@ -14,6 +14,7 @@ interface NavItem {
   imports: [RouterOutlet, RouterLink, RouterLinkActive],
   templateUrl: './shell.html',
   styleUrl: './shell.css',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ShellComponent {
   private readonly authService = inject(AuthService);

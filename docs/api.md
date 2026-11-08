@@ -82,7 +82,9 @@
 
 ## 4. Autenticación
 
-El frontend inicia sesión directamente con Supabase Auth y envía el token al backend. El backend valida el token con Supabase y obtiene `id`, `email` y `role`.
+El frontend inicia sesión directamente con Supabase Auth y envía el token al backend. El backend valida el token con Supabase, consulta `perfiles` y `usuario_roles`, y obtiene `id`, `email`, `role` y `estado`. El rol **no** se toma de los metadatos del JWT.
+
+> En HU01 solo se implementa `GET /api/auth/me`. El registro y el login desde backend quedan fuera del alcance.
 
 ### 4.1. `POST /api/auth/register`
 
@@ -119,33 +121,45 @@ No recomendado si el frontend usa el SDK de Supabase. Si se implementa, devuelve
 
 ### 4.3. `POST /api/auth/logout`
 
-Cierra la sesión en Supabase (revoca el refresh token del cliente). El frontend también puede hacerlo directamente.
+No se implementa en el backend. El frontend cierra la sesión directamente con `supabase.auth.signOut()`, que revoca el refresh token. El backend rechazará el access token a partir de ese momento.
 
 ### 4.4. `GET /api/auth/me`
 
-Devuelve el perfil y los roles del usuario autenticado.
+Devuelve el perfil, el rol y el estado del usuario autenticado. Requiere `Authorization: Bearer <access_token>`.
 
 ```json
 {
   "success": true,
   "data": {
     "id": "3f2b7e5c-1a4d-4c8e-9f10-2b6d8a7c9e01",
-    "correo": "ana@universidad.edu",
+    "email": "ana@universidad.edu",
     "nombre": "Ana",
     "apellido": "Pérez",
-    "roles": ["estudiante"],
-    "estado": "activo"
+    "correo": "ana@universidad.edu",
+    "estado": "activo",
+    "role": "estudiante",
+    "roles": ["estudiante"]
   }
 }
 ```
+
+**Errores**
+
+| Código | Causa |
+|---|---|
+| `401` | Token ausente, vencido o inválido. |
+| `403` | Perfil inexistente o cuenta con `estado = 'inactivo'`. |
+| `503` | Supabase no configurado en el backend. |
 
 ## 5. Perfil
 
 ### `GET /api/usuarios/perfil`
 
-Devuelve el perfil del usuario autenticado (HU01, HU02).
+Devuelve el perfil del usuario autenticado. En HU01 el frontend usa `GET /api/auth/me`; este endpoint queda para HU02.
 
 ### `PUT /api/usuarios/perfil`
+
+Pendiente para HU02. Contrato previsto:
 
 **Body** (todos los campos opcionales)
 

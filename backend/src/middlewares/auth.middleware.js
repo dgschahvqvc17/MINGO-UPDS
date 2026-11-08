@@ -3,7 +3,8 @@
  * Adjunta el usuario autenticado en req.user.
  */
 const config = require('../config/environment');
-const { supabaseAdmin } = require('../config/supabase');
+const { createSupabaseClient } = require('../config/supabase');
+const { createAuthService } = require('../container');
 const ApiError = require('../utils/ApiError');
 
 async function authMiddleware(req, _res, next) {
@@ -24,21 +25,17 @@ async function authMiddleware(req, _res, next) {
       throw ApiError.serviceUnavailable('Supabase Auth no esta configurado en el servidor.');
     }
 
-    const { data, error } = await supabaseAdmin.auth.getUser(token);
+    const client = createSupabaseClient(token);
+    const { data, error } = await client.auth.getUser(token);
 
     if (error || !data?.user) {
       throw ApiError.unauthorized('Token invalido o expirado.');
     }
 
-    const user = data.user;
-
-    req.user = {
-      id: user.id,
-      email: user.email,
-      role: user.app_metadata?.role || user.user_metadata?.role || 'estudiante',
-      appMetadata: user.app_metadata || {},
-      userMetadata: user.user_metadata || {},
-    };
+    // El perfil y el rol se leen de la base de datos: es la fuente de verdad
+    // y permite rechazar cuentas deshabilitadas en cada solicitud.
+    // Se usa el cliente del usuario para que RLS se aplique tambien aqui.
+    req.user = await createAuthService(client).buildAuthenticatedUser(data.user);
     req.accessToken = token;
 
     return next();

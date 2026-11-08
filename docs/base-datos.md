@@ -79,6 +79,7 @@ erDiagram
         varchar apellido
         varchar correo
         varchar carrera
+        varchar estado
         timestamp fecha_creacion
     }
 
@@ -220,12 +221,15 @@ Extiende la información del usuario autenticado en Supabase.
 | `apellido` | `VARCHAR` | No | | Apellido del estudiante. |
 | `correo` | `VARCHAR` | No | | Correo de contacto. |
 | `carrera` | `VARCHAR` | Sí | | Carrera universitaria. |
+| `estado` | `VARCHAR` | No | | `activo` o `inactivo`. Una cuenta `inactivo` no puede iniciar sesión. |
 | `fecha_creacion` | `TIMESTAMP` | No | | Fecha de creación del perfil. |
 
 Reglas:
 
 - `id` y `auth_user_id` deben contener el mismo UUID.
 - El perfil se crea automáticamente con un trigger al registrarse en Supabase Auth.
+- El perfil se crea con `estado = 'activo'`. Solo el backend con la service role key (HU02) puede cambiarlo.
+- El backend rechaza con `403` cualquier token cuyo perfil esté `inactivo`.
 - No se guarda contraseña ni token en esta tabla.
 
 ### 3.2. `roles`
@@ -495,6 +499,8 @@ Regla: en preguntas de opción múltiple debe existir al menos una opción corre
 ```sql
 create extension if not exists vector;
 
+-- Implementación ejecutable de HU01: supabase/migrations/0001_hu01_auth.sql
+
 -- A. Usuarios y acceso
 create table public.perfiles (
   id uuid primary key references auth.users(id) on delete cascade,
@@ -503,7 +509,10 @@ create table public.perfiles (
   apellido varchar(100) not null default '',
   correo varchar(255) not null unique,
   carrera varchar(120),
-  fecha_creacion timestamptz not null default now()
+  estado varchar(20) not null default 'activo'
+    check (estado in ('activo', 'inactivo')),
+  fecha_creacion timestamptz not null default now(),
+  constraint perfiles_auth_user_id_coincide check (auth_user_id = id)
 );
 
 create table public.roles (

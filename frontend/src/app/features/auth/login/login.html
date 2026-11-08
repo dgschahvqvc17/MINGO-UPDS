@@ -17,8 +17,8 @@
         </div>
       }
 
-      @if (error()) {
-        <div class="alert alert-danger small" role="alert">{{ error() }}</div>
+      @if (errorMessage()) {
+        <div class="alert alert-danger small" role="alert">{{ errorMessage() }}</div>
       }
 
       <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
@@ -32,9 +32,10 @@
             autocomplete="email"
             placeholder="estudiante@universidad.edu"
             [class.is-invalid]="form.controls.email.touched && form.controls.email.invalid"
+            aria-describedby="email-error"
           />
           @if (form.controls.email.touched && form.controls.email.invalid) {
-            <div class="invalid-feedback">
+            <div id="email-error" class="invalid-feedback">
               @if (form.controls.email.errors?.['required']) {
                 El correo es obligatorio.
               } @else {
@@ -54,13 +55,14 @@
             autocomplete="current-password"
             placeholder="********"
             [class.is-invalid]="form.controls.password.touched && form.controls.password.invalid"
+            aria-describedby="password-error"
           />
           @if (form.controls.password.touched && form.controls.password.invalid) {
-            <div class="invalid-feedback">
+            <div id="password-error" class="invalid-feedback">
               @if (form.controls.password.errors?.['required']) {
                 La contrasena es obligatoria.
               } @else {
-                La contrasena debe tener al menos 6 caracteres.
+                La contrasena debe tener al menos 8 caracteres.
               }
             </div>
           }

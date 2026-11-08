@@ -51,9 +51,16 @@ if (!parsed.success) {
 const env = parsed.data;
 
 const isProd = env.NODE_ENV === 'production';
+const isTestEnv = env.NODE_ENV === 'test';
+
+// Las pruebas nunca deben usar credenciales reales ni llamar a Supabase.
+const supabaseUrl = isTestEnv ? '' : env.SUPABASE_URL;
+const supabaseAnonKey = isTestEnv ? '' : env.SUPABASE_ANON_KEY;
+const supabaseServiceRoleKey = isTestEnv ? '' : env.SUPABASE_SERVICE_ROLE_KEY;
 
 if (isProd) {
-  const required = ['SUPABASE_URL', 'SUPABASE_ANON_KEY', 'SUPABASE_SERVICE_ROLE_KEY'];
+  // La service role key es opcional: HU01 funciona con el token del usuario y RLS.
+  const required = ['SUPABASE_URL', 'SUPABASE_ANON_KEY'];
   const missing = required.filter((key) => !env[key]);
 
   if (missing.length > 0) {
@@ -66,16 +73,17 @@ if (isProd) {
 const config = {
   env: env.NODE_ENV,
   isProd,
-  isTest: env.NODE_ENV === 'test',
+  isTest: isTestEnv,
   port: env.PORT,
   apiPrefix: env.API_PREFIX,
   corsOrigins: env.CORS_ORIGINS.split(',').map((origin) => origin.trim()).filter(Boolean),
 
   supabase: {
-    url: env.SUPABASE_URL,
-    anonKey: env.SUPABASE_ANON_KEY,
-    serviceRoleKey: env.SUPABASE_SERVICE_ROLE_KEY,
-    isConfigured: Boolean(env.SUPABASE_URL && env.SUPABASE_SERVICE_ROLE_KEY),
+    url: supabaseUrl,
+    anonKey: supabaseAnonKey,
+    serviceRoleKey: supabaseServiceRoleKey,
+    isConfigured: Boolean(supabaseUrl && supabaseAnonKey),
+    hasServiceRole: Boolean(supabaseUrl && supabaseServiceRoleKey),
   },
 
   aws: {
