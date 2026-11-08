@@ -15,9 +15,10 @@ const createClientOptions = {
   },
 };
 
-const supabaseAdmin = config.supabase.isConfigured
-  ? createClient(config.supabase.url, config.supabase.serviceRoleKey, createClientOptions)
-  : null;
+const supabaseAdmin =
+  config.supabase.url && config.supabase.serviceRoleKey
+    ? createClient(config.supabase.url, config.supabase.serviceRoleKey, createClientOptions)
+    : null;
 
 /**
  * Crea un cliente autenticado con el access token del usuario.

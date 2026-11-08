@@ -78,7 +78,7 @@ router.get('/', controller.listar);
 router.post('/', requireRole('administrador'), controller.crear);
 ```
 
-- `auth.middleware.js`: valida el token y deja `req.user = { id, email, roles }`.
+- `auth.middleware.js`: valida el token, consulta el perfil y los roles en la base y deja `req.user = { id, email, nombre, apellido, correo, estado, role, roles }`. Rechaza cuentas `inactivo` con `403`.
 - `roles.middleware.js`: exige al menos uno de los roles indicados.
 - `validation.middleware.js`: valida `body`, `query` y `params` con Zod.
 - `error.middleware.js`: convierte errores a la forma estándar sin filtrar detalles internos.

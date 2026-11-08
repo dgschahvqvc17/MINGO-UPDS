@@ -55,7 +55,7 @@ Archivo `backend/.env` (no se versiona). Plantilla en `backend/.env.example`.
 | `CORS_ORIGINS` | Sí | `http://localhost:4200` | Orígenes separados por coma. |
 | `SUPABASE_URL` | Sí | `https://xxxx.supabase.co` | URL del proyecto. |
 | `SUPABASE_ANON_KEY` | Sí | `eyJ...` | Clave pública. |
-| `SUPABASE_SERVICE_ROLE_KEY` | Sí en prod | `eyJ...` | Clave privada; nunca al frontend. |
+| `SUPABASE_SERVICE_ROLE_KEY` | No | `eyJ...` | Operaciones administrativas; nunca al frontend. |
 | `AWS_REGION` | Sí | `us-east-1` | Una sola región. |
 | `AWS_ACCESS_KEY_ID` | Solo local | `AKIA...` | En Lambda se usa el rol IAM. |
 | `AWS_SECRET_ACCESS_KEY` | Solo local | `...` | En Lambda se usa el rol IAM. |
@@ -77,23 +77,41 @@ Archivo `backend/.env` (no se versiona). Plantilla en `backend/.env.example`.
 
 ### 3.2. Frontend
 
+La configuración local vive en `frontend/.env` (no se versiona). Plantilla en `frontend/.env.example`:
+
+```bash
+SUPABASE_URL=https://tu-proyecto.supabase.co
+SUPABASE_ANON_KEY=tu-clave-publica-anon
+```
+
 Archivos:
 
-- `frontend/src/environments/environment.ts` (desarrollo)
-- `frontend/src/environments/environment.prod.ts` (producción)
+- `frontend/src/environments/environment.model.ts` (contrato `Environment`, versionado)
+- `frontend/src/environments/environment.ts` (desarrollo, reexporta el archivo generado)
+- `frontend/src/environments/environment.production.ts` (producción, reexporta el archivo generado)
+- `frontend/src/environments/environment.generated.ts` y `environment.production.generated.ts` (generados, **no** versionados)
 
-| Campo | Ejemplo | Descripción |
+| Variable de `.env` | Campo generado | Descripción |
 |---|---|---|
-| `production` | `false` | Bandera de Angular. |
-| `apiUrl` | `/api` o URL de API Gateway | Base de la API. |
-| `supabaseUrl` | `https://xxxx.supabase.co` | URL pública. |
-| `supabaseAnonKey` | `eyJ...` | Clave pública `anon`. |
+| `SUPABASE_URL` | `supabaseUrl` | URL pública del proyecto. |
+| `SUPABASE_ANON_KEY` | `supabaseAnonKey` | Clave pública `anon` o `publishable`. |
+
+**Generación:**
+
+```bash
+cd frontend
+npm run env:generate
+```
+
+Ese comando crea los archivos `*.generated.ts` a partir de `frontend/.env`. Los scripts `npm start`, `npm run build` y `npm test` lo ejecutan automáticamente (`prestart`, `prebuild`, `pretest`), por lo que no hace falta correrlo a mano.
 
 **Reglas:**
 
-- El frontend solo usa la clave `anon`. Nunca `service_role`, AWS keys ni claves de IA.
+- Las claves **no** se escriben en archivos versionados. Solo viven en `frontend/.env` local o en variables del pipeline.
+- El frontend solo usa la clave pública `anon`/`publishable`. Nunca `service_role`, AWS keys ni claves de IA.
 - `apiUrl` en desarrollo puede ser `/api` con proxy; en producción apunta a API Gateway.
-- No commitear valores reales de producción si el repositorio es público. En ese caso, inyectarlos en el build de CI.
+- En CI, definir `SUPABASE_URL` y `SUPABASE_ANON_KEY` como variables del pipeline; el script las toma del entorno si no existe `frontend/.env`.
+- Si faltan las variables, el build funciona pero el inicio de sesión queda deshabilitado y se muestra una advertencia.
 
 ## 4. Ejecución local
 
@@ -124,6 +142,8 @@ Salida esperada:
 ```bash
 cd frontend
 npm install
+copy .env.example .env
+# completar SUPABASE_URL y SUPABASE_ANON_KEY
 npm start
 ```
 
@@ -156,6 +176,21 @@ Aplicar migraciones:
 npx supabase link --project-ref <PROJECT_REF>
 npx supabase db push
 ```
+
+Si no usas la CLI, abre **SQL Editor** en el panel de Supabase, pega el contenido de `supabase/migrations/0001_hu01_auth.sql` y ejecútalo una vez. Es idempotente.
+
+### 4.5. Usuarios de prueba de HU01
+
+El registro público de Supabase exige confirmación de correo y tiene un límite de envíos. Para desarrollo se crearon dos cuentas confirmadas directamente en el proyecto:
+
+| Correo | Rol |
+|---|---|
+| `estudiante@mingoacademico.com` | `estudiante` |
+| `admin@mingoacademico.com` | `administrador` |
+
+La contraseña de estas cuentas se comparte por el canal interno del equipo y no se versiona en el repositorio. Para crear más cuentas de prueba, usa el panel de Supabase o `supabase.auth.admin.createUser` con la clave `service_role` desde un script local que no se commitee.
+
+> Las cuentas de prueba solo deben existir en el proyecto de desarrollo. No crearlas en producción.
 
 ## 5. Empaquetado del backend para Lambda
 

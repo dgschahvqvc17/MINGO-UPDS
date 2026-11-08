@@ -509,7 +509,10 @@ submit(): void {
 - Paginar listas grandes.
 - Cancelar búsquedas anteriores con `switchMap`.
 - Optimizar imágenes (tamaño, formato, `loading="lazy"`).
-- Revisar los budgets de Angular en `angular.json`; no subirlos sin justificar.
+- Revisar los budgets de Angular en `angular.json`; no subirlos sin justificar. El
+  presupuesto `anyComponentStyle` está en 6 kB de advertencia y 8 kB de error porque el shell
+  (`sidebar` + `topbar`) es el componente de layout más grande; el resto de componentes debe
+  mantenerse muy por debajo de ese límite.
 - Medir con Lighthouse o DevTools antes de optimizar.
 
 ```html

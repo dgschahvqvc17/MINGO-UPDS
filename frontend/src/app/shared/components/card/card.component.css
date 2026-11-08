@@ -1,0 +1,24 @@
+.app-card {
+  --bs-card-bg: var(--mingo-surface);
+  --bs-card-border-color: var(--mingo-border);
+  --bs-card-border-radius: var(--mingo-radius-lg);
+  --bs-card-color: var(--mingo-text);
+  color: var(--mingo-text);
+}
+
+.app-card {
+  background: var(--mingo-surface);
+  border: 1px solid var(--mingo-border);
+  border-radius: var(--mingo-radius-lg);
+  box-shadow: var(--mingo-shadow-card);
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    transform 0.2s ease;
+}
+
+.app-card--hover:hover {
+  border-color: rgba(37, 99, 235, 0.5);
+  box-shadow: var(--mingo-shadow-glow);
+  transform: translateY(-2px);
+}

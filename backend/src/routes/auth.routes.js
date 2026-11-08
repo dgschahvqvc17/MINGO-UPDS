@@ -1,7 +1,12 @@
 const { Router } = require('express');
+const authMiddleware = require('../middlewares/auth.middleware');
+const asyncHandler = require('../utils/asyncHandler');
+const { authController } = require('../container');
 
 const router = Router();
 
-// TODO Sprint 1 (HU01): registro, inicio y cierre de sesion con Supabase Auth.
+// El cierre de sesion lo realiza el frontend con supabase.auth.signOut(),
+// que revoca el refresh token. No se expone un endpoint de logout.
+router.get('/me', authMiddleware, asyncHandler(authController.me));
 
 module.exports = router;

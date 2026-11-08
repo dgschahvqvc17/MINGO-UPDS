@@ -1,0 +1,111 @@
+<div class="app-layout" (document:keydown.escape)="closeMenu()">
+  @if (menuOpen()) {
+    <div class="sidebar-backdrop d-lg-none" (click)="closeMenu()"></div>
+  }
+
+  <aside class="sidebar" [class.open]="menuOpen()" aria-label="Navegacion principal">
+    <div class="brand">
+      <span class="brand-mark"><i class="bi bi-mortarboard-fill" aria-hidden="true"></i></span>
+      <div class="brand-copy">
+        <div class="brand-name">MINGO</div>
+        <div class="brand-subtitle">Plataforma academica</div>
+      </div>
+      <button
+        class="btn-icon sidebar-close d-lg-none"
+        type="button"
+        aria-label="Cerrar menu"
+        (click)="closeMenu()"
+      >
+        <i class="bi bi-x-lg" aria-hidden="true"></i>
+      </button>
+    </div>
+
+    <nav class="sidebar-nav">
+      @for (section of navSections(); track section.title) {
+        <div class="nav-section">
+          <span class="nav-section-title">{{ section.title }}</span>
+          @for (item of section.items; track item.path) {
+            <a
+              class="nav-item"
+              [routerLink]="item.path"
+              routerLinkActive="active"
+              (click)="closeMenu()"
+            >
+              <span class="nav-icon"><i class="bi {{ item.icon }}" aria-hidden="true"></i></span>
+              <span class="nav-label">{{ item.label }}</span>
+              @if (item.ai) {
+                <span class="nav-ai">IA</span>
+              }
+            </a>
+          }
+        </div>
+      }
+    </nav>
+
+    <div class="ai-promo">
+      <span class="ai-badge"><i class="bi bi-stars" aria-hidden="true"></i> Asistente IA</span>
+      <p class="ai-promo-title">Estudia con contexto RAG</p>
+      <p class="ai-promo-text">
+        Sube tus documentos y consulta resumenes, explicaciones y cuestionarios generados con IA.
+      </p>
+      <a class="ai-promo-link" routerLink="/asistente-ia" (click)="closeMenu()">
+        Abrir asistente <i class="bi bi-arrow-right" aria-hidden="true"></i>
+      </a>
+    </div>
+
+    <div class="sidebar-footer">
+      <span class="status-dot" aria-hidden="true"></span>
+      <span>Sistema operativo</span>
+      <span class="ms-auto">v1.0</span>
+    </div>
+  </aside>
+
+  <div class="main-area">
+    <header class="topbar">
+      <div class="topbar-left d-flex align-items-center gap-2">
+        <button
+          class="btn-icon d-lg-none"
+          type="button"
+          aria-label="Abrir menu"
+          (click)="menuOpen.set(true)"
+        >
+          <i class="bi bi-list" aria-hidden="true"></i>
+        </button>
+
+        <div class="topbar-heading">
+          <span class="topbar-eyebrow">Panel academico</span>
+          <h1 class="topbar-title">{{ sectionTitle }}</h1>
+        </div>
+      </div>
+
+      <div class="topbar-actions d-flex align-items-center gap-2">
+        <span class="badge-role d-none d-sm-inline-flex">
+          <i class="bi bi-person-badge" aria-hidden="true"></i>
+          {{ role() }}
+        </span>
+
+        <div class="user-chip d-flex align-items-center gap-2">
+          <span class="user-avatar" aria-hidden="true">{{ initials() }}</span>
+          <span class="user-meta d-none d-md-flex">
+            <strong>{{ fullName() || 'Usuario MINGO' }}</strong>
+            <small>{{ email() }}</small>
+          </span>
+        </div>
+
+        <button
+          class="btn-icon btn-icon--danger"
+          type="button"
+          aria-label="Cerrar sesion"
+          title="Cerrar sesion"
+          (click)="logout()"
+        >
+          <i class="bi bi-box-arrow-right" aria-hidden="true"></i>
+        </button>
+      </div>
+    </header>
+
+    <main class="content">
+      <router-outlet />
+    </main>
+  </div>
+</div>

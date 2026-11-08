@@ -13,6 +13,9 @@ coverage/
 !.env.example
 *.local
 
+# Configuracion generada del frontend (se crea desde frontend/.env)
+frontend/src/environments/*.generated.ts
+
 # Logs
 *.log
 npm-debug.log*
