@@ -32,6 +32,8 @@ MINGO/
 │       └── app.routes.ts
 │
 ├── docs/                    documentacion tecnica y de proceso
+├── AGENTS.md                reglas obligatorias para agentes de IA
+├── opencode.jsonc           carga automatica de reglas en OpenCode
 ├── problemaInicial.md
 ├── historiasUsuarios.md
 └── tecnologias.md
@@ -85,7 +87,11 @@ La documentación técnica y de proceso vive en [`docs/`](docs/README.md):
 
 | Documento | Contenido |
 |---|---|
-| [Reglas de AWS](docs/reglas-aws.md) | Obligatorio: solo serverless, solo capa gratuita, lista blanca/negra, límites, presupuestos y apagado de emergencia. |
+| [Reglas AWS para agentes](docs/reglas-aws-agente.md) | Obligatorio: solo capa gratuita, solo serverless, prohibición de máquinas virtuales y regla de preguntar al usuario. |
+| [Reglas de AWS](docs/reglas-aws.md) | Detalle completo: lista blanca/negra, límites, presupuestos y apagado de emergencia. |
+| [Buenas prácticas](docs/buenas-practicas.md) | Clean Code, SOLID, nombres, funciones, errores, pruebas y revisión. |
+| [Buenas prácticas backend](docs/buenas-practicas-backend.md) | Capas, Express, Zod, Supabase, AWS, IA, seguridad y pruebas. |
+| [Buenas prácticas frontend](docs/buenas-practicas-frontend.md) | Angular 21, signals, RxJS, formularios, accesibilidad, Bootstrap y rendimiento. |
 | [Arquitectura](docs/arquitectura.md) | Componentes, flujos, capas y despliegue. |
 | [Base de datos](docs/base-datos.md) | Modelo, relaciones, RLS, pgvector y migraciones. |
 | [API](docs/api.md) | Contrato REST, endpoints, errores y ejemplos. |
@@ -95,7 +101,7 @@ La documentación técnica y de proceso vive en [`docs/`](docs/README.md):
 | [Entornos y despliegue](docs/entornos-y-despliegue.md) | Variables de entorno, ejecución local, SAM, CI/CD y rollback. |
 | [Plan de pruebas](docs/plan-pruebas.md) | Estrategia, casos por módulo, RLS, pruebas de IA y criterios de aceptación. |
 
-> Antes de crear cualquier recurso en AWS, leer [docs/reglas-aws.md](docs/reglas-aws.md). Si el servicio no está en la lista blanca o puede generar cobros por estar encendido, no se usa.
+> Antes de crear cualquier recurso en AWS, leer [docs/reglas-aws-agente.md](docs/reglas-aws-agente.md) y [docs/reglas-aws.md](docs/reglas-aws.md). Si el servicio no está en la lista blanca, no es serverless o puede generar cobros por estar encendido, no se usa. Ante cualquier duda, se pregunta al usuario.
 
 ## Convenciones de API
 

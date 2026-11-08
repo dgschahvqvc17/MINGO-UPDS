@@ -1,0 +1,11 @@
+{
+  // Configuración de OpenCode para el proyecto MINGO.
+  // AGENTS.md se carga automáticamente; aquí se agregan las reglas detalladas.
+  "$schema": "https://opencode.ai/config.json",
+  "instructions": [
+    "docs/reglas-aws-agente.md",
+    "docs/buenas-practicas.md",
+    "docs/buenas-practicas-backend.md",
+    "docs/buenas-practicas-frontend.md"
+  ]
+}
