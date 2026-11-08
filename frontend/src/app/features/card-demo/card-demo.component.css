@@ -1,0 +1,17 @@
+.card-demo {
+  max-width: 600px;
+  margin: 2rem auto;
+}
+
+.card-title {
+  color: var(--mingo-text);
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+}
+
+.card-description {
+  color: var(--mingo-muted);
+  font-size: 1rem;
+  line-height: 1.6;
+}

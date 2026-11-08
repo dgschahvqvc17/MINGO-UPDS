@@ -1,0 +1,40 @@
+.quick-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.quick-link {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  text-decoration: none;
+  color: var(--mingo-text);
+  transition: color 0.2s ease;
+}
+
+.quick-link:hover {
+  color: var(--mingo-primary);
+}
+
+.icon-badge {
+  display: inline-flex;
+  align-items: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 0.5rem;
+  background: rgba(148, 163, 184, 0.1);
+  border: 1px solid var(--mingo-border);
+  color: var(--mingo-muted);
+  font-size: 1rem;
+}
+
+.quick-link-copy {
+  flex: 1;
+}
+
+.quick-link-arrow {
+  margin-left: auto;
+  color: var(--mingo-muted);
+  font-size: 0.8rem;
+}

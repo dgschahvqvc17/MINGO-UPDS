@@ -1,0 +1,43 @@
+.ai-indicator {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  background:
+    radial-gradient(140px circle at 100% 0%, rgba(56, 189, 248, 0.22), transparent 70%),
+    rgba(37, 99, 235, 0.1);
+  border: 1px solid rgba(37, 99, 235, 0.35);
+  border-radius: var(--mingo-radius-lg);
+  padding: 1rem;
+  box-shadow: var(--mingo-shadow-card);
+}
+
+.ai-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.32rem 0.7rem;
+  border-radius: 999px;
+  background: var(--mingo-ai-soft);
+  border: 1px solid rgba(56, 189, 248, 0.35);
+  color: var(--mingo-ai);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  box-shadow: 0 0 16px rgba(56, 189, 248, 0.12);
+  white-space: nowrap;
+}
+
+.ai-indicator-title {
+  margin: 0;
+  color: #ffffff;
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.ai-indicator-text {
+  margin: 0;
+  color: var(--mingo-muted);
+  font-size: 0.85rem;
+  line-height: 1.4;
+}

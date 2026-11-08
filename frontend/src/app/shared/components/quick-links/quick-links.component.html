@@ -1,0 +1,14 @@
+<div class="quick-grid">
+  @for (link of quickLinks; track link.path) {
+    <a class="quick-link" [routerLink]="link.path">
+      <span class="icon-badge">
+        <i class="bi {{ link.icon }}" aria-hidden="true"></i>
+      </span>
+      <span class="quick-link-copy">
+        <strong>{{ link.label }}</strong>
+        <small>{{ link.description }}</small>
+      </span>
+      <i class="bi bi-chevron-right quick-link-arrow" aria-hidden="true"></i>
+    </a>
+  }
+</div>

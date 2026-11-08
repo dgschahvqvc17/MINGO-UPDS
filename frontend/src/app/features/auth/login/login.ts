@@ -47,9 +47,7 @@ export class LoginPage {
       const target = returnUrl?.startsWith('/') ? returnUrl : this.authService.homeRoute();
       await this.router.navigateByUrl(target);
     } catch (error) {
-      this.error.set(
-        error instanceof Error ? error.message : 'No fue posible iniciar sesion.',
-      );
+      this.error.set(error instanceof Error ? error.message : 'No fue posible iniciar sesion.');
     } finally {
       this.loading.set(false);
     }
