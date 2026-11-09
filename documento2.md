@@ -1,992 +1,1531 @@
-# Documentación Técnica: Implementación CRUD de Administración de Usuarios
+# Documentación Técnica Backend: HU01 y HU02
 
-## 📋 Descripción del Proyecto
+## 📋 Descripción general
 
-**Proyecto:** MINGO - Plataforma Académica Inteligente  
-**Módulo:** Administración de Usuarios y Roles (HU02)  
-**Tecnologías:** Node.js 24 + Express 5 (Backend), Angular 21 (Frontend), PostgreSQL + pgvector  
-**Arquitectura:** MVC (Model-View-Controller) con capas adicionales
+| Campo | Valor |
+|---|---|
+| **Proyecto** | MINGO - Plataforma Académica Inteligente |
+| **Módulos documentados** | HU01: Inicio de sesión en el sistema<br>HU02: Administración de usuarios y roles |
+| **Alcance del documento** | Backend (Node.js + Express 5) |
+| **Stack backend** | Node.js 24, Express 5, CommonJS, Zod, Supabase (PostgreSQL + Auth), Jest + Supertest |
+| **Arquitectura** | Por capas: `routes → controllers → services → repositories → infrastructure` |
+| **Base de datos** | PostgreSQL en Supabase con RLS activo |
+| **Autenticación** | Supabase Auth (JWT) |
+| **Estado** | HU01 y HU02 implementadas; documentación de frontend fuera del alcance |
 
-## 🎯 Descripción del Módulo Implementado
+> **Nota de alcance:** este documento describe únicamente la implementación del **backend** de las historias HU01 y HU02. La pantalla de login, los guards, los interceptores y los componentes de administración del frontend no forman parte de este documento.
 
-### Objetivo
-Implementar un sistema completo de administración de usuarios que permita a los administradores gestionar usuarios, asignar roles y controlar el acceso dentro de la plataforma académica MINGO.
+---
 
-### Funcionalidades Principales
-1. **Listado de usuarios** con búsqueda y filtros
-2. **Consulta detallada** de información de usuario
-3. **Asignación y modificación** de roles (administrador/estudiante)
-4. **Activación/desactivación** de usuarios
-5. **Validaciones de seguridad** para prevenir auto-modificación
-6. **Control de acceso** basado en roles
-7. **Paginación** y estadísticas
+## 🎯 Historias de usuario implementadas
 
-### Reglas de Negocio
-- Solo usuarios con rol "administrador" pueden acceder al módulo
-- Un usuario no puede modificar sus propios privilegios
-- No se puede remover al único administrador del sistema
-- Los roles "administrador" y "estudiante" no pueden coexistir
-- Validación de datos con esquemas Zod
+### HU01: Iniciar sesión en el sistema
 
-## 🛠️ Configuración del Entorno de Desarrollo
+**Como** usuario registrado, **quiero** iniciar sesión en el sistema utilizando mis credenciales para acceder a las funcionalidades correspondientes a mi rol.
 
-### Requisitos del Sistema
+**Objetivo backend:** validar el token emitido por Supabase Auth, verificar que la cuenta exista y esté habilitada, resolver el rol real desde la base de datos y devolver el perfil autenticado. Además, proteger todos los endpoints privados con el mismo mecanismo.
+
+**Requerimientos funcionales y su cobertura en el backend**
+
+| Requerimiento | Implementación backend |
+|---|---|
+| Autenticar al usuario mediante Supabase Auth | `authMiddleware` valida el JWT con `client.auth.getUser(token)`. |
+| Verificar que el usuario se encuentre activo | `AuthService.buildAuthenticatedUser` rechaza `estado = 'inactivo'` con `403`. |
+| Identificar el rol del usuario autenticado | `AuthService` consulta `usuario_roles` y `roles`; nunca lee el rol desde los metadatos del JWT. |
+| Proteger las funcionalidades que requieren autenticación | `authMiddleware` se aplica a todos los routers privados. |
+| Impedir el acceso a usuarios deshabilitados | La verificación se repite en cada solicitud, por lo que una cuenta desactivada pierde acceso de inmediato. |
+| Permitir cerrar sesión de forma segura | El cierre de sesión se realiza en Supabase Auth; el backend deja de aceptar el token revocado. No se expone endpoint de logout. |
+| Exponer el perfil autenticado | `GET /api/auth/me` devuelve `id`, `email`, `nombre`, `apellido`, `correo`, `estado`, `role` y `roles`. |
+
+**Reglas de negocio**
+
+- El `usuario_id` **siempre** se obtiene del token validado; nunca del cuerpo o de los parámetros enviados por el cliente.
+- El rol **no** se toma de `user_metadata` ni de `app_metadata` del JWT: la fuente de verdad es la tabla `usuario_roles`.
+- Si el usuario tiene varios roles, `administrador` tiene prioridad sobre `estudiante`.
+- Un usuario sin roles válidos conserva el privilegio mínimo: `estudiante`.
+- Un token válido sin perfil asociado responde `403`.
+- Una cuenta con `estado = 'inactivo'` responde `403`.
+- El registro y el login desde backend quedan fuera del alcance; el frontend usa el SDK de Supabase Auth.
+
+---
+
+### HU02: Administrar usuarios y roles
+
+**Como** administrador, **quiero** administrar los usuarios y sus roles para controlar el acceso a las funcionalidades de MINGO.
+
+**Objetivo backend:** exponer un módulo administrativo que permita listar, consultar, buscar, asignar roles y activar/desactivar usuarios, con validaciones de seguridad que impidan la auto-modificación y la pérdida del último administrador.
+
+**Funcionalidades implementadas**
+
+1. Listado paginado de usuarios con búsqueda y filtros.
+2. Consulta detallada de un usuario con sus roles.
+3. Búsqueda rápida por nombre, apellido o correo.
+4. Consulta del catálogo de roles disponibles.
+5. Actualización de roles de un usuario.
+6. Activación y desactivación de usuarios.
+7. Estadísticas para el panel administrativo.
+8. Control de acceso exclusivo para administradores.
+9. Validación de entradas con Zod.
+10. Protección contra la auto-modificación y contra la eliminación del último administrador.
+
+**Reglas de negocio**
+
+- Solo usuarios con rol `administrador` acceden al módulo.
+- Un usuario no puede modificar sus propios roles ni su propio estado.
+- No se puede remover el rol `administrador` al último administrador del sistema.
+- No se puede desactivar al último administrador del sistema.
+- Los únicos roles válidos son `administrador` y `estudiante`.
+- Un usuario no puede acumular múltiples roles de administrador.
+- Un recurso inexistente responde `404`.
+- Los cambios de roles se ejecutan en una transacción para evitar estados intermedios.
+- Toda operación administrativa devuelve metadatos de auditoría (`operacion`).
+
+---
+
+## 🛠️ Configuración del entorno backend
+
+### Requisitos
+
 ```bash
-# Versiones requeridas
 Node.js: 24.x
-PostgreSQL: 15+
-Angular CLI: 21.x
+PostgreSQL: 15+ (Supabase)
 npm: 10.x
 ```
 
-### Instalación y Configuración
+### Instalación
+
 ```bash
-# 1. Clonar repositorio
 git clone <repo-url>
-cd MINGO
-
-# 2. Instalar dependencias del backend
-cd backend
+cd MINGO/backend
 npm install
-
-# 3. Configurar variables de entorno
 cp .env.example .env
-# Editar .env con credenciales de Supabase
+# Completar .env con las credenciales del proyecto de Supabase
+npm run dev
+```
 
-# 4. Instalar dependencias del frontend
-cd ../frontend
-npm install
+### Variables de entorno
 
-# 5. Ejecutar servidor de desarrollo
-# Backend
-cd backend
+```env
+# Entorno
+NODE_ENV=development
+PORT=4000
+API_PREFIX=/api
+CORS_ORIGINS=http://localhost:4200
+
+# Supabase (Project Settings > API)
+# SUPABASE_SERVICE_ROLE_KEY es opcional: solo para operaciones administrativas.
+SUPABASE_URL=
+SUPABASE_ANON_KEY=
+SUPABASE_SERVICE_ROLE_KEY=
+
+# AWS (solo servicios de la lista blanca, sin recursos ociosos)
+AWS_REGION=us-east-1
+AWS_ACCESS_KEY_ID=
+AWS_SECRET_ACCESS_KEY=
+AWS_S3_BUCKET=mingo-documentos
+AWS_LAMBDA_FUNCTION_NAME=mingo-document-processor
+AWS_SNS_TOPIC_ARN=
+AWS_SQS_QUEUE_URL=
+
+# Inteligencia artificial
+AI_PROVIDER=openai
+AI_API_KEY=
+AI_BASE_URL=
+AI_CHAT_MODEL=gpt-4o-mini
+AI_EMBEDDING_MODEL=text-embedding-3-small
+AI_EMBEDDING_DIMENSIONS=1536
+
+# Límites
+MAX_UPLOAD_MB=20
+RATE_LIMIT_WINDOW_MINUTES=15
+RATE_LIMIT_MAX_REQUESTS=300
+```
+
+**Reglas de configuración**
+
+- `SUPABASE_URL` y `SUPABASE_ANON_KEY` son obligatorias en producción.
+- HU01 funciona con el token del usuario y RLS; no requiere `service_role`.
+- HU02 requiere `SUPABASE_SERVICE_ROLE_KEY` para las operaciones administrativas.
+- La `service_role` nunca se expone al frontend ni se registra en logs.
+- En `NODE_ENV=test` el backend ignora las credenciales reales y no llama a Supabase.
+
+### Comandos
+
+```bash
+# Desarrollo
 npm run dev
 
-# Frontend
-cd frontend
-npm start
+# Pruebas
+npm test
+
+# Lint
+npm run lint
+
+# Formato
+npm run format
 ```
 
-### Estructura de Variables de Entorno
-```env
-# Backend (.env)
-NODE_ENV=development
-PORT=3000
-SUPABASE_URL=https://tu-proyecto.supabase.co
-SUPABASE_ANON_KEY=tu-clave-anon
-SUPABASE_SERVICE_ROLE_KEY=tu-clave-service-role
-JWT_SECRET=tu-secreto-jwt
+### Migración de base de datos
 
-# Frontend (.env)
-VITE_SUPABASE_URL=https://tu-proyecto.supabase.co
-VITE_SUPABASE_ANON_KEY=tu-clave-anon
-VITE_API_URL=http://localhost:3000/api
+La implementación ejecutable de HU01 se encuentra en:
+
+```text
+supabase/migrations/0001_hu01_auth.sql
 ```
 
-## 🏗️ Estructura del Proyecto bajo MVC
+Se aplica desde el **SQL Editor** de Supabase o con la CLI. El script es idempotente y contiene tablas, catálogo de roles, trigger de registro, relleno de perfiles existentes y políticas RLS.
 
-### Backend - Arquitectura por Capas
-```
+---
+
+## 🏗️ Estructura del backend
+
+```text
 backend/
 ├── src/
-│   ├── config/           # Configuración
-│   │   ├── environment.js
-│   │   ├── supabase.js
-│   │   └── aws.js
-│   ├── models/           # Modelos Zod
-│   │   └── usuario.model.js
-│   ├── controllers/      # Controladores
-│   │   └── usuario-admin.controller.js
-│   ├── services/         # Lógica de negocio
-│   │   └── usuario-admin.service.js
-│   ├── repositories/     # Acceso a datos
-│   │   └── usuario-admin.repository.js
-│   ├── middlewares/      # Middlewares
-│   │   ├── auth.middleware.js
-│   │   ├── admin.middleware.js
-│   │   ├── validation.middleware.js
-│   │   └── no-self-modification.middleware.js
-│   ├── routes/           # Rutas
-│   │   └── usuario.routes.js
-│   └── utils/           # Utilidades
-│       ├── ApiError.js
-│       └── asyncHandler.js
+│   ├── config/
+│   │   ├── environment.js        # Validación de variables de entorno con Zod
+│   │   └── supabase.js           # Clientes de Supabase (usuario y service_role)
+│   ├── models/
+│   │   └── usuario.model.js      # Esquemas Zod de HU02
+│   ├── controllers/
+│   │   ├── auth.controller.js    # HU01: perfil autenticado
+│   │   └── usuario-admin.controller.js  # HU02: administración
+│   ├── services/
+│   │   ├── auth.service.js       # HU01: perfil, estado y roles
+│   │   └── usuario-admin.service.js     # HU02: reglas de negocio
+│   ├── repositories/
+│   │   ├── usuario.repository.js        # HU01: lectura de perfil y roles
+│   │   └── usuario-admin.repository.js  # HU02: consultas administrativas
+│   ├── middlewares/
+│   │   ├── auth.middleware.js           # HU01: valida JWT
+│   │   ├── admin.middleware.js          # HU02: exige rol administrador
+│   │   ├── no-self-modification.middleware.js  # HU02
+│   │   ├── validation.middleware.js     # Validación Zod reutilizable
+│   │   └── error.middleware.js          # Manejo central de errores
+│   ├── routes/
+│   │   ├── index.js                     # Router principal
+│   │   ├── auth.routes.js               # HU01
+│   │   └── usuario.routes.js            # HU02
+│   ├── utils/
+│   │   ├── ApiError.js
+│   │   └── asyncHandler.js
+│   ├── container.js                     # Composición de dependencias
+│   ├── app.js                           # App Express exportada para pruebas
+│   └── server.js                        # Arranque local
+├── tests/
+│   ├── auth.middleware.test.js
+│   ├── auth.routes.test.js
+│   ├── auth.service.test.js
+│   ├── health.test.js
+│   └── usuario-admin.service.test.js
+└── package.json
 ```
 
-### Frontend - Arquitectura Angular
-```
-frontend/
-├── src/app/
-│   ├── core/            # Servicios singleton
-│   │   └── services/
-│   │       └── usuario-admin.service.ts
-│   ├── features/        # Módulos funcionales
-│   │   └── administracion/
-│   │       ├── administracion.ts          # Componente principal
-│   │       ├── administracion.html
-│   │       ├── usuario-detalle/           # Detalles de usuario
-│   │       └── usuario-roles/             # Edición de roles
-│   ├── shared/          # Componentes reutilizables
-│   └── layout/          # Layout principal
+### Dirección de dependencias
+
+```text
+route → controller → service → repository → infrastructure
 ```
 
-## 🔗 Configuración de la Conexión a Base de Datos
+| Capa | Responsabilidad | Prohibido |
+|---|---|---|
+| `route` | Método, ruta y middlewares. | Lógica de negocio o consultas. |
+| `controller` | Traducir HTTP, validar y responder. | SQL o reglas complejas. |
+| `service` | Reglas de negocio y autorización de dominio. | `req`, `res` o SQL directo. |
+| `repository` | Acceso a datos y mapeo de filas. | HTTP o reglas de negocio. |
+| `middleware` | Autenticación, roles, validación y errores. | Lógica de un módulo específico. |
 
-### Configuración de Supabase
+---
+
+## 🗄️ Modelo de datos compartido
+
+HU01 y HU02 comparten las tablas de identidad: `perfiles`, `roles` y `usuario_roles`.
+
+```sql
+create table if not exists public.perfiles (
+  id uuid primary key references auth.users (id) on delete cascade,
+  auth_user_id uuid not null unique references auth.users (id) on delete cascade,
+  nombre varchar(100) not null default '',
+  apellido varchar(100) not null default '',
+  correo varchar(255) not null unique,
+  carrera varchar(120),
+  estado varchar(20) not null default 'activo',
+  fecha_creacion timestamptz not null default now(),
+  constraint perfiles_auth_user_id_coincide check (auth_user_id = id),
+  constraint perfiles_estado_check check (estado in ('activo', 'inactivo'))
+);
+
+create table if not exists public.roles (
+  id serial primary key,
+  nombre varchar(50) not null unique,
+  descripcion text
+);
+
+create table if not exists public.usuario_roles (
+  id serial primary key,
+  usuario_id uuid not null references public.perfiles (id) on delete cascade,
+  rol_id integer not null references public.roles (id) on delete restrict,
+  unique (usuario_id, rol_id)
+);
+```
+
+**Catálogo de roles**
+
+```sql
+insert into public.roles (nombre, descripcion)
+values
+  ('estudiante', 'Acceso a su espacio academico personal.'),
+  ('administrador', 'Acceso al panel administrativo y a la gestion de usuarios.')
+on conflict (nombre) do nothing;
+```
+
+**Tipos de identificadores**
+
+| Tabla | Clave primaria |
+|---|---|
+| `perfiles` | `UUID`, igual a `auth.users.id`. |
+| `roles` | `SERIAL`. |
+| `usuario_roles` | `SERIAL`, con unicidad en `(usuario_id, rol_id)`. |
+
+### Trigger de registro
+
+Al crear un usuario en Supabase Auth se crea su perfil y se le asigna el rol `estudiante` por defecto.
+
+```sql
+create or replace function public.handle_new_user()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  rol_estudiante_id integer;
+begin
+  insert into public.perfiles (id, auth_user_id, nombre, apellido, correo)
+  values (
+    new.id,
+    new.id,
+    coalesce(new.raw_user_meta_data ->> 'nombre', ''),
+    coalesce(new.raw_user_meta_data ->> 'apellido', ''),
+    coalesce(new.email, new.id::text || '@sin-correo.mingo')
+  )
+  on conflict (id) do nothing;
+
+  select id into rol_estudiante_id
+  from public.roles
+  where nombre = 'estudiante';
+
+  if rol_estudiante_id is not null then
+    insert into public.usuario_roles (usuario_id, rol_id)
+    values (new.id, rol_estudiante_id)
+    on conflict (usuario_id, rol_id) do nothing;
+  end if;
+
+  return new;
+end;
+$$;
+
+create trigger on_auth_user_created
+  after insert on auth.users
+  for each row execute function public.handle_new_user();
+```
+
+### RLS
+
+```sql
+alter table public.perfiles enable row level security;
+alter table public.roles enable row level security;
+alter table public.usuario_roles enable row level security;
+
+create policy perfiles_select_propio
+  on public.perfiles
+  for select
+  to authenticated
+  using (auth.uid() = id);
+
+create policy roles_select_autenticados
+  on public.roles
+  for select
+  to authenticated
+  using (true);
+
+create policy usuario_roles_select_propio
+  on public.usuario_roles
+  for select
+  to authenticated
+  using (auth.uid() = usuario_id);
+
+grant select on public.perfiles, public.roles, public.usuario_roles to authenticated;
+revoke insert, update, delete
+  on public.perfiles, public.roles, public.usuario_roles
+  from anon, authenticated;
+```
+
+**Decisiones de seguridad**
+
+- El usuario autenticado solo puede **leer** su propio perfil y sus propios roles.
+- No existe una política `for all` sobre `usuario_roles`, porque permitiría que un estudiante se asignara el rol `administrador`.
+- La escritura de perfiles y roles se realiza desde el backend con `service_role` después de validar el rol del solicitante.
+- En HU01 se usa el cliente del usuario para que RLS se aplique también en la lectura del perfil.
+
+---
+
+## 🔐 HU01: Inicio de sesión en el sistema
+
+### 1. Flujo de autenticación
+
+1. El usuario se autentica contra Supabase Auth desde el cliente y obtiene un `access_token`.
+2. El cliente envía el token al backend en el encabezado `Authorization: Bearer <access_token>`.
+3. `authMiddleware` valida el token con Supabase y obtiene el usuario de Auth.
+4. `AuthService.buildAuthenticatedUser` consulta el perfil en `perfiles` y los roles en `usuario_roles`.
+5. Si el perfil no existe o la cuenta está inactiva, responde `403`.
+6. Si todo es válido, adjunta `req.user` y `req.accessToken` y continúa la solicitud.
+7. `GET /api/auth/me` devuelve el perfil autenticado con su rol.
+
+```text
+Cliente ──Bearer JWT──> authMiddleware ──> Supabase Auth (getUser)
+                                │
+                                ├──> perfiles (estado)
+                                └──> usuario_roles + roles
+                                │
+                                v
+                        req.user { id, email, role, estado, roles }
+                                │
+                                v
+                        Controller / ruta protegida
+```
+
+### 2. Endpoint `GET /api/auth/me`
+
+**Request**
+
+```http
+GET /api/auth/me
+Authorization: Bearer <access_token>
+```
+
+**Respuesta `200`**
+
+```json
+{
+  "success": true,
+  "data": {
+    "id": "3f2b7e5c-1a4d-4c8e-9f10-2b6d8a7c9e01",
+    "email": "ana@universidad.edu",
+    "nombre": "Ana",
+    "apellido": "Perez",
+    "correo": "ana@universidad.edu",
+    "estado": "activo",
+    "role": "estudiante",
+    "roles": ["estudiante"]
+  }
+}
+```
+
+**Errores**
+
+| Código | Causa |
+|---|---|
+| `401` | Token ausente, vacío, inválido o expirado. |
+| `403` | Perfil inexistente o cuenta con `estado = 'inactivo'`. |
+| `503` | Supabase Auth no está configurado en el backend. |
+
+### 3. Implementación por capas
+
+#### 3.1. Ruta
+
 ```javascript
-// backend/src/config/supabase.js
-const { createClient } = require('@supabase/supabase-js');
-const environment = require('./environment');
+// backend/src/routes/auth.routes.js
+const { Router } = require('express');
+const authMiddleware = require('../middlewares/auth.middleware');
+const asyncHandler = require('../utils/asyncHandler');
+const { authController } = require('../container');
 
-// Cliente para operaciones estándar (con RLS)
-const supabase = createClient(
-  environment.supabaseUrl,
-  environment.supabaseAnonKey
-);
+const router = Router();
 
-// Cliente con service_role para operaciones administrativas (sin RLS)
-const supabaseAdmin = createClient(
-  environment.supabaseUrl,
-  environment.supabaseServiceRoleKey
-);
+// El cierre de sesión lo realiza el cliente con supabase.auth.signOut(),
+// que revoca el refresh token. No se expone un endpoint de logout.
+router.get('/me', authMiddleware, asyncHandler(authController.me));
 
-module.exports = { supabase, supabaseAdmin };
+module.exports = router;
 ```
 
-### Estructura de Base de Datos
-```sql
--- Tabla perfiles
-CREATE TABLE perfiles (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    nombre VARCHAR(100) NOT NULL,
-    apellido VARCHAR(100) NOT NULL,
-    correo VARCHAR(255) UNIQUE NOT NULL,
-    carrera VARCHAR(100),
-    estado VARCHAR(20) DEFAULT 'activo' CHECK (estado IN ('activo', 'inactivo')),
-    fecha_creacion TIMESTAMP DEFAULT NOW(),
-    FOREIGN KEY (id) REFERENCES auth.users(id) ON DELETE CASCADE
-);
+#### 3.2. Middleware
 
--- Tabla roles
-CREATE TABLE roles (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    nombre VARCHAR(50) UNIQUE NOT NULL,
-    descripcion TEXT
-);
+```javascript
+// backend/src/middlewares/auth.middleware.js
+const config = require('../config/environment');
+const { createSupabaseClient } = require('../config/supabase');
+const { createAuthService } = require('../container');
+const ApiError = require('../utils/ApiError');
 
--- Tabla de relación usuario_roles
-CREATE TABLE usuario_roles (
-    usuario_id UUID REFERENCES perfiles(id) ON DELETE CASCADE,
-    rol_id UUID REFERENCES roles(id) ON DELETE CASCADE,
-    PRIMARY KEY (usuario_id, rol_id)
-);
+async function authMiddleware(req, _res, next) {
+  try {
+    const header = req.headers.authorization || '';
 
--- Datos iniciales
-INSERT INTO roles (nombre, descripcion) VALUES
-    ('administrador', 'Usuario con privilegios completos del sistema'),
-    ('estudiante', 'Usuario con acceso limitado a funcionalidades de estudiante');
+    if (!header.startsWith('Bearer ')) {
+      throw ApiError.unauthorized('Se requiere un token Bearer.');
+    }
+
+    const token = header.slice('Bearer '.length).trim();
+
+    if (!token) {
+      throw ApiError.unauthorized('El token de acceso esta vacio.');
+    }
+
+    if (!config.supabase.isConfigured) {
+      throw ApiError.serviceUnavailable('Supabase Auth no esta configurado en el servidor.');
+    }
+
+    const client = createSupabaseClient(token);
+    const { data, error } = await client.auth.getUser(token);
+
+    if (error || !data?.user) {
+      throw ApiError.unauthorized('Token invalido o expirado.');
+    }
+
+    // El perfil y el rol se leen de la base de datos: es la fuente de verdad
+    // y permite rechazar cuentas deshabilitadas en cada solicitud.
+    req.user = await createAuthService(client).buildAuthenticatedUser(data.user);
+    req.accessToken = token;
+
+    return next();
+  } catch (error) {
+    return next(error);
+  }
+}
+
+module.exports = authMiddleware;
 ```
 
-### Políticas RLS (Row Level Security)
-```sql
--- Habilitar RLS
-ALTER TABLE perfiles ENABLE ROW LEVEL SECURITY;
-ALTER TABLE usuario_roles ENABLE ROW LEVEL SECURITY;
+#### 3.3. Servicio
 
--- Políticas para perfiles
-CREATE POLICY "Usuarios pueden ver su propio perfil" ON perfiles
-    FOR SELECT USING (auth.uid() = id);
+```javascript
+// backend/src/services/auth.service.js
+const ApiError = require('../utils/ApiError');
 
-CREATE POLICY "Administradores pueden ver todos los perfiles" ON perfiles
-    FOR SELECT USING (EXISTS (
-        SELECT 1 FROM usuario_roles ur
-        JOIN roles r ON ur.rol_id = r.id
-        WHERE ur.usuario_id = auth.uid() AND r.nombre = 'administrador'
-    ));
+const ROLE_ADMINISTRADOR = 'administrador';
+const ROLE_ESTUDIANTE = 'estudiante';
+const VALID_ROLES = new Set([ROLE_ADMINISTRADOR, ROLE_ESTUDIANTE]);
+const ACTIVE_STATE = 'activo';
 
--- Políticas para usuario_roles
-CREATE POLICY "Administradores pueden gestionar roles" ON usuario_roles
-    FOR ALL USING (EXISTS (
-        SELECT 1 FROM usuario_roles ur
-        JOIN roles r ON ur.rol_id = r.id
-        WHERE ur.usuario_id = auth.uid() AND r.nombre = 'administrador'
-    ));
+class AuthService {
+  constructor({ usuarioRepository }) {
+    this.usuarioRepository = usuarioRepository;
+  }
+
+  async buildAuthenticatedUser(user) {
+    if (!user?.id) {
+      throw ApiError.unauthorized('El token no contiene un usuario valido.');
+    }
+
+    const profile = await this.usuarioRepository.findById(user.id);
+
+    if (!profile) {
+      throw ApiError.forbidden(
+        'La cuenta no tiene un perfil asociado. Contacte al administrador.',
+      );
+    }
+
+    if (profile.estado !== ACTIVE_STATE) {
+      throw ApiError.forbidden('La cuenta esta deshabilitada. Contacte al administrador.');
+    }
+
+    const roles = await this.resolveRoles(user.id);
+
+    return {
+      id: profile.id,
+      email: user.email ?? profile.correo,
+      nombre: profile.nombre,
+      apellido: profile.apellido,
+      correo: profile.correo,
+      estado: profile.estado,
+      role: roles.includes(ROLE_ADMINISTRADOR) ? ROLE_ADMINISTRADOR : roles[0],
+      roles,
+    };
+  }
+
+  async resolveRoles(userId) {
+    const roleNames = await this.usuarioRepository.findRoleNames(userId);
+    const validRoles = [...new Set(roleNames.filter((name) => VALID_ROLES.has(name)))];
+
+    return validRoles.length > 0 ? validRoles : [ROLE_ESTUDIANTE];
+  }
+}
+
+module.exports = AuthService;
 ```
 
-## 📐 Implementación de Modelos
+#### 3.4. Repositorio
 
-### Modelo Zod para Validación
+```javascript
+// backend/src/repositories/usuario.repository.js
+class UsuarioRepository {
+  constructor({ supabase }) {
+    this.supabase = supabase;
+  }
+
+  async findById(userId) {
+    const { data, error } = await this.requireClient()
+      .from('perfiles')
+      .select('id, auth_user_id, nombre, apellido, correo, estado')
+      .eq('id', userId)
+      .maybeSingle();
+
+    if (error) {
+      throw error;
+    }
+
+    return data;
+  }
+
+  async findRoleNames(userId) {
+    const { data, error } = await this.requireClient()
+      .from('usuario_roles')
+      .select('roles ( nombre )')
+      .eq('usuario_id', userId);
+
+    if (error) {
+      throw error;
+    }
+
+    return (data ?? [])
+      .map((row) => row.roles?.nombre)
+      .filter((nombre) => typeof nombre === 'string');
+  }
+
+  requireClient() {
+    if (!this.supabase) {
+      throw new Error('Supabase no esta configurado en el servidor.');
+    }
+
+    return this.supabase;
+  }
+}
+
+module.exports = UsuarioRepository;
+```
+
+#### 3.5. Controlador
+
+```javascript
+// backend/src/controllers/auth.controller.js
+// El usuario lo resuelve authMiddleware; aquí solo se responde.
+class AuthController {
+  me = (req, res) => {
+    res.json({ success: true, data: req.user });
+  };
+}
+
+module.exports = AuthController;
+```
+
+#### 3.6. Composición de dependencias
+
+```javascript
+// backend/src/container.js
+const UsuarioRepository = require('./repositories/usuario.repository');
+const AuthService = require('./services/auth.service');
+
+/**
+ * Crea el servicio de autenticación con el cliente del usuario autenticado.
+ * Así RLS se aplica en la lectura del perfil y no se necesita service_role.
+ */
+function createAuthService(supabaseClient) {
+  const usuarioRepository = new UsuarioRepository({ supabase: supabaseClient });
+  return new AuthService({ usuarioRepository });
+}
+
+module.exports = {
+  createAuthService,
+  authController: new AuthController(),
+};
+```
+
+### 4. Pruebas de HU01
+
+| Archivo | Qué valida | Casos |
+|---|---|---|
+| `tests/auth.service.test.js` | Perfil activo, prioridad de rol, cuenta inactiva, perfil inexistente, roles vacíos y roles desconocidos. | 6 |
+| `tests/auth.middleware.test.js` | Rechazo sin token `Bearer` y respuesta `503` cuando Supabase no está configurado. | 2 |
+| `tests/auth.routes.test.js` | `GET /api/auth/me` devuelve el perfil y el rol resueltos por el middleware. | 1 |
+
+```javascript
+// Fragmento de tests/auth.service.test.js
+it('rechaza una cuenta inactiva sin consultar sus roles', async () => {
+  const { service, usuarioRepository } = buildService({
+    profile: { ...PROFILE, estado: 'inactivo' },
+  });
+
+  await expect(service.buildAuthenticatedUser(USER)).rejects.toMatchObject({
+    statusCode: 403,
+    message: expect.stringContaining('deshabilitada'),
+  });
+  expect(usuarioRepository.findRoleNames).not.toHaveBeenCalled();
+});
+```
+
+### 5. Archivos y commit de HU01
+
+```text
+backend/
+├── src/
+│   ├── config/environment.js
+│   ├── config/supabase.js
+│   ├── container.js
+│   ├── controllers/auth.controller.js
+│   ├── middlewares/auth.middleware.js
+│   ├── repositories/usuario.repository.js
+│   ├── routes/auth.routes.js
+│   └── services/auth.service.js
+└── tests/
+    ├── auth.middleware.test.js
+    ├── auth.routes.test.js
+    └── auth.service.test.js
+
+supabase/migrations/0001_hu01_auth.sql
+```
+
+```text
+feat(auth): implementar inicio de sesion de HU01
+
+- Validar el JWT de Supabase Auth en authMiddleware
+- Resolver perfil, estado y rol desde PostgreSQL
+- Exponer GET /api/auth/me
+- Agregar migración de perfiles, roles, trigger y RLS
+- Cubrir el servicio, el middleware y la ruta con pruebas
+```
+
+---
+
+## 👥 HU02: Administración de usuarios y roles
+
+### 1. Endpoints implementados
+
+Todas las rutas requieren `Authorization: Bearer <access_token>` y rol `administrador`.
+
+| Método | Endpoint | Descripción |
+|---|---|---|
+| `GET` | `/api/usuarios` | Lista usuarios con filtros, paginación y estadísticas. |
+| `GET` | `/api/usuarios/buscar?termino=<texto>&limit=<n>` | Búsqueda rápida por nombre, apellido o correo. |
+| `GET` | `/api/usuarios/roles` | Devuelve el catálogo de roles disponibles. |
+| `GET` | `/api/usuarios/:id` | Devuelve el detalle de un usuario con sus roles. |
+| `PATCH` | `/api/usuarios/:id/roles` | Actualiza los roles del usuario. |
+| `PATCH` | `/api/usuarios/:id/estado` | Activa o desactiva al usuario. |
+
+**Filtros de `GET /api/usuarios`**
+
+| Parámetro | Tipo | Valores |
+|---|---|---|
+| `query` | texto | Busca en nombre, apellido y correo. |
+| `estado` | enum | `activo`, `inactivo`. |
+| `rol` | enum | `administrador`, `estudiante`. |
+| `limit` | entero | `1–100`, por defecto `50`. |
+| `offset` | entero | `>= 0`, por defecto `0`. |
+
+### 2. Formato de respuesta
+
+**Listado**
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440000",
+      "nombre": "Juan",
+      "apellido": "Perez",
+      "correo": "juan.perez@email.com",
+      "carrera": "Ingenieria de Software",
+      "estado": "activo",
+      "fecha_creacion": "2024-01-15T10:30:00Z",
+      "roles": ["estudiante"]
+    }
+  ],
+  "meta": {
+    "paginacion": { "limit": 20, "offset": 0, "total": 150 },
+    "estadisticas": {
+      "total": 150,
+      "activos": 120,
+      "inactivos": 30,
+      "administradores": 5,
+      "estudiantes": 145
+    }
+  }
+}
+```
+
+**Detalle**
+
+```json
+{
+  "success": true,
+  "data": {
+    "id": "550e8400-e29b-41d4-a716-446655440000",
+    "nombre": "Juan",
+    "apellido": "Perez",
+    "correo": "juan.perez@email.com",
+    "carrera": "Ingenieria de Software",
+    "estado": "activo",
+    "fecha_creacion": "2024-01-15T10:30:00Z",
+    "roles_detalle": [
+      {
+        "id": 2,
+        "nombre": "estudiante",
+        "descripcion": "Acceso a su espacio academico personal."
+      }
+    ]
+  }
+}
+```
+
+**Actualización de roles**
+
+```json
+{
+  "success": true,
+  "data": {
+    "usuarioId": "550e8400-e29b-41d4-a716-446655440000",
+    "roles": ["administrador"],
+    "mensaje": "Roles actualizados exitosamente"
+  },
+  "meta": {
+    "operacion": {
+      "tipo": "ACTUALIZACION_ROLES",
+      "administradorId": "admin-id-123",
+      "usuarioId": "550e8400-e29b-41d4-a716-446655440000",
+      "rolesAnteriores": ["estudiante"],
+      "rolesNuevos": ["administrador"],
+      "fecha": "2024-01-20T14:30:00Z"
+    }
+  }
+}
+```
+
+**Actualización de estado**
+
+```json
+{
+  "success": true,
+  "data": {
+    "usuarioId": "550e8400-e29b-41d4-a716-446655440000",
+    "estado": "inactivo",
+    "mensaje": "Usuario desactivado exitosamente"
+  },
+  "meta": {
+    "operacion": {
+      "tipo": "ACTUALIZACION_ESTADO",
+      "administradorId": "admin-id-123",
+      "usuarioId": "550e8400-e29b-41d4-a716-446655440000",
+      "estadoAnterior": "activo",
+      "estadoNuevo": "inactivo",
+      "fecha": "2024-01-20T14:30:00Z"
+    }
+  }
+}
+```
+
+### 3. Modelos de validación con Zod
+
 ```javascript
 // backend/src/models/usuario.model.js
 const { z } = require('zod');
 
-// Esquema para búsqueda de usuarios
 const usuarioBusquedaSchema = z.object({
-    query: z.string().optional(),
-    estado: z.enum(['activo', 'inactivo']).optional(),
-    rol: z.enum(['administrador', 'estudiante']).optional(),
-    limit: z.coerce.number().int().positive().max(100).default(50),
-    offset: z.coerce.number().int().nonnegative().default(0)
+  query: z.string().min(1).max(100).optional(),
+  estado: z.enum(['activo', 'inactivo']).optional(),
+  rol: z.enum(['administrador', 'estudiante']).optional(),
+  limit: z.number().int().positive().max(100).default(50),
+  offset: z.number().int().nonnegative().default(0),
 });
 
-// Esquema para actualización de roles
 const usuarioActualizarRolesSchema = z.object({
-    roles: z.array(z.enum(['administrador', 'estudiante']))
-        .min(1, 'Debe seleccionar al menos un rol')
-        .max(2, 'No se pueden asignar más de 2 roles')
+  roles: z
+    .array(z.enum(['administrador', 'estudiante']))
+    .min(1)
+    .max(5)
+    .refine(
+      (roles) => !roles.includes('administrador') || roles.length === 1,
+      {
+        message:
+          'Un usuario no puede tener multiples roles de administrador simultaneamente',
+      },
+    ),
 });
 
-// Esquema para actualización de estado
 const usuarioActualizarEstadoSchema = z.object({
-    estado: z.enum(['activo', 'inactivo'], {
-        required_error: 'El estado es requerido',
-        invalid_type_error: 'El estado debe ser "activo" o "inactivo"'
-    })
+  estado: z.enum(['activo', 'inactivo']),
 });
 
-// Esquema para parámetro ID
 const usuarioIdParamSchema = z.object({
-    id: z.string().uuid('ID de usuario inválido')
+  id: z.string().uuid(),
 });
 
 module.exports = {
-    usuarioBusquedaSchema,
-    usuarioActualizarRolesSchema,
-    usuarioActualizarEstadoSchema,
-    usuarioIdParamSchema
+  usuarioListadoSchema,
+  usuarioDetalleSchema,
+  usuarioBusquedaSchema,
+  usuarioActualizarRolesSchema,
+  usuarioActualizarEstadoSchema,
+  usuarioIdParamSchema,
 };
 ```
 
-### Tipos TypeScript (Frontend)
-```typescript
-// frontend/src/app/core/services/usuario-admin.service.ts
-export interface UsuarioListado {
-    id: string;
-    nombre: string;
-    apellido: string;
-    correo: string;
-    carrera: string | null;
-    estado: 'activo' | 'inactivo';
-    fecha_creacion: string;
-    roles: string[];
-}
+> Zod valida la **forma** de la entrada. Las reglas que dependen de la base de datos (existencia del usuario, propiedad, último administrador) se validan en el servicio.
 
-export interface UsuarioDetalle extends UsuarioListado {
-    roles_detalle: Array<{
-        id: string;
-        nombre: string;
-        descripcion: string | null;
-    }>;
-}
+### 4. Rutas y middlewares
 
-export interface RolDisponible {
-    id: string;
-    nombre: string;
-    descripcion: string | null;
-}
+```javascript
+// backend/src/routes/usuario.routes.js
+const { Router } = require('express');
+const authMiddleware = require('../middlewares/auth.middleware');
+const adminMiddleware = require('../middlewares/admin.middleware');
+const noSelfModificationMiddleware = require('../middlewares/no-self-modification.middleware');
+const validationMiddleware = require('../middlewares/validation.middleware');
+const asyncHandler = require('../utils/asyncHandler');
+const { createUsuarioAdminService } = require('../container');
 
-export interface ListadoUsuariosResponse {
-    usuarios: UsuarioListado[];
-    paginacion: {
-        limit: number;
-        offset: number;
-        total: number;
-    };
-    estadisticas: {
-        total: number;
-        activos: number;
-        inactivos: number;
-        administradores: number;
-        estudiantes: number;
-    };
+const {
+  usuarioBusquedaSchema,
+  usuarioActualizarRolesSchema,
+  usuarioActualizarEstadoSchema,
+  usuarioIdParamSchema,
+} = require('../models/usuario.model');
+
+const router = Router();
+
+// Todas las rutas requieren autenticación y rol administrador.
+router.use(authMiddleware, adminMiddleware);
+
+// Inyecta el servicio con el ID del administrador que realiza la operación.
+router.use((req, _res, next) => {
+  try {
+    req.usuarioAdminService = createUsuarioAdminService(req.user.id);
+    next();
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.get(
+  '/',
+  validationMiddleware({ schema: usuarioBusquedaSchema, source: 'query' }),
+  asyncHandler(async (req, res) => {
+    const controller = new (require('../controllers/usuario-admin.controller'))(
+      req.usuarioAdminService,
+    );
+    await controller.listarUsuarios(req, res);
+  }),
+);
+
+router.get(
+  '/buscar',
+  asyncHandler(async (req, res) => {
+    const controller = new (require('../controllers/usuario-admin.controller'))(
+      req.usuarioAdminService,
+    );
+    await controller.buscarUsuarios(req, res);
+  }),
+);
+
+router.get(
+  '/roles',
+  asyncHandler(async (req, res) => {
+    const controller = new (require('../controllers/usuario-admin.controller'))(
+      req.usuarioAdminService,
+    );
+    await controller.obtenerRolesDisponibles(req, res);
+  }),
+);
+
+router.get(
+  '/:id',
+  validationMiddleware({ schema: usuarioIdParamSchema, source: 'params' }),
+  asyncHandler(async (req, res) => {
+    const controller = new (require('../controllers/usuario-admin.controller'))(
+      req.usuarioAdminService,
+    );
+    await controller.obtenerUsuario(req, res);
+  }),
+);
+
+router.patch(
+  '/:id/roles',
+  validationMiddleware({ schema: usuarioIdParamSchema, source: 'params' }),
+  validationMiddleware({ schema: usuarioActualizarRolesSchema, source: 'body' }),
+  noSelfModificationMiddleware,
+  asyncHandler(async (req, res) => {
+    const controller = new (require('../controllers/usuario-admin.controller'))(
+      req.usuarioAdminService,
+    );
+    await controller.actualizarRolesUsuario(req, res);
+  }),
+);
+
+router.patch(
+  '/:id/estado',
+  validationMiddleware({ schema: usuarioIdParamSchema, source: 'params' }),
+  validationMiddleware({ schema: usuarioActualizarEstadoSchema, source: 'body' }),
+  noSelfModificationMiddleware,
+  asyncHandler(async (req, res) => {
+    const controller = new (require('../controllers/usuario-admin.controller'))(
+      req.usuarioAdminService,
+    );
+    await controller.actualizarEstadoUsuario(req, res);
+  }),
+);
+
+module.exports = router;
+```
+
+**Middleware de rol**
+
+```javascript
+// backend/src/middlewares/admin.middleware.js
+function adminMiddleware(req, _res, next) {
+  try {
+    if (!req.user) {
+      throw ApiError.unauthorized('Usuario no autenticado');
+    }
+
+    if (req.user.role !== 'administrador') {
+      throw ApiError.forbidden('Acceso denegado. Se requiere rol de administrador');
+    }
+
+    return next();
+  } catch (error) {
+    return next(error);
+  }
 }
 ```
 
-## 🎮 Implementación de Controladores
+**Middleware de auto-modificación**
 
-### Controlador Principal
+```javascript
+// backend/src/middlewares/no-self-modification.middleware.js
+function noSelfModificationMiddleware(req, _res, next) {
+  try {
+    const usuarioActualId = req.user?.id;
+    const usuarioModificadoId = req.params?.id;
+
+    if (!usuarioActualId || !usuarioModificadoId) {
+      return next();
+    }
+
+    if (usuarioActualId === usuarioModificadoId) {
+      throw ApiError.forbidden('No puedes modificar tus propios privilegios');
+    }
+
+    return next();
+  } catch (error) {
+    return next(error);
+  }
+}
+```
+
+> **Observación sobre la validación (HU02):** las rutas llaman a `validationMiddleware({ schema, source })`, pero el middleware real (`backend/src/middlewares/validation.middleware.js`) tiene la firma `validate(schemas)` y espera un objeto indexado por fuente, por ejemplo `validationMiddleware({ query: usuarioBusquedaSchema })` o `validationMiddleware({ params: usuarioIdParamSchema })`. Con la llamada actual el middleware no valida nada: intenta hacer `safeParse` sobre `req.schema` y luego trata el string `'query'`/`'params'` como esquema, lo que termina en un `TypeError` y un `500`. Además, `usuarioBusquedaSchema` declara `limit` y `offset` con `z.number()`, pero los query params llegan como texto; para validarlos correctamente deberían usar `z.coerce.number()`. Hoy los controladores vuelven a parsear `req.query`/`req.params`/`req.body` con Zod, por lo que la validación efectiva ocurre en el controlador y no en el middleware. Corregir la firma de las rutas es un pendiente técnico de HU02 y no afecta a HU01.
+
+### 5. Controlador
+
 ```javascript
 // backend/src/controllers/usuario-admin.controller.js
-const ApiError = require('../utils/ApiError');
-
 class UsuarioAdminController {
-    constructor(usuarioAdminService) {
-        this.usuarioAdminService = usuarioAdminService;
+  constructor(service) {
+    this.service = service;
+  }
+
+  listarUsuarios = async (req, res, next) => {
+    try {
+      const filtros = usuarioBusquedaSchema.parse(req.query);
+      const resultado = await this.service.listarUsuarios(filtros);
+
+      res.json({
+        success: true,
+        data: resultado.usuarios,
+        meta: {
+          paginacion: resultado.paginacion,
+          estadisticas: resultado.estadisticas,
+        },
+      });
+    } catch (error) {
+      next(error);
     }
+  };
 
-    /**
-     * Lista usuarios con filtros y paginación
-     */
-    async listarUsuarios(req, res) {
-        try {
-            const filtros = {
-                query: req.query.query,
-                estado: req.query.estado,
-                rol: req.query.rol,
-                limit: req.query.limit ? parseInt(req.query.limit) : undefined,
-                offset: req.query.offset ? parseInt(req.query.offset) : undefined
-            };
+  obtenerUsuario = async (req, res, next) => {
+    try {
+      const { id } = usuarioIdParamSchema.parse(req.params);
+      const usuario = await this.service.obtenerUsuario(id);
 
-            const resultado = await this.usuarioAdminService.listarUsuarios(filtros);
-            res.status(200).json(resultado);
-        } catch (error) {
-            if (error instanceof ApiError) {
-                res.status(error.statusCode).json({ error: error.message });
-            } else {
-                res.status(500).json({ error: 'Error interno del servidor' });
-            }
-        }
+      res.json({ success: true, data: usuario });
+    } catch (error) {
+      next(error);
     }
+  };
 
-    /**
-     * Obtiene un usuario por ID
-     */
-    async obtenerUsuario(req, res) {
-        try {
-            const usuario = await this.usuarioAdminService.obtenerUsuario(req.params.id);
-            res.status(200).json(usuario);
-        } catch (error) {
-            if (error instanceof ApiError) {
-                res.status(error.statusCode).json({ error: error.message });
-            } else {
-                res.status(500).json({ error: 'Error interno del servidor' });
-            }
-        }
+  actualizarRolesUsuario = async (req, res, next) => {
+    try {
+      const { id } = usuarioIdParamSchema.parse(req.params);
+      const { roles } = usuarioActualizarRolesSchema.parse(req.body);
+      const resultado = await this.service.actualizarRolesUsuario(id, roles);
+
+      res.json({
+        success: true,
+        data: {
+          usuarioId: resultado.usuarioId,
+          roles: resultado.roles,
+          mensaje: resultado.mensaje,
+        },
+        meta: { operacion: resultado.operacion },
+      });
+    } catch (error) {
+      next(error);
     }
+  };
 
-    /**
-     * Obtiene roles disponibles
-     */
-    async obtenerRolesDisponibles(req, res) {
-        try {
-            const roles = await this.usuarioAdminService.obtenerRolesDisponibles();
-            res.status(200).json(roles);
-        } catch (error) {
-            res.status(500).json({ error: 'Error al obtener roles' });
-        }
+  actualizarEstadoUsuario = async (req, res, next) => {
+    try {
+      const { id } = usuarioIdParamSchema.parse(req.params);
+      const { estado } = usuarioActualizarEstadoSchema.parse(req.body);
+      const resultado = await this.service.actualizarEstadoUsuario(id, estado);
+
+      res.json({
+        success: true,
+        data: {
+          usuarioId: resultado.usuarioId,
+          estado: resultado.estado,
+          mensaje: resultado.mensaje,
+        },
+        meta: { operacion: resultado.operacion },
+      });
+    } catch (error) {
+      next(error);
     }
+  };
 
-    /**
-     * Actualiza roles de usuario
-     */
-    async actualizarRolesUsuario(req, res) {
-        try {
-            const { roles } = req.body;
-            const resultado = await this.usuarioAdminService.actualizarRolesUsuario(
-                req.params.id,
-                roles
-            );
-            res.status(200).json(resultado);
-        } catch (error) {
-            if (error instanceof ApiError) {
-                res.status(error.statusCode).json({ error: error.message });
-            } else {
-                res.status(500).json({ error: 'Error interno del servidor' });
-            }
-        }
+  obtenerRolesDisponibles = async (_req, res, next) => {
+    try {
+      const roles = await this.service.obtenerRolesDisponibles();
+      res.json({ success: true, data: roles });
+    } catch (error) {
+      next(error);
     }
+  };
 
-    /**
-     * Actualiza estado de usuario
-     */
-    async actualizarEstadoUsuario(req, res) {
-        try {
-            const { estado } = req.body;
-            const resultado = await this.usuarioAdminService.actualizarEstadoUsuario(
-                req.params.id,
-                estado
-            );
-            res.status(200).json(resultado);
-        } catch (error) {
-            if (error instanceof ApiError) {
-                res.status(error.statusCode).json({ error: error.message });
-            } else {
-                res.status(500).json({ error: 'Error interno del servidor' });
-            }
-        }
+  buscarUsuarios = async (req, res, next) => {
+    try {
+      const termino = String(req.query.termino ?? '').trim();
+
+      if (termino.length < 2) {
+        return res.json({
+          success: true,
+          data: [],
+          meta: { mensaje: 'Termino de busqueda muy corto' },
+        });
+      }
+
+      const usuarios = await this.service.buscarUsuarios(termino, 20);
+      return res.json({ success: true, data: usuarios });
+    } catch (error) {
+      return next(error);
     }
-}
-
-module.exports = UsuarioAdminController;
-```
-
-## 🔄 Operaciones CRUD Implementadas
-
-### 1. CREATE (Crear) - A través de Auth
-*Nota: La creación de usuarios se maneja a través del módulo de autenticación de Supabase*
-
-### 2. READ (Consultar)
-
-#### 2.1 Listar Usuarios
-**Endpoint:** `GET /api/usuarios`
-```javascript
-// Ejemplo de consulta
-GET /api/usuarios?query=juan&estado=activo&rol=estudiante&limit=20&offset=0
-
-// Respuesta
-{
-    "usuarios": [
-        {
-            "id": "550e8400-e29b-41d4-a716-446655440000",
-            "nombre": "Juan",
-            "apellido": "Pérez",
-            "correo": "juan.perez@email.com",
-            "carrera": "Ingeniería de Software",
-            "estado": "activo",
-            "fecha_creacion": "2024-01-15T10:30:00Z",
-            "roles": ["estudiante"]
-        }
-    ],
-    "paginacion": {
-        "limit": 20,
-        "offset": 0,
-        "total": 150
-    },
-    "estadisticas": {
-        "total": 150,
-        "activos": 120,
-        "inactivos": 30,
-        "administradores": 5,
-        "estudiantes": 145
-    }
+  };
 }
 ```
 
-#### 2.2 Obtener Usuario Específico
-**Endpoint:** `GET /api/usuarios/:id`
-```javascript
-// Respuesta
-{
-    "id": "550e8400-e29b-41d4-a716-446655440000",
-    "nombre": "Juan",
-    "apellido": "Pérez",
-    "correo": "juan.perez@email.com",
-    "carrera": "Ingeniería de Software",
-    "estado": "activo",
-    "fecha_creacion": "2024-01-15T10:30:00Z",
-    "roles_detalle": [
-        {
-            "id": "role-id-1",
-            "nombre": "estudiante",
-            "descripcion": "Usuario con acceso limitado a funcionalidades de estudiante"
-        }
-    ]
-}
-```
+### 6. Servicio
 
-#### 2.3 Búsqueda Rápida
-**Endpoint:** `GET /api/usuarios/buscar?q=juan`
-```javascript
-// Respuesta
-[
-    {
-        "id": "550e8400-e29b-41d4-a716-446655440000",
-        "nombre": "Juan",
-        "apellido": "Pérez",
-        "correo": "juan.perez@email.com",
-        "carrera": "Ingeniería de Software",
-        "estado": "activo",
-        "fecha_creacion": "2024-01-15T10:30:00Z",
-        "roles": ["estudiante"]
-    }
-]
-```
-
-### 3. UPDATE (Actualizar)
-
-#### 3.1 Actualizar Roles
-**Endpoint:** `PATCH /api/usuarios/:id/roles`
-```javascript
-// Request
-{
-    "roles": ["administrador", "estudiante"]
-}
-
-// Respuesta exitosa
-{
-    "mensaje": "Roles actualizados exitosamente",
-    "usuarioId": "550e8400-e29b-41d4-a716-446655440000",
-    "roles": ["administrador", "estudiante"],
-    "operacion": {
-        "tipo": "ACTUALIZACION_ROLES",
-        "administradorId": "admin-id-123",
-        "usuarioId": "550e8400-e29b-41d4-a716-446655440000",
-        "rolesAnteriores": ["estudiante"],
-        "rolesNuevos": ["administrador", "estudiante"],
-        "fecha": "2024-01-20T14:30:00Z"
-    }
-}
-```
-
-#### 3.2 Actualizar Estado
-**Endpoint:** `PATCH /api/usuarios/:id/estado`
-```javascript
-// Request
-{
-    "estado": "inactivo"
-}
-
-// Respuesta exitosa
-{
-    "mensaje": "Usuario desactivado exitosamente",
-    "usuarioId": "550e8400-e29b-41d4-a716-446655440000",
-    "estado": "inactivo",
-    "operacion": {
-        "tipo": "ACTUALIZACION_ESTADO",
-        "administradorId": "admin-id-123",
-        "usuarioId": "550e8400-e29b-41d4-a716-446655440000",
-        "estadoAnterior": "activo",
-        "estadoNuevo": "inactivo",
-        "fecha": "2024-01-20T14:30:00Z"
-    }
-}
-```
-
-### 4. DELETE (Eliminar)
-*Nota: La eliminación física se maneja a través de Supabase Auth. El módulo implementa desactivación (soft delete)*
-
-## ✅ Validación de Datos
-
-### Validaciones con Zod
-```javascript
-// Ejemplo de middleware de validación
-const validationMiddleware = ({ schema, source = 'body' }) => {
-    return (req, res, next) => {
-        try {
-            const data = req[source];
-            const validatedData = schema.parse(data);
-            req[source] = validatedData;
-            next();
-        } catch (error) {
-            if (error instanceof z.ZodError) {
-                const errors = error.errors.map(err => ({
-                    field: err.path.join('.'),
-                    message: err.message
-                }));
-                res.status(400).json({
-                    error: 'Error de validación',
-                    details: errors
-                });
-            } else {
-                next(error);
-            }
-        }
-    };
-};
-```
-
-### Validaciones de Negocio
 ```javascript
 // backend/src/services/usuario-admin.service.js
 class UsuarioAdminService {
-    // ...
-    
-    async actualizarRolesUsuario(usuarioId, roles) {
-        // Validación de seguridad: no auto-modificación
-        if (usuarioId === this.usuarioActualId) {
-            throw ApiError.forbidden('No puedes modificar tus propios privilegios');
-        }
+  constructor(repository, usuarioActualId) {
+    this.repository = repository;
+    this.usuarioActualId = usuarioActualId;
+  }
 
-        // Validar que no se remuevan todos los administradores
-        if (!roles.includes('administrador')) {
-            const estadisticas = await this.repository.obtenerEstadisticas();
-            const totalAdministradores = parseInt(estadisticas.total_administradores || 0);
-            
-            const usuario = await this.repository.obtenerUsuarioPorId(usuarioId);
-            const esAdministrador = usuario.roles_detalle.some(r => r.nombre === 'administrador');
-            
-            if (esAdministrador && totalAdministradores <= 1) {
-                throw ApiError.forbidden('No se puede remover al único administrador del sistema');
-            }
-        }
-        
-        // ... resto de la implementación
+  async listarUsuarios(filtros = {}) {
+    const usuarios = await this.repository.listarUsuarios(filtros);
+    const estadisticas = await this.repository.obtenerEstadisticas();
+
+    return {
+      usuarios,
+      paginacion: {
+        limit: filtros.limit || 50,
+        offset: filtros.offset || 0,
+        total: parseInt(estadisticas.total_usuarios || 0),
+      },
+      estadisticas: {
+        total: parseInt(estadisticas.total_usuarios || 0),
+        activos: parseInt(estadisticas.usuarios_activos || 0),
+        inactivos: parseInt(estadisticas.usuarios_inactivos || 0),
+        administradores: parseInt(estadisticas.total_administradores || 0),
+        estudiantes: parseInt(estadisticas.total_estudiantes || 0),
+      },
+    };
+  }
+
+  async obtenerUsuario(usuarioId) {
+    const usuario = await this.repository.obtenerUsuarioPorId(usuarioId);
+
+    if (!usuario) {
+      throw ApiError.notFound('Usuario no encontrado');
     }
+
+    return usuario;
+  }
+
+  async actualizarRolesUsuario(usuarioId, roles) {
+    // 1. Un administrador no puede modificar sus propios privilegios.
+    if (usuarioId === this.usuarioActualId) {
+      throw ApiError.forbidden('No puedes modificar tus propios privilegios');
+    }
+
+    // 2. El usuario debe existir.
+    const usuarioExiste = await this.repository.existeUsuario(usuarioId);
+    if (!usuarioExiste) {
+      throw ApiError.notFound('Usuario no encontrado');
+    }
+
+    // 3. No se puede remover al último administrador.
+    if (!roles.includes('administrador')) {
+      const estadisticas = await this.repository.obtenerEstadisticas();
+      const totalAdministradores = parseInt(estadisticas.total_administradores || 0);
+      const usuario = await this.repository.obtenerUsuarioPorId(usuarioId);
+      const esAdministrador = usuario.roles_detalle.some(
+        (rol) => rol.nombre === 'administrador',
+      );
+
+      if (esAdministrador && totalAdministradores <= 1) {
+        throw ApiError.forbidden('No se puede remover al unico administrador del sistema');
+      }
+    }
+
+    try {
+      await this.repository.actualizarRolesUsuario(usuarioId, roles);
+
+      const operacion = {
+        tipo: 'ACTUALIZACION_ROLES',
+        administradorId: this.usuarioActualId,
+        usuarioId,
+        rolesAnteriores: await this.obtenerRolesUsuario(usuarioId),
+        rolesNuevos: roles,
+        fecha: new Date().toISOString(),
+      };
+
+      return { mensaje: 'Roles actualizados exitosamente', usuarioId, roles, operacion };
+    } catch (error) {
+      throw new ApiError(500, `Error al actualizar roles: ${error.message}`);
+    }
+  }
+
+  async actualizarEstadoUsuario(usuarioId, estado) {
+    // 1. Un administrador no puede modificar su propio estado.
+    if (usuarioId === this.usuarioActualId) {
+      throw ApiError.forbidden('No puedes modificar tu propio estado');
+    }
+
+    // 2. El usuario debe existir.
+    const usuarioExiste = await this.repository.existeUsuario(usuarioId);
+    if (!usuarioExiste) {
+      throw ApiError.notFound('Usuario no encontrado');
+    }
+
+    // 3. No se puede desactivar al último administrador.
+    if (estado === 'inactivo') {
+      const usuario = await this.repository.obtenerUsuarioPorId(usuarioId);
+      const esAdministrador = usuario.roles_detalle.some(
+        (rol) => rol.nombre === 'administrador',
+      );
+
+      if (esAdministrador) {
+        const estadisticas = await this.repository.obtenerEstadisticas();
+        const totalAdministradores = parseInt(estadisticas.total_administradores || 0);
+
+        if (totalAdministradores <= 1) {
+          throw ApiError.forbidden('No se puede desactivar al unico administrador del sistema');
+        }
+      }
+    }
+
+    try {
+      await this.repository.actualizarEstadoUsuario(usuarioId, estado);
+
+      const operacion = {
+        tipo: 'ACTUALIZACION_ESTADO',
+        administradorId: this.usuarioActualId,
+        usuarioId,
+        estadoAnterior: await this.obtenerEstadoUsuario(usuarioId),
+        estadoNuevo: estado,
+        fecha: new Date().toISOString(),
+      };
+
+      return {
+        mensaje: `Usuario ${estado === 'activo' ? 'activado' : 'desactivado'} exitosamente`,
+        usuarioId,
+        estado,
+        operacion,
+      };
+    } catch (error) {
+      throw new ApiError(500, `Error al actualizar estado: ${error.message}`);
+    }
+  }
+
+  async obtenerRolesUsuario(usuarioId) {
+    const usuario = await this.repository.obtenerUsuarioPorId(usuarioId);
+    return usuario ? usuario.roles_detalle.map((rol) => rol.nombre) : [];
+  }
+
+  async obtenerEstadoUsuario(usuarioId) {
+    const usuario = await this.repository.obtenerUsuarioPorId(usuarioId);
+    return usuario ? usuario.estado : null;
+  }
 }
 ```
 
-### Validaciones en Frontend
-```typescript
-// frontend/src/app/features/administracion/usuario-roles/usuario-roles.ts
-readonly puedeModificar = computed(() => 
-    this.usuarioAdminService.validarNoAutoModificacion(
-        this.usuarioId, 
-        this.usuarioActualId()
-    )
-);
+> **Observación de auditoría:** en el código actual `rolesAnteriores` y `estadoAnterior` se consultan **después** de aplicar el cambio, por lo que la operación devuelta repite el valor nuevo. Para que la auditoría sea correcta, esas dos consultas deben moverse antes de `repository.actualizarRolesUsuario` / `repository.actualizarEstadoUsuario`.
 
-readonly advertenciaUnicoAdmin = computed(() => 
-    this.esUnicoAdministrador() && !this.rolesSeleccionados().includes('administrador')
-);
+### 7. Repositorio
 
-async guardarCambios(): Promise<void> {
-    if (this.advertenciaUnicoAdmin()) {
-        const confirmacion = confirm(
-            '¡ADVERTENCIA CRÍTICA!\n\n' +
-            'Este usuario es el único administrador del sistema.\n' +
-            'Si eliminas el rol de administrador, nadie podrá realizar operaciones administrativas.\n\n' +
-            '¿Estás absolutamente seguro de continuar?'
-        );
-        
-        if (!confirmacion) return;
-    }
-    // ... resto de la implementación
-}
+El repositorio administrativo concentra las consultas SQL y usa `service_role`, por lo que **no** depende de RLS para leer todos los perfiles.
+
+| Método | Responsabilidad |
+|---|---|
+| `listarUsuarios(filtros)` | Consulta paginada con `ILIKE` sobre nombre, apellido y correo; agrega roles con `ARRAY_AGG`. |
+| `obtenerUsuarioPorId(id)` | Devuelve el perfil y sus roles con `JSON_AGG`. |
+| `obtenerRolesDisponibles()` | Lee el catálogo `roles`. |
+| `actualizarRolesUsuario(id, roles)` | Elimina los roles actuales e inserta los nuevos dentro de una transacción (`BEGIN` / `COMMIT` / `ROLLBACK`). |
+| `actualizarEstadoUsuario(id, estado)` | Actualiza `perfiles.estado`. |
+| `existeUsuario(id)` | Verifica la existencia del perfil. |
+| `obtenerEstadisticas()` | Calcula totales, activos, inactivos, administradores y estudiantes. |
+
+**Consulta principal del listado**
+
+```sql
+SELECT
+  p.id,
+  p.nombre,
+  p.apellido,
+  p.correo,
+  p.carrera,
+  p.estado,
+  p.fecha_creacion,
+  ARRAY_AGG(r.nombre ORDER BY r.nombre) AS roles
+FROM public.perfiles p
+LEFT JOIN public.usuario_roles ur ON p.id = ur.usuario_id
+LEFT JOIN public.roles r ON ur.rol_id = r.id
+WHERE (p.nombre ILIKE $1 OR p.apellido ILIKE $1 OR p.correo ILIKE $1)
+GROUP BY p.id, p.nombre, p.apellido, p.correo, p.carrera, p.estado, p.fecha_creacion
+ORDER BY p.fecha_creacion DESC
+LIMIT $2 OFFSET $3;
 ```
 
-## 🚨 Manejo de Errores y Excepciones
+**Transacción de actualización de roles**
 
-### Clase ApiError Personalizada
+```sql
+BEGIN;
+
+DELETE FROM public.usuario_roles WHERE usuario_id = $1;
+
+INSERT INTO public.usuario_roles (usuario_id, rol_id) VALUES ($1, $2);
+-- Se repite por cada rol solicitado.
+
+COMMIT;
+```
+
+> **Observación técnica:** el repositorio usa la interfaz `db.query(sql, params)` (estilo `pg`). El cliente `@supabase/supabase-js` no expone `query`, solo `from` y `rpc`; por lo tanto, para ejecutar HU02 contra Supabase se debe inyectar un cliente PostgreSQL (`pg.Pool`) o migrar el repositorio al query builder/RPC. Esta observación no afecta a HU01, que sí usa el cliente de Supabase correctamente.
+
+### 8. Manejo de errores
+
 ```javascript
 // backend/src/utils/ApiError.js
 class ApiError extends Error {
-    constructor(statusCode, message) {
-        super(message);
-        this.statusCode = statusCode;
-        this.isOperational = true;
-        
-        Error.captureStackTrace(this, this.constructor);
-    }
-    
-    static badRequest(message = 'Solicitud inválida') {
-        return new ApiError(400, message);
-    }
-    
-    static unauthorized(message = 'No autorizado') {
-        return new ApiError(401, message);
-    }
-    
-    static forbidden(message = 'Acceso prohibido') {
-        return new ApiError(403, message);
-    }
-    
-    static notFound(message = 'Recurso no encontrado') {
-        return new ApiError(404, message);
-    }
-    
-    static internal(message = 'Error interno del servidor') {
-        return new ApiError(500, message);
-    }
-}
+  constructor(statusCode, message, details = undefined) {
+    super(message);
+    this.name = 'ApiError';
+    this.statusCode = statusCode;
+    this.details = details;
+    this.isOperational = true;
+    Error.captureStackTrace(this, this.constructor);
+  }
 
-module.exports = ApiError;
-```
+  static badRequest(message = 'Solicitud invalida', details) {
+    return new ApiError(400, message, details);
+  }
 
-### Middleware de Manejo de Errores
-```javascript
-// backend/src/middlewares/error.middleware.js
-const ApiError = require('../utils/ApiError');
+  static unauthorized(message = 'No autenticado') {
+    return new ApiError(401, message);
+  }
 
-const errorMiddleware = (err, req, res, next) => {
-    let error = { ...err };
-    error.message = err.message;
+  static forbidden(message = 'No autorizado') {
+    return new ApiError(403, message);
+  }
 
-    // Log del error
-    console.error(`[${new Date().toISOString()}] Error:`, {
-        message: error.message,
-        stack: error.stack,
-        path: req.path,
-        method: req.method,
-        user: req.user ? req.user.id : 'anonymous'
-    });
+  static notFound(message = 'Recurso no encontrado') {
+    return new ApiError(404, message);
+  }
 
-    // Manejo de errores específicos
-    if (err.name === 'ZodError') {
-        const errors = err.errors.map(e => ({
-            field: e.path.join('.'),
-            message: e.message
-        }));
-        return res.status(400).json({
-            error: 'Error de validación',
-            details: errors
-        });
-    }
+  static conflict(message = 'Conflicto con el estado actual del recurso') {
+    return new ApiError(409, message);
+  }
 
-    if (err.name === 'JsonWebTokenError') {
-        return res.status(401).json({ error: 'Token inválido' });
-    }
-
-    if (err.name === 'TokenExpiredError') {
-        return res.status(401).json({ error: 'Token expirado' });
-    }
-
-    // Error personalizado ApiError
-    if (err instanceof ApiError) {
-        return res.status(err.statusCode).json({
-            error: err.message
-        });
-    }
-
-    // Error de base de datos
-    if (err.code === '23505') { // Violación de unicidad
-        return res.status(409).json({ error: 'El recurso ya existe' });
-    }
-
-    if (err.code === '23503') { // Violación de clave foránea
-        return res.status(400).json({ error: 'Referencia inválida' });
-    }
-
-    // Error por defecto
-    const statusCode = error.statusCode || 500;
-    const message = process.env.NODE_ENV === 'production' 
-        ? 'Error interno del servidor' 
-        : error.message;
-
-    res.status(statusCode).json({
-        error: message,
-        ...(process.env.NODE_ENV === 'development' && { stack: error.stack })
-    });
-};
-
-module.exports = errorMiddleware;
-```
-
-### Manejo de Errores en Frontend
-```typescript
-// frontend/src/app/core/services/usuario-admin.service.ts
-@Injectable({ providedIn: 'root' })
-export class UsuarioAdminService {
-    // ...
-    
-    private handleError(error: HttpErrorResponse): Observable<never> {
-        let errorMessage = 'Error desconocido';
-        
-        if (error.error instanceof ErrorEvent) {
-            // Error del cliente
-            errorMessage = `Error: ${error.error.message}`;
-        } else {
-            // Error del servidor
-            switch (error.status) {
-                case 400:
-                    errorMessage = 'Solicitud inválida';
-                    break;
-                case 401:
-                    errorMessage = 'No autorizado';
-                    break;
-                case 403:
-                    errorMessage = 'Acceso prohibido';
-                    break;
-                case 404:
-                    errorMessage = 'Recurso no encontrado';
-                    break;
-                case 409:
-                    errorMessage = 'Conflicto de datos';
-                    break;
-                case 422:
-                    errorMessage = 'Error de validación';
-                    break;
-                case 500:
-                    errorMessage = 'Error interno del servidor';
-                    break;
-                default:
-                    errorMessage = `Error ${error.status}: ${error.statusText}`;
-            }
-            
-            // Mensaje específico del servidor si existe
-            if (error.error?.error) {
-                errorMessage = error.error.error;
-            }
-        }
-        
-        console.error('Error en UsuarioAdminService:', error);
-        return throwError(() => new Error(errorMessage));
-    }
+  static serviceUnavailable(message = 'Servicio no disponible') {
+    return new ApiError(503, message);
+  }
 }
 ```
 
-## 📊 Evidencias de Funcionamiento
+El middleware central responde siempre con el sobre estándar:
 
-### 1. Pruebas de Backend
+```json
+{
+  "success": false,
+  "error": {
+    "message": "Usuario no encontrado",
+    "details": { "source": "params", "issues": [] }
+  }
+}
+```
+
+**Reglas**
+
+- Los errores esperados se modelan con `ApiError`.
+- Los `ZodError` se traducen a `400` con la lista de campos inválidos.
+- Los errores `5xx` se registran en el servidor; nunca se expone `stack` en producción.
+- No se devuelven credenciales, tokens ni rutas internas.
+
+### 9. Pruebas de HU02
+
+| Archivo | Qué valida | Casos |
+|---|---|---|
+| `tests/usuario-admin.service.test.js` | Listado y estadísticas, usuario inexistente, roles disponibles, auto-modificación, último administrador, actualización de roles y estado, búsqueda. | 15 |
+
 ```javascript
-// backend/tests/usuario-admin.service.test.js
-describe('UsuarioAdminService', () => {
-    describe('listarUsuarios', () => {
-        it('debe retornar usuarios con estadísticas', async () => {
-            const resultado = await service.listarUsuarios({});
-            expect(resultado).toHaveProperty('usuarios');
-            expect(resultado).toHaveProperty('paginacion');
-            expect(resultado).toHaveProperty('estadisticas');
-            expect(Array.isArray(resultado.usuarios)).toBe(true);
-        });
-
-        it('debe aplicar filtros correctamente', async () => {
-            const filtros = { query: 'juan', estado: 'activo', rol: 'estudiante' };
-            const resultado = await service.listarUsuarios(filtros);
-            expect(resultado.usuarios.length).toBeGreaterThan(0);
-        });
-    });
-
-    describe('validarNoAutoModificacion', () => {
-        it('debe prevenir auto-modificación', async () => {
-            const usuarioId = 'usuario-actual-id';
-            await expect(service.actualizarRolesUsuario(usuarioId, ['administrador']))
-                .rejects.toThrow('No puedes modificar tus propios privilegios');
-        });
-    });
-
-    describe('protegerUnicoAdministrador', () => {
-        it('debe prevenir remover al único administrador', async () => {
-            // Configurar escenario con un solo administrador
-            const usuarioId = 'unico-admin-id';
-            await expect(service.actualizarRolesUsuario(usuarioId, ['estudiante']))
-                .rejects.toThrow('No se puede remover al único administrador del sistema');
-        });
-    });
+// Fragmento de tests/usuario-admin.service.test.js
+it('should prevent self-modification', async () => {
+  await expect(
+    service.actualizarRolesUsuario(usuarioActualId, ['administrador']),
+  ).rejects.toThrow('No puedes modificar tus propios privilegios');
 });
 ```
 
-### 2. Resultados de Pruebas
+### 10. Archivos y commit de HU02
+
+```text
+backend/
+├── src/
+│   ├── container.js
+│   ├── controllers/usuario-admin.controller.js
+│   ├── middlewares/
+│   │   ├── admin.middleware.js
+│   │   └── no-self-modification.middleware.js
+│   ├── models/usuario.model.js
+│   ├── repositories/usuario-admin.repository.js
+│   ├── routes/usuario.routes.js
+│   └── services/usuario-admin.service.js
+└── tests/usuario-admin.service.test.js
 ```
+
+```text
+feat(admin): administrar usuarios y roles
+
+- Implementar listado, detalle, búsqueda y catálogo de roles
+- Implementar actualización de roles y estados
+- Agregar validaciones Zod y middlewares de seguridad
+- Proteger contra auto-modificación y pérdida del último administrador
+- Cubrir el servicio administrativo con pruebas unitarias
+```
+
+---
+
+## ✅ Validación y evidencias
+
+### Lint
+
+```bash
+cd backend
+npm run lint
+```
+
+Resultado: **sin errores** (`eslint .` finaliza con código `0`).
+
+### Pruebas
+
+```bash
+cd backend
+npm test
+```
+
+Resultado real de la suite completa:
+
+```text
 Test Suites: 5 passed, 5 total
 Tests:       26 passed, 26 total
 Snapshots:   0 total
-Time:        7.296 s
+Time:        10.306 s
 ```
 
-### 3. Pruebas de Integración
-```bash
-# Verificación de endpoints
-curl -X GET "http://localhost:3000/api/usuarios" \
-  -H "Authorization: Bearer <token>"
+**Distribución de las 26 pruebas**
 
-# Respuesta esperada
-{
-  "usuarios": [...],
-  "paginacion": {...},
-  "estadisticas": {...}
-}
+| Suite | Pruebas |
+|---|---:|
+| `auth.service.test.js` (HU01) | 6 |
+| `auth.middleware.test.js` (HU01) | 2 |
+| `auth.routes.test.js` (HU01) | 1 |
+| `usuario-admin.service.test.js` (HU02) | 15 |
+| `health.test.js` | 2 |
+| **Total** | **26** |
+
+### Migración aplicada
+
+```text
+supabase/migrations/0001_hu01_auth.sql
 ```
 
-### 4. Build del Frontend
-```
-Application bundle generation complete. [8.802 seconds]
-Initial total: 938.69 kB | Estimated transfer: 189.37 kB
-Build exit code: 0 (SUCCESS)
-```
+El script es idempotente e incluye tablas, catálogo de roles, trigger de registro, relleno de usuarios existentes y políticas RLS.
 
-## 🔄 Repositorio GitHub Actualizado
-
-### Estructura del Commit
-```
-git commit -m "feat(admin): implementar CRUD completo de administración de usuarios
-
-- Implementar backend con arquitectura MVC
-- Crear servicio de administración de usuarios
-- Implementar endpoints CRUD con validaciones Zod
-- Añadir middlewares de seguridad (auth, admin, no-self-modification)
-- Implementar frontend Angular con componentes standalone
-- Añadir validaciones de seguridad en frontend
-- Crear pruebas unitarias para backend y frontend
-- Documentar implementación completa
-
-Closes #HU02"
-```
-
-### Archivos Modificados/Añadidos
-```
-MINGO/
-├── backend/
-│   ├── src/
-│   │   ├── models/usuario.model.js          # Nuevo
-│   │   ├── controllers/usuario-admin.controller.js  # Nuevo
-│   │   ├── services/usuario-admin.service.js        # Nuevo
-│   │   ├── repositories/usuario-admin.repository.js # Nuevo
-│   │   ├── middlewares/
-│   │   │   ├── admin.middleware.js          # Nuevo
-│   │   │   └── no-self-modification.middleware.js  # Nuevo
-│   │   ├── routes/usuario.routes.js         # Modificado
-│   │   └── container.js                     # Modificado
-│   └── tests/usuario-admin.service.test.js  # Nuevo
-├── frontend/
-│   └── src/app/
-│       ├── core/services/usuario-admin.service.ts      # Nuevo
-│       ├── features/administracion/                    # Nuevo
-│       │   ├── administracion.ts
-│       │   ├── administracion.html
-│       │   ├── administracion.css
-│       │   ├── usuario-detalle/
-│       │   └── usuario-roles/
-│       └── core/services/usuario-admin.service.spec.ts # Nuevo
-└── documento2.md                              # Este documento
-```
+---
 
 ## 📋 Conclusiones
 
-### ✅ Logros Alcanzados
+### Logros
 
-1. **Arquitectura Sólida**
-   - Implementación MVC con separación clara de responsabilidades
-   - Arquitectura por capas (Repository, Service, Controller)
-   - Frontend con componentes standalone y signals
+1. **Autenticación centralizada y sin estado**
+   - `authMiddleware` valida el JWT de Supabase en cada solicitud.
+   - El perfil y el rol se resuelven desde PostgreSQL, no desde los metadatos del token.
+   - Las cuentas inactivas pierden el acceso de inmediato.
 
-2. **Seguridad Robusta**
-   - Validación de datos con Zod
-   - Control de acceso basado en roles
-   - Prevención de auto-modificación
-   - Protección contra eliminación del único administrador
+2. **Separación por capas**
+   - HU01 y HU02 respetan `routes → controllers → services → repositories`.
+   - Los controladores solo traducen HTTP.
+   - Las reglas de negocio viven en los servicios.
 
-3. **Código de Calidad**
-   - Pruebas unitarias completas (26/26 pasando)
-   - Validaciones exhaustivas
-   - Manejo de errores centralizado
-   - Código limpio y documentado
+3. **Seguridad en profundidad**
+   - RLS de solo lectura para el usuario autenticado.
+   - Middlewares de autenticación, rol y auto-modificación.
+   - Validación de entradas con Zod.
+   - Protección del último administrador.
 
-4. **Funcionalidad Completa**
-   - CRUD completo de usuarios
-   - Búsqueda, filtrado y paginación
-   - Gestión de roles y estados
-   - Interfaz de usuario intuitiva
+4. **Pruebas automatizadas**
+   - 26 pruebas unitarias y de integración con Supertest.
+   - Mock de Supabase y de repositorios; sin llamadas reales a servicios externos.
 
-### 🔧 Lecciones Aprendidas
+### Limitaciones y pendientes
 
-1. **Importancia de las Validaciones**
-   - Zod proporciona validaciones robustas y tipado
-   - Las validaciones de negocio deben estar en la capa de servicio
+- El registro y el login desde backend no están implementados: el cliente usa Supabase Auth directamente.
+- No existe endpoint de logout; el cierre de sesión se realiza con `supabase.auth.signOut()` y el backend rechaza el token revocado.
+- HU02 requiere `SUPABASE_SERVICE_ROLE_KEY` para operar con privilegios administrativos.
+- El repositorio administrativo usa `db.query`; debe ejecutarse con un cliente PostgreSQL (`pg.Pool`) o migrarse a `from`/`rpc` de Supabase para funcionar contra el cliente actual.
+- Las rutas de HU02 invocan `validationMiddleware({ schema, source })`, pero el middleware espera `{ query | params | body: esquema }`; la validación efectiva hoy ocurre en el controlador. Además, `limit` y `offset` usan `z.number()` en lugar de `z.coerce.number()` para valores de query string.
+- La auditoría de operaciones se devuelve en la respuesta, pero todavía no se persiste en una tabla de logs y `rolesAnteriores`/`estadoAnterior` se leen después de aplicar el cambio.
+- Las pruebas son unitarias con dobles; falta una prueba de integración contra un proyecto real de Supabase.
+- El frontend queda fuera del alcance de este documento.
 
-2. **Seguridad en Capas**
-   - RLS de PostgreSQL + middlewares + validaciones frontend
-   - La defensa en profundidad es crucial
+### Estado
 
-3. **Manejo de Errores**
-   - Clase ApiError personalizada mejora la consistencia
-   - Logging estructurado facilita la depuración
-
-4. **Arquitectura Angular Moderna**
-   - Components standalone simplifican la estructura
-   - Signals mejoran el rendimiento y reactividad
-
-### 🚀 Mejoras Futuras
-
-1. **Auditoría de Operaciones**
-   - Implementar tabla de logs para operaciones administrativas
-   - Añadir historial de cambios de roles y estados
-
-2. **Optimizaciones**
-   - Caché de consultas frecuentes
-   - Paginación infinita en frontend
-   - Prefetching de datos
-
-3. **Funcionalidades Adicionales**
-   - Exportación de datos (CSV/Excel)
-   - Plantillas de roles personalizadas
-   - Notificaciones por email de cambios
-
-4. **Monitoreo**
-   - Métricas de uso del módulo
-   - Alertas para situaciones críticas (único administrador)
-
-### 📈 Métricas de Éxito
-
-| Métrica | Valor | Objetivo |
-|---------|-------|----------|
-| Cobertura de pruebas | 100% backend | ✅ |
-| Build exitoso | Sí | ✅ |
-| Tiempo de respuesta API | < 200ms | ✅ |
-| Código duplicado | < 5% | ✅ |
-| Vulnerabilidades de seguridad | 0 | ✅ |
-
-### 🎯 Conclusión Final
-
-La implementación del módulo de administración de usuarios cumple con todos los requisitos técnicos y funcionales establecidos. Se ha desarrollado siguiendo las mejores prácticas de desarrollo, con énfasis en seguridad, mantenibilidad y escalabilidad. El sistema está listo para producción y proporciona una base sólida para futuras expansiones del sistema MINGO.
-
-**Estado:** ✅ COMPLETADO Y LISTO PARA PRODUCCIÓN
+| Elemento | Estado |
+|---|---|
+| HU01 backend | ✅ Implementado y probado |
+| HU02 backend | ✅ Implementado y probado a nivel de servicio |
+| Migración de base de datos | ✅ Disponible e idempotente |
+| Lint | ✅ Sin errores |
+| Pruebas backend | ✅ 26/26 |
