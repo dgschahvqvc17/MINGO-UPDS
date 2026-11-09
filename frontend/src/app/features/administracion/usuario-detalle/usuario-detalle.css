@@ -1,0 +1,134 @@
+.usuario-detalle-page {
+  min-height: 100vh;
+  background-color: var(--color-background-base);
+}
+
+/* Breadcrumb */
+.breadcrumb {
+  --bs-breadcrumb-divider: "›";
+  font-size: 0.875rem;
+}
+
+.breadcrumb-item a {
+  color: var(--color-primary);
+  transition: color 0.2s ease;
+}
+
+.breadcrumb-item a:hover {
+  color: var(--color-primary-dark);
+  text-decoration: underline;
+}
+
+/* Tarjetas de información */
+.app-card {
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 0.75rem;
+  background-color: var(--color-surface);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.app-card:hover {
+  border-color: var(--color-border);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+}
+
+.app-card .card-body {
+  padding: 1.5rem;
+}
+
+@media (min-width: 992px) {
+  .app-card .card-body {
+    padding: 2rem;
+  }
+}
+
+/* Badges de roles */
+.role-badge-card {
+  display: flex;
+  flex-direction: column;
+  padding: 0.75rem;
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 0.5rem;
+  transition: background-color 0.2s ease;
+}
+
+.role-badge-card:hover {
+  background-color: var(--color-surface-dark);
+}
+
+.role-badge-card .badge {
+  font-size: 0.8125rem;
+  padding: 0.375rem 0.75rem;
+  border-radius: 0.375rem;
+  align-self: flex-start;
+}
+
+/* Formularios */
+.form-label.small {
+  font-size: 0.75rem;
+  margin-bottom: 0.375rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* Botones */
+.btn-group .btn {
+  border-radius: 0.375rem !important;
+}
+
+.btn-group .btn:first-child {
+  border-top-right-radius: 0 !important;
+  border-bottom-right-radius: 0 !important;
+}
+
+.btn-group .btn:last-child {
+  border-top-left-radius: 0 !important;
+  border-bottom-left-radius: 0 !important;
+}
+
+.btn-group .btn:not(:first-child):not(:last-child) {
+  border-radius: 0 !important;
+}
+
+/* Responsive adjustments */
+@media (max-width: 767.98px) {
+  .usuario-detalle-page .container {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+  
+  .app-card .card-body {
+    padding: 1.25rem;
+  }
+  
+  .role-badge-card {
+    padding: 0.5rem;
+  }
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .breadcrumb-item.active {
+    color: var(--color-text-muted-dark);
+  }
+  
+  .app-card {
+    background-color: var(--color-surface-dark);
+    border-color: var(--color-border-subtle-dark);
+  }
+  
+  .app-card:hover {
+    border-color: var(--color-border-dark);
+  }
+  
+  .role-badge-card {
+    background-color: var(--color-surface-dark);
+    border-color: var(--color-border-subtle-dark);
+  }
+  
+  .role-badge-card:hover {
+    background-color: var(--color-surface-darker);
+  }
+}

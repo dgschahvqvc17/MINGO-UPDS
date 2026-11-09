@@ -1,0 +1,220 @@
+<div class="usuario-detalle-page py-4 py-lg-5">
+  <div class="container">
+    <!-- Navegación -->
+    <nav aria-label="breadcrumb" class="mb-4">
+      <ol class="breadcrumb">
+        <li class="breadcrumb-item">
+          <a routerLink="/administracion" class="text-decoration-none">Administración</a>
+        </li>
+        <li class="breadcrumb-item active" aria-current="page">
+          @if (usuario()) {
+            {{ obtenerNombreCompleto() }}
+          } @else {
+            Usuario
+          }
+        </li>
+      </ol>
+    </nav>
+
+    <!-- Estados de carga -->
+    @if (loading()) {
+      <div class="text-center py-5">
+        <div class="spinner-border text-primary" role="status">
+          <span class="visually-hidden">Cargando usuario...</span>
+        </div>
+        <p class="text-muted mt-3">Cargando información del usuario...</p>
+      </div>
+    }
+
+    @if (error() && !loading()) {
+      <div class="alert alert-danger" role="alert">
+        <div class="d-flex align-items-center gap-2">
+          <i class="bi bi-exclamation-triangle-fill"></i>
+          <div class="flex-fill">{{ error() }}</div>
+          <button class="btn btn-sm btn-outline-danger" (click)="cargarUsuario()">
+            Reintentar
+          </button>
+        </div>
+      </div>
+    }
+
+    <!-- Detalles del usuario -->
+    @if (usuario() && !loading() && !error()) {
+      <header class="mb-4">
+        <div class="d-flex justify-content-between align-items-start">
+          <div>
+            <h1 class="h2 fw-bold mb-2">{{ obtenerNombreCompleto() }}</h1>
+            <p class="text-muted-soft mb-0">
+              Detalles completos del usuario y sus permisos en el sistema.
+            </p>
+          </div>
+          
+          <div class="btn-group" role="group">
+            <button class="btn btn-outline-secondary" (click)="volverALista()">
+              <i class="bi bi-arrow-left me-1"></i>
+              Volver
+            </button>
+            <button 
+              class="btn btn-warning"
+              (click)="editarRoles()"
+              [disabled]="!puedeModificar()"
+              [title]="puedeModificar() ? 'Editar roles del usuario' : 'No puedes modificar tus propios privilegios'"
+            >
+              <i class="bi bi-shield-check me-1"></i>
+              Editar roles
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <div class="row g-4">
+        <!-- Información principal -->
+        <div class="col-lg-8">
+          <app-card class="h-100">
+            <div class="card-body">
+              <h2 class="h5 fw-semibold mb-4">Información personal</h2>
+              
+              <div class="row g-3">
+                <!-- Nombre y apellido -->
+                <div class="col-md-6">
+                  <label class="form-label small fw-medium text-muted">Nombre</label>
+                  <div class="fs-5">{{ usuario()!.nombre }}</div>
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label small fw-medium text-muted">Apellido</label>
+                  <div class="fs-5">{{ usuario()!.apellido }}</div>
+                </div>
+                
+                <!-- Correo -->
+                <div class="col-12">
+                  <label class="form-label small fw-medium text-muted">Correo electrónico</label>
+                  <div class="d-flex align-items-center gap-2">
+                    <div class="fs-5">
+                      <a href="mailto:{{ usuario()!.correo }}" class="text-decoration-none">
+                        {{ usuario()!.correo }}
+                      </a>
+                    </div>
+                    @if (usuario()!.correo.includes('@universidad.edu')) {
+                      <span class="badge bg-primary" title="Correo institucional">
+                        <i class="bi bi-building me-1"></i>
+                        Institucional
+                      </span>
+                    }
+                  </div>
+                </div>
+                
+                <!-- Carrera -->
+                <div class="col-12">
+                  <label class="form-label small fw-medium text-muted">Carrera</label>
+                  <div>
+                    @if (usuario()!.carrera) {
+                      <span class="badge bg-light text-dark fs-6">{{ usuario()!.carrera }}</span>
+                    } @else {
+                      <span class="text-muted">No especificada</span>
+                    }
+                  </div>
+                </div>
+                
+                <!-- Estado -->
+                <div class="col-md-6">
+                  <label class="form-label small fw-medium text-muted">Estado</label>
+                  <div>
+                    <span [class]="obtenerEstadoBadgeClase(usuario()!.estado)" class="fs-6">
+                      {{ obtenerEstadoTexto(usuario()!.estado) }}
+                    </span>
+                  </div>
+                </div>
+                
+                <!-- Fecha de creación -->
+                <div class="col-md-6">
+                  <label class="form-label small fw-medium text-muted">Fecha de registro</label>
+                  <div class="fs-5">
+                    <i class="bi bi-calendar3 me-1 text-muted"></i>
+                    {{ obtenerFechaCreacionFormateada() }}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </app-card>
+        </div>
+
+        <!-- Roles y acciones -->
+        <div class="col-lg-4">
+          <!-- Roles asignados -->
+          <app-card class="mb-4">
+            <div class="card-body">
+              <h2 class="h5 fw-semibold mb-3">Roles asignados</h2>
+              
+              @if (tieneRoles()) {
+                <div class="d-flex flex-wrap gap-2 mb-3">
+                  @for (rol of usuario()!.roles_detalle; track rol.id) {
+                    <div class="role-badge-card">
+                      <span [class]="obtenerRolBadgeClase(rol.nombre)" class="d-block mb-1">
+                        {{ rol.nombre === 'administrador' ? 'Administrador' : 'Estudiante' }}
+                      </span>
+                      @if (rol.descripcion) {
+                        <small class="text-muted d-block">{{ rol.descripcion }}</small>
+                      }
+                    </div>
+                  }
+                </div>
+              } @else {
+                <div class="alert alert-warning small" role="alert">
+                  <i class="bi bi-exclamation-triangle me-1"></i>
+                  Este usuario no tiene roles asignados.
+                </div>
+              }
+              
+              <p class="small text-muted mb-0">
+                Los roles determinan las funcionalidades a las que tiene acceso el usuario en la plataforma.
+              </p>
+            </div>
+          </app-card>
+
+          <!-- Acciones administrativas -->
+          <app-card>
+            <div class="card-body">
+              <h2 class="h5 fw-semibold mb-3">Acciones administrativas</h2>
+              
+              <div class="d-grid gap-2">
+                <button 
+                  class="btn"
+                  [class]="usuario()!.estado === 'activo' ? 'btn-outline-danger' : 'btn-outline-success'"
+                  (click)="cambiarEstado()"
+                  [disabled]="!puedeModificar()"
+                  [title]="puedeModificar() 
+                    ? (usuario()!.estado === 'activo' ? 'Desactivar usuario' : 'Activar usuario')
+                    : 'No puedes modificar tu propio estado'
+                  "
+                >
+                  @if (usuario()!.estado === 'activo') {
+                    <i class="bi bi-x-circle me-1"></i>
+                    Desactivar usuario
+                  } @else {
+                    <i class="bi bi-check-circle me-1"></i>
+                    Activar usuario
+                  }
+                </button>
+
+                @if (esAdministrador()) {
+                  <div class="alert alert-warning small mt-2" role="alert">
+                    <i class="bi bi-shield-exclamation me-1"></i>
+                    <strong>Precaución:</strong> Este usuario es administrador.
+                  </div>
+                }
+              </div>
+
+              <!-- Información de seguridad -->
+              @if (!puedeModificar()) {
+                <div class="alert alert-info small mt-3" role="alert">
+                  <i class="bi bi-info-circle me-1"></i>
+                  No puedes modificar tus propios privilegios o estado.
+                </div>
+              }
+            </div>
+          </app-card>
+        </div>
+      </div>
+    }
+  </div>
+</div>

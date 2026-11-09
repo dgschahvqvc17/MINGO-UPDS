@@ -1,0 +1,248 @@
+<div class="usuario-roles-page py-4 py-lg-5">
+  <div class="container">
+    <!-- Navegación -->
+    <nav aria-label="breadcrumb" class="mb-4">
+      <ol class="breadcrumb">
+        <li class="breadcrumb-item">
+          <a routerLink="/administracion" class="text-decoration-none">Administración</a>
+        </li>
+        <li class="breadcrumb-item">
+          <a [routerLink]="['/administracion/usuarios', usuarioId]" class="text-decoration-none">
+            @if (usuario()) {
+              {{ obtenerNombreCompleto() }}
+            } @else {
+              Usuario
+            }
+          </a>
+        </li>
+        <li class="breadcrumb-item active" aria-current="page">Editar roles</li>
+      </ol>
+    </nav>
+
+    <!-- Estados de carga -->
+    @if (loading()) {
+      <div class="text-center py-5">
+        <div class="spinner-border text-primary" role="status">
+          <span class="visually-hidden">Cargando información...</span>
+        </div>
+        <p class="text-muted mt-3">Cargando información del usuario y roles disponibles...</p>
+      </div>
+    }
+
+    @if (error() && !loading()) {
+      <div class="alert alert-danger" role="alert">
+        <div class="d-flex align-items-center gap-2">
+          <i class="bi bi-exclamation-triangle-fill"></i>
+          <div class="flex-fill">{{ error() }}</div>
+          <button class="btn btn-sm btn-outline-danger" (click)="cargarDatos()">
+            Reintentar
+          </button>
+        </div>
+      </div>
+    }
+
+    <!-- Formulario de edición de roles -->
+    @if (usuario() && rolesDisponibles().length > 0 && !loading() && !error()) {
+      <header class="mb-4">
+        <div class="d-flex justify-content-between align-items-start">
+          <div>
+            <h1 class="h2 fw-bold mb-2">Editar roles de {{ obtenerNombreCompleto() }}</h1>
+            <p class="text-muted-soft mb-0">
+              Selecciona los roles que este usuario tendrá en el sistema.
+            </p>
+          </div>
+          
+          <div class="d-flex align-items-center gap-2">
+            <span [class]="obtenerEstadoBadgeClase(usuario()!.estado)" class="fs-6">
+              {{ obtenerEstadoTexto(usuario()!.estado) }}
+            </span>
+          </div>
+        </div>
+      </header>
+
+      <div class="row g-4">
+        <!-- Información del usuario -->
+        <div class="col-lg-4">
+          <app-card class="h-100">
+            <div class="card-body">
+              <h2 class="h5 fw-semibold mb-3">Información del usuario</h2>
+              
+              <div class="d-flex align-items-center gap-3 mb-3">
+                <div class="user-avatar-large">
+                  <i class="bi bi-person-circle"></i>
+                </div>
+                <div>
+                  <div class="fw-bold fs-5">{{ obtenerNombreCompleto() }}</div>
+                  <div class="text-muted small">{{ usuario()!.correo }}</div>
+                </div>
+              </div>
+              
+              <div class="mb-3">
+                <div class="small text-muted mb-1">Estado actual</div>
+                <div class="d-flex flex-wrap gap-2">
+                  <span [class]="obtenerEstadoBadgeClase(usuario()!.estado)">
+                    {{ obtenerEstadoTexto(usuario()!.estado) }}
+                  </span>
+                  
+                  @for (rol of usuario()!.roles; track rol) {
+                    <span [class]="obtenerRolBadgeClase(rol)">
+                      {{ rol === 'administrador' ? 'Admin' : 'Estudiante' }}
+                    </span>
+                  }
+                </div>
+              </div>
+              
+              <div class="small text-muted">
+                <div class="mb-1"><i class="bi bi-calendar3 me-1"></i>Registrado el {{ usuario()!.fecha_creacion | date:'dd/MM/yyyy' }}</div>
+                @if (usuario()!.carrera) {
+                  <div><i class="bi bi-mortarboard me-1"></i>{{ usuario()!.carrera }}</div>
+                }
+              </div>
+            </div>
+          </app-card>
+        </div>
+
+        <!-- Selección de roles -->
+        <div class="col-lg-8">
+          <app-card>
+            <div class="card-body">
+              <h2 class="h5 fw-semibold mb-4">Roles disponibles</h2>
+              
+              <!-- Advertencia de único administrador -->
+              @if (advertenciaUnicoAdmin()) {
+                <div class="alert alert-danger alert-critical" role="alert">
+                  <div class="d-flex align-items-start gap-2">
+                    <i class="bi bi-shield-exclamation fs-4 mt-1"></i>
+                    <div>
+                      <h3 class="h6 fw-bold mb-1">¡ADVERTENCIA CRÍTICA!</h3>
+                      <p class="mb-0">
+                        Este usuario es el <strong>ÚNICO ADMINISTRADOR</strong> del sistema.
+                        Si eliminas el rol de administrador, <strong>nadie podrá realizar operaciones administrativas</strong>
+                        hasta que otro usuario sea designado como administrador.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              }
+              
+              <!-- Roles disponibles -->
+              <div class="row g-3">
+                @for (rol of rolesDisponibles(); track rol.id) {
+                  <div class="col-md-6">
+                    <div 
+                      class="role-selector-card"
+                      [class.selected]="estaRolSeleccionado(rol.nombre)"
+                      [class.disabled]="guardando()"
+                      (click)="alternarRolPorNombre(rol.nombre)"
+                      role="button"
+                      tabindex="0"
+                      (keyup.enter)="alternarRolPorNombre(rol.nombre)"
+                      (keyup.space)="alternarRolPorNombre(rol.nombre)"
+                    >
+                      <div class="d-flex align-items-center gap-3">
+                        <div class="role-checkbox">
+                          @if (estaRolSeleccionado(rol.nombre)) {
+                            <i class="bi bi-check-circle-fill text-primary"></i>
+                          } @else {
+                            <i class="bi bi-circle text-muted"></i>
+                          }
+                        </div>
+                        
+                        <div class="flex-fill">
+                          <div class="d-flex align-items-center gap-2 mb-1">
+                            <h3 class="h6 fw-semibold mb-0">
+                              {{ rol.nombre === 'administrador' ? 'Administrador' : 'Estudiante' }}
+                            </h3>
+                            <span [class]="obtenerRolBadgeClase(rol.nombre)" class="small">
+                              {{ rol.nombre === 'administrador' ? 'Admin' : 'Estudiante' }}
+                            </span>
+                          </div>
+                          
+                          @if (rol.descripcion) {
+                            <p class="small text-muted mb-0">{{ rol.descripcion }}</p>
+                          }
+                          
+                          <!-- Información adicional por rol -->
+                          @if (rol.nombre === 'administrador') {
+                            <div class="small text-danger mt-1">
+                              <i class="bi bi-exclamation-triangle me-1"></i>
+                              <strong>Acceso completo:</strong> Puede gestionar usuarios, roles y toda la plataforma.
+                            </div>
+                          } @else {
+                            <div class="small text-info mt-1">
+                              <i class="bi bi-info-circle me-1"></i>
+                              <strong>Acceso limitado:</strong> Solo puede usar funcionalidades de estudiante.
+                            </div>
+                          }
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                }
+              </div>
+              
+              <!-- Reglas de roles -->
+              <div class="alert alert-light small mt-4" role="note">
+                <div class="fw-medium mb-1">Reglas de asignación de roles:</div>
+                <ul class="mb-0">
+                  <li>Un usuario puede tener múltiples roles, pero <strong>administrador y estudiante no pueden coexistir</strong></li>
+                  <li>Si se selecciona "Administrador", el rol "Estudiante" se deseleccionará automáticamente</li>
+                  <li>Se debe seleccionar al menos un rol</li>
+                  <li>Los cambios se aplicarán inmediatamente después de guardar</li>
+                </ul>
+              </div>
+              
+              <!-- Estado actual de selección -->
+              <div class="alert alert-info small mt-4" role="status">
+                <div class="d-flex justify-content-between align-items-center">
+                  <div>
+                    <span class="fw-medium">Roles seleccionados:</span>
+                    @if (rolesSeleccionados().length > 0) {
+                      <span class="ms-2">
+                        {{ rolesSeleccionados().map(r => r === 'administrador' ? 'Administrador' : 'Estudiante').join(', ') }}
+                      </span>
+                    } @else {
+                      <span class="ms-2 text-danger">Ningún rol seleccionado</span>
+                    }
+                  </div>
+                  
+                  @if (tieneCambios()) {
+                    <span class="badge bg-warning text-dark">
+                      <i class="bi bi-pencil me-1"></i>
+                      Cambios pendientes
+                    </span>
+                  }
+                </div>
+              </div>
+            </div>
+          </app-card>
+        </div>
+      </div>
+
+      <!-- Acciones -->
+      <footer class="mt-4 pt-4 border-top">
+        <div class="d-flex justify-content-between align-items-center">
+          <button class="btn btn-outline-secondary" (click)="cancelar()" [disabled]="guardando()">
+            Cancelar
+          </button>
+          
+          <div class="d-flex gap-2">
+            <button 
+              class="btn btn-primary"
+              (click)="guardarCambios()"
+              [disabled]="!tieneCambios() || guardando() || rolesSeleccionados().length === 0"
+            >
+              @if (guardando()) {
+                <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                Guardando...
+              } @else {
+                <i class="bi bi-check-circle me-1"></i>
+                Guardar cambios
+              }
+            </button>
+          </div>
+        </div>
+      </footer>
+    }
+  </div>
+</div>
