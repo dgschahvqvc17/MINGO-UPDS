@@ -42,6 +42,22 @@ export const routes: Routes = [
         loadComponent: () =>
           import('./features/administracion/administracion').then((m) => m.AdministracionPage),
       },
+      
+      // Rutas de gestión de usuarios dentro de administración
+      {
+        path: 'administracion/usuarios/:id',
+        canActivate: [roleGuard],
+        data: { roles: ['administrador'] },
+        loadComponent: () =>
+          import('./features/administracion/usuario-detalle/usuario-detalle').then((m) => m.UsuarioDetallePage),
+      },
+      {
+        path: 'administracion/usuarios/:id/roles',
+        canActivate: [roleGuard],
+        data: { roles: ['administrador'] },
+        loadComponent: () =>
+          import('./features/administracion/usuario-roles/usuario-roles').then((m) => m.UsuarioRolesPage),
+      },
 
       // Otras rutas protegidas
       {

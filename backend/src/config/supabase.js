@@ -42,4 +42,21 @@ function createSupabaseClient(accessToken) {
   });
 }
 
-module.exports = { supabaseAdmin, createSupabaseClient };
+/**
+ * Crea un cliente con service_role para operaciones administrativas.
+ * Este cliente ignora RLS y debe usarse con extrema precaución.
+ *
+ * @returns {import('@supabase/supabase-js').SupabaseClient}
+ */
+function createSupabaseServiceRoleClient() {
+  if (!supabaseAdmin) {
+    throw new Error('Supabase service role no está configurado (SUPABASE_SERVICE_ROLE_KEY).');
+  }
+  return supabaseAdmin;
+}
+
+module.exports = { 
+  supabaseAdmin, 
+  createSupabaseClient,
+  createSupabaseServiceRoleClient 
+};

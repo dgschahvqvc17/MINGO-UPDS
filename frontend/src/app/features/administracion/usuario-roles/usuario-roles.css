@@ -1,0 +1,196 @@
+.usuario-roles-page {
+  min-height: 100vh;
+  background-color: var(--color-background-base);
+}
+
+/* Breadcrumb */
+.breadcrumb {
+  --bs-breadcrumb-divider: "›";
+  font-size: 0.875rem;
+}
+
+.breadcrumb-item a {
+  color: var(--color-primary);
+  transition: color 0.2s ease;
+}
+
+.breadcrumb-item a:hover {
+  color: var(--color-primary-dark);
+  text-decoration: underline;
+}
+
+/* Avatar de usuario grande */
+.user-avatar-large {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 4rem;
+  height: 4rem;
+  background-color: var(--color-surface);
+  border-radius: 50%;
+  font-size: 2.5rem;
+  color: var(--color-text-muted);
+}
+
+/* Selector de roles */
+.role-selector-card {
+  padding: 1.25rem;
+  background-color: var(--color-surface);
+  border: 2px solid var(--color-border-subtle);
+  border-radius: 0.75rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+.role-selector-card:hover:not(.disabled) {
+  border-color: var(--color-border);
+  background-color: var(--color-surface-dark);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.role-selector-card.selected:not(.disabled) {
+  border-color: var(--color-primary);
+  background-color: rgba(var(--color-primary-rgb), 0.05);
+}
+
+.role-selector-card.disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.role-selector-card:focus-visible:not(.disabled) {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+/* Checkbox de roles */
+.role-checkbox {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  font-size: 1.25rem;
+  flex-shrink: 0;
+}
+
+.role-selector-card.selected .role-checkbox i {
+  color: var(--color-primary);
+}
+
+/* Alertas críticas */
+.alert-critical {
+  border-left: 4px solid var(--color-danger);
+  background-color: rgba(220, 53, 69, 0.1);
+  border-color: rgba(220, 53, 69, 0.2);
+}
+
+.alert-critical .bi-shield-exclamation {
+  color: var(--color-danger);
+}
+
+/* Badges */
+.badge {
+  font-size: 0.75rem;
+  font-weight: 500;
+  padding: 0.25rem 0.625rem;
+  border-radius: 0.375rem;
+}
+
+.badge.bg-success {
+  background-color: var(--color-success) !important;
+}
+
+.badge.bg-danger {
+  background-color: var(--color-danger) !important;
+}
+
+.badge.bg-warning {
+  background-color: var(--color-warning) !important;
+  color: var(--color-text-dark) !important;
+}
+
+.badge.bg-info {
+  background-color: var(--color-info) !important;
+}
+
+.badge.bg-light {
+  background-color: var(--color-surface) !important;
+  color: var(--color-text-muted) !important;
+  border: 1px solid var(--color-border-subtle);
+}
+
+/* Botones */
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn .spinner-border {
+  width: 1em;
+  height: 1em;
+  border-width: 0.15em;
+}
+
+/* Responsive adjustments */
+@media (max-width: 767.98px) {
+  .usuario-roles-page .container {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+  
+  .role-selector-card {
+    padding: 1rem;
+  }
+  
+  .user-avatar-large {
+    width: 3rem;
+    height: 3rem;
+    font-size: 2rem;
+  }
+}
+
+@media (max-width: 575.98px) {
+  .role-selector-card {
+    margin-bottom: 0.75rem;
+  }
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .breadcrumb-item.active {
+    color: var(--color-text-muted-dark);
+  }
+  
+  .user-avatar-large {
+    background-color: var(--color-surface-dark);
+    color: var(--color-text-muted-dark);
+  }
+  
+  .role-selector-card {
+    background-color: var(--color-surface-dark);
+    border-color: var(--color-border-subtle-dark);
+  }
+  
+  .role-selector-card:hover:not(.disabled) {
+    border-color: var(--color-border-dark);
+    background-color: var(--color-surface-darker);
+  }
+  
+  .role-selector-card.selected:not(.disabled) {
+    border-color: var(--color-primary);
+    background-color: rgba(var(--color-primary-rgb), 0.1);
+  }
+  
+  .alert-critical {
+    background-color: rgba(220, 53, 69, 0.15);
+  }
+  
+  .badge.bg-light {
+    background-color: var(--color-surface-dark) !important;
+    color: var(--color-text-muted-dark) !important;
+    border-color: var(--color-border-subtle-dark);
+  }
+}
