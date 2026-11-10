@@ -1,0 +1,240 @@
+/* Estilos para el formulario de materias */
+
+.materia-form-page {
+  min-height: calc(100vh - 200px);
+}
+
+/* Input de color personalizado */
+.form-control-color {
+  height: 2.5rem;
+  padding: 0.25rem;
+  cursor: pointer;
+}
+
+/* Opciones de color */
+.color-option {
+  transition: all 0.2s ease;
+  border: 2px solid transparent;
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.color-option:hover {
+  transform: scale(1.05);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.color-option.selected {
+  border-color: #3b82f6 !important;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.25);
+}
+
+.color-option .bi-check-circle-fill {
+  font-size: 1.2rem;
+}
+
+/* Tarjeta de vista previa */
+.preview-card {
+  transition: all 0.2s ease;
+}
+
+.preview-avatar {
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+
+/* Formulario */
+.form-label {
+  font-size: 0.875rem;
+  margin-bottom: 0.5rem;
+}
+
+.form-text {
+  font-size: 0.75rem;
+}
+
+/* Validación */
+.invalid-feedback {
+  font-size: 0.75rem;
+}
+
+/* Breadcrumb */
+.breadcrumb {
+  background-color: transparent;
+  padding: 0;
+  margin-bottom: 1rem;
+}
+
+.breadcrumb-item a {
+  color: #6c757d;
+  text-decoration: none;
+}
+
+.breadcrumb-item a:hover {
+  color: #0d6efd;
+}
+
+.breadcrumb-item.active {
+  color: #495057;
+  font-weight: 500;
+}
+
+/* Alertas */
+.alert-light {
+  background-color: #f8f9fa;
+  border-color: #e9ecef;
+}
+
+/* Botones */
+.btn {
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.btn-primary:disabled {
+  background-color: #9ec5fe;
+  border-color: #9ec5fe;
+}
+
+/* Spinner en botón */
+.spinner-border-sm {
+  width: 1rem;
+  height: 1rem;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .materia-form-page {
+    padding-top: 1rem;
+    padding-bottom: 1rem;
+  }
+  
+  .color-option {
+    padding: 1rem !important;
+  }
+  
+  .preview-card {
+    padding: 1.5rem !important;
+  }
+}
+
+/* Animaciones */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.materia-form-page > .container > form {
+  animation: fadeIn 0.3s ease forwards;
+}
+
+/* Mejoras de accesibilidad */
+.form-control:focus,
+.form-select:focus,
+.btn:focus {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+/* Estilos para los grupos de input */
+.input-group .btn-outline-secondary:hover {
+  background-color: #6c757d;
+  border-color: #6c757d;
+  color: white;
+}
+
+/* Custom scrollbar para listas largas */
+.color-palette-container {
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.color-palette-container::-webkit-scrollbar {
+  width: 6px;
+}
+
+.color-palette-container::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 3px;
+}
+
+.color-palette-container::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 3px;
+}
+
+.color-palette-container::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
+
+/* Estilos para el textarea */
+textarea.form-control {
+  resize: vertical;
+  min-height: 80px;
+}
+
+/* Estilos para los mensajes de ayuda */
+.text-success {
+  font-weight: 500;
+}
+
+/* Override para el input de color nativo */
+input[type="color"] {
+  -webkit-appearance: none;
+  border: none;
+  width: 100%;
+  height: 40px;
+  border-radius: 0.375rem;
+  cursor: pointer;
+}
+
+input[type="color"]::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+
+input[type="color"]::-webkit-color-swatch {
+  border: 1px solid #dee2e6;
+  border-radius: 0.25rem;
+}
+
+/* Mejoras para la vista previa */
+.preview-card {
+  border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+/* Estados de hover para los botones de acción */
+.btn-outline-danger:hover {
+  background-color: #dc3545;
+  color: white;
+}
+
+/* Transiciones suaves */
+.form-control,
+.form-select,
+.btn,
+.color-option {
+  transition: all 0.2s ease;
+}
+
+/* Estilos para mensajes de error en tiempo real */
+.is-invalid {
+  border-color: #dc3545 !important;
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' width='12' height='12' fill='none' stroke='%23dc3545'%3e%3ccircle cx='6' cy='6' r='4.5'/%3e%3cpath stroke-linejoin='round' d='M5.8 3.6h.4L6 6.5z'/%3e%3ccircle cx='6' cy='8.2' r='.6' fill='%23dc3545' stroke='none'/%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right calc(0.375em + 0.1875rem) center;
+  background-size: calc(0.75em + 0.375rem) calc(0.75em + 0.375rem);
+}
+
+.is-invalid:focus {
+  border-color: #dc3545;
+  box-shadow: 0 0 0 0.25rem rgba(220, 53, 69, 0.25);
+}

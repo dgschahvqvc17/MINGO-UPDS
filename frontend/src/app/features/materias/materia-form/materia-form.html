@@ -1,0 +1,331 @@
+<div class="materia-form-page py-4 py-lg-5">
+  <div class="container">
+    <!-- Navegación -->
+    <nav aria-label="breadcrumb" class="mb-4">
+      <ol class="breadcrumb">
+        <li class="breadcrumb-item">
+          <a routerLink="/materias" class="text-decoration-none">Materias</a>
+        </li>
+        <li class="breadcrumb-item active" aria-current="page">{{ tituloPagina() }}</li>
+      </ol>
+    </nav>
+
+    <!-- Estados de carga -->
+    @if (loading()) {
+      <div class="text-center py-5">
+        <div class="spinner-border text-primary" role="status">
+          <span class="visually-hidden">Cargando...</span>
+        </div>
+        <p class="text-muted mt-3">
+          {{ modoEdicion() ? 'Cargando información de la materia...' : 'Preparando formulario...' }}
+        </p>
+      </div>
+    }
+
+    <!-- Error -->
+    @if (error() && !loading()) {
+      <div class="alert alert-danger" role="alert">
+        <div class="d-flex align-items-center gap-2">
+          <i class="bi bi-exclamation-triangle-fill"></i>
+          <div class="flex-fill">{{ error() }}</div>
+          <button class="btn btn-sm btn-outline-danger" (click)="modoEdicion() ? cargarMateriaSiEsEdicion() : null">
+            Reintentar
+          </button>
+        </div>
+      </div>
+    }
+
+    <!-- Formulario -->
+    @if (!loading() && !error()) {
+      <form [formGroup]="form" (ngSubmit)="onSubmit()">
+        <div class="row g-4">
+          <!-- Información principal -->
+          <div class="col-lg-8">
+            <app-card class="h-100">
+              <div class="card-body">
+                <h2 class="h4 fw-semibold mb-4">Información de la materia</h2>
+                
+                <!-- Nombre -->
+                <div class="mb-3">
+                  <label for="nombre" class="form-label fw-medium">
+                    Nombre de la materia <span class="text-danger">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    id="nombre"
+                    class="form-control"
+                    formControlName="nombre"
+                    placeholder="Ej: Matemáticas Discretas"
+                    [class.is-invalid]="tieneError('nombre', 'required') || tieneError('nombre', 'minlength')"
+                  />
+                  @if (tieneError('nombre', 'required') || tieneError('nombre', 'minlength')) {
+                    <div class="invalid-feedback">
+                      {{ obtenerMensajeError('nombre') }}
+                    </div>
+                  }
+                  <div class="form-text">
+                    Nombre completo de la asignatura académica
+                  </div>
+                </div>
+
+                <!-- Código y Docente -->
+                <div class="row g-3">
+                  <div class="col-md-6">
+                    <div class="mb-3">
+                      <label for="codigo" class="form-label fw-medium">
+                        Código <span class="text-danger">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        id="codigo"
+                        class="form-control text-uppercase"
+                        formControlName="codigo"
+                        placeholder="Ej: MAT101"
+                        [class.is-invalid]="tieneError('codigo', 'required') || tieneError('codigo', 'pattern')"
+                      />
+                      @if (tieneError('codigo', 'required') || tieneError('codigo', 'pattern')) {
+                        <div class="invalid-feedback">
+                          {{ obtenerMensajeError('codigo') }}
+                        </div>
+                      }
+                      <div class="form-text">
+                        Código único de la asignatura
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div class="col-md-6">
+                    <div class="mb-3">
+                      <label for="docente" class="form-label fw-medium">
+                        Docente <span class="text-danger">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        id="docente"
+                        class="form-control"
+                        formControlName="docente"
+                        placeholder="Ej: Dr. Juan Pérez"
+                        [class.is-invalid]="tieneError('docente', 'required')"
+                      />
+                      @if (tieneError('docente', 'required')) {
+                        <div class="invalid-feedback">
+                          {{ obtenerMensajeError('docente') }}
+                        </div>
+                      }
+                      <div class="form-text">
+                        Nombre del docente responsable
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Periodo académico -->
+                <div class="mb-3">
+                  <label for="periodo_academico" class="form-label fw-medium">
+                    Periodo académico <span class="text-danger">*</span>
+                  </label>
+                  <div class="input-group">
+                    <input
+                      type="text"
+                      id="periodo_academico"
+                      class="form-control"
+                      formControlName="periodo_academico"
+                      placeholder="Ej: 2024-1"
+                      [class.is-invalid]="tieneError('periodo_academico', 'required') || tieneError('periodo_academico', 'pattern')"
+                    />
+                    <button 
+                      class="btn btn-outline-secondary" 
+                      type="button"
+                      (click)="generarSiguientePeriodo()"
+                      title="Generar siguiente periodo"
+                    >
+                      <i class="bi bi-calendar-plus"></i>
+                    </button>
+                  </div>
+                  @if (tieneError('periodo_academico', 'required') || tieneError('periodo_academico', 'pattern')) {
+                    <div class="invalid-feedback">
+                      {{ obtenerMensajeError('periodo_academico') }}
+                    </div>
+                  }
+                  <div class="form-text">
+                    @if (descripcionPeriodo()) {
+                      <span class="text-success">{{ descripcionPeriodo() }}</span>
+                    } @else {
+                      Formato: AÑO-SEMESTRE (ej: 2024-1)
+                    }
+                  </div>
+                </div>
+
+                <!-- Descripción -->
+                <div class="mb-3">
+                  <label for="descripcion" class="form-label fw-medium">
+                    Descripción (opcional)
+                  </label>
+                  <textarea
+                    id="descripcion"
+                    class="form-control"
+                    formControlName="descripcion"
+                    rows="3"
+                    placeholder="Breve descripción de la materia, contenidos, objetivos, etc."
+                    [class.is-invalid]="tieneError('descripcion', 'maxlength')"
+                  ></textarea>
+                  @if (tieneError('descripcion', 'maxlength')) {
+                    <div class="invalid-feedback">
+                      {{ obtenerMensajeError('descripcion') }}
+                    </div>
+                  }
+                  <div class="form-text">
+                    Máximo 500 caracteres. {{ form.get('descripcion')?.value?.length || 0 }}/500
+                  </div>
+                </div>
+              </div>
+            </app-card>
+          </div>
+
+          <!-- Selección de color -->
+          <div class="col-lg-4">
+            <app-card class="h-100">
+              <div class="card-body">
+                <h2 class="h4 fw-semibold mb-4">Personalización</h2>
+                
+                <!-- Color -->
+                <div class="mb-4">
+                  <label class="form-label fw-medium mb-3">
+                    Color identificador <span class="text-danger">*</span>
+                  </label>
+                  
+                  <input
+                    type="text"
+                    class="form-control form-control-color mb-3"
+                    formControlName="color"
+                    [class.is-invalid]="tieneError('color', 'pattern')"
+                  />
+                  @if (tieneError('color', 'pattern')) {
+                    <div class="invalid-feedback">
+                      {{ obtenerMensajeError('color') }}
+                    </div>
+                  }
+                  
+                  <div class="form-text mb-3">
+                    Selecciona un color para identificar fácilmente esta materia
+                  </div>
+
+                  <!-- Paleta de colores -->
+                  <div class="row g-2">
+                    @for (color of coloresDisponibles(); track color) {
+                      <div class="col-4 col-md-3">
+                        <div 
+                          class="color-option rounded-2 p-3 cursor-pointer"
+                          [style.background-color]="obtenerColorFondo(color)"
+                          [style.color]="obtenerColorTexto(color)"
+                          [class.selected]="estaColorSeleccionado(color)"
+                          [class.border-primary]="estaColorSeleccionado(color)"
+                          (click)="seleccionarColor(color)"
+                          role="button"
+                          tabindex="0"
+                          [title]="color"
+                        >
+                          <div class="text-center">
+                            <i 
+                              class="bi bi-check-circle-fill" 
+                              [class.visible]="estaColorSeleccionado(color)"
+                              [class.invisible]="!estaColorSeleccionado(color)"
+                            ></i>
+                          </div>
+                        </div>
+                      </div>
+                    }
+                  </div>
+                </div>
+
+                <!-- Vista previa -->
+                <div class="mb-4">
+                  <label class="form-label fw-medium mb-3">Vista previa</label>
+                  <div 
+                    class="preview-card rounded-3 p-4"
+                    [style.background-color]="obtenerColorFondo(form.get('color')?.value || '#3B82F6') + '20'"
+                    [style.border-left]="'4px solid ' + (form.get('color')?.value || '#3B82F6')"
+                  >
+                    <div class="d-flex align-items-center gap-3">
+                      <div 
+                        class="preview-avatar rounded-circle d-flex align-items-center justify-content-center"
+                        [style.background-color]="form.get('color')?.value || '#3B82F6'"
+                        [style.color]="obtenerColorTexto(form.get('color')?.value || '#3B82F6')"
+                        [style.width]="'48px'"
+                        [style.height]="'48px'"
+                      >
+                        @if (form.get('nombre')?.value) {
+                          {{ form.get('nombre')?.value?.substring(0, 2)?.toUpperCase() }}
+                        } @else {
+                          <i class="bi bi-book"></i>
+                        }
+                      </div>
+                      <div>
+                        <div class="fw-medium">
+                          {{ form.get('nombre')?.value || 'Nombre de la materia' }}
+                        </div>
+                        <div class="small text-muted">
+                          {{ form.get('codigo')?.value || 'CÓDIGO' }} • {{ form.get('docente')?.value || 'Docente' }}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Información adicional -->
+                <div class="alert alert-light small">
+                  <div class="fw-medium mb-1">Recomendaciones:</div>
+                  <ul class="mb-0">
+                    <li>Usa códigos únicos para cada materia</li>
+                    <li>El color ayuda a identificar rápidamente</li>
+                    <li>Puedes archivar materias terminadas</li>
+                  </ul>
+                </div>
+              </div>
+            </app-card>
+          </div>
+        </div>
+
+        <!-- Acciones -->
+        <footer class="mt-4 pt-4 border-top">
+          <div class="d-flex justify-content-between align-items-center">
+            <button 
+              type="button" 
+              class="btn btn-outline-secondary"
+              (click)="cancelar()"
+              [disabled]="guardando()"
+            >
+              Cancelar
+            </button>
+            
+            <div class="d-flex gap-2">
+              @if (modoEdicion()) {
+                <button 
+                  type="button" 
+                  class="btn btn-outline-danger"
+                  [disabled]="guardando()"
+                  routerLink="/materias"
+                >
+                  Eliminar
+                </button>
+              }
+              
+              <button 
+                type="submit" 
+                class="btn btn-primary"
+                [disabled]="form.invalid || guardando()"
+              >
+                @if (guardando()) {
+                  <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                } @else {
+                  <i class="bi bi-check-circle me-1"></i>
+                }
+                {{ botonGuardarTexto() }}
+              </button>
+            </div>
+          </div>
+        </footer>
+      </form>
+    }
+  </div>
+</div>
