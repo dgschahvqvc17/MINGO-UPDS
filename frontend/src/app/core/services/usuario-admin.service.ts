@@ -67,18 +67,13 @@ export class UsuarioAdminService {
    * Lista usuarios con opciones de búsqueda y paginación
    */
   listarUsuarios(params: UsuarioBusquedaParams = {}): Observable<UsuarioListadoResponse> {
-    const queryParams = new URLSearchParams();
-    
-    if (params.query) queryParams.set('query', params.query);
-    if (params.estado) queryParams.set('estado', params.estado);
-    if (params.rol) queryParams.set('rol', params.rol);
-    if (params.limit) queryParams.set('limit', params.limit.toString());
-    if (params.offset) queryParams.set('offset', params.offset.toString());
-
-    const queryString = queryParams.toString();
-    const url = `usuarios${queryString ? `?${queryString}` : ''}`;
-
-    return this.api.get<UsuarioListadoResponse>(url);
+    return this.api.get<UsuarioListadoResponse>('usuarios', {
+      query: params.query,
+      estado: params.estado,
+      rol: params.rol,
+      limit: params.limit,
+      offset: params.offset,
+    });
   }
 
   /**

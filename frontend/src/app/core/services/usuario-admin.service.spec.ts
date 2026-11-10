@@ -58,6 +58,7 @@ describe('UsuarioAdminService', () => {
   });
 
   afterEach(() => {
+    TestBed.resetTestingModule();
     httpMock.verify();
   });
 
@@ -105,16 +106,15 @@ describe('UsuarioAdminService', () => {
         expect(response.usuarios[0].nombre).toBe('Juan');
       });
 
-      const req = httpMock.expectOne(req => 
-        req.url === '/api/usuarios' &&
-        req.params.get('query') === 'Juan' &&
-        req.params.get('estado') === 'activo' &&
-        req.params.get('rol') === 'estudiante' &&
-        req.params.get('limit') === '20' &&
-        req.params.get('offset') === '0'
-      );
-      
+      // La URL lleva query params: se compara solo la ruta y luego se validan los params.
+      const req = httpMock.expectOne((request) => request.url === '/api/usuarios');
+
       expect(req.request.method).toBe('GET');
+      expect(req.request.params.get('query')).toBe('Juan');
+      expect(req.request.params.get('estado')).toBe('activo');
+      expect(req.request.params.get('rol')).toBe('estudiante');
+      expect(req.request.params.get('limit')).toBe('20');
+      expect(req.request.params.get('offset')).toBe('0');
       req.flush({ success: true, data: mockResponse });
     });
   });

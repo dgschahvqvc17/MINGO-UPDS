@@ -1,0 +1,232 @@
+<div class="tarea-form-page py-4 py-lg-5">
+  <div class="container">
+    <!-- Navegación -->
+    <nav aria-label="breadcrumb" class="mb-4">
+      <ol class="breadcrumb">
+        <li class="breadcrumb-item">
+          <a routerLink="/tareas" class="text-decoration-none">Tareas</a>
+        </li>
+        <li class="breadcrumb-item active" aria-current="page">{{ tituloPagina() }}</li>
+      </ol>
+    </nav>
+
+    @if (loading()) {
+      <div class="text-center py-5">
+        <div class="spinner-border text-primary" role="status">
+          <span class="visually-hidden">Cargando tarea...</span>
+        </div>
+        <p class="text-muted mt-3">Cargando la información de la tarea...</p>
+      </div>
+    }
+
+    @if (error()) {
+      <div class="alert alert-danger" role="alert">
+        <div class="d-flex align-items-center gap-2">
+          <i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i>
+          <div class="flex-fill">{{ error() }}</div>
+          @if (modoEdicion()) {
+            <button type="button" class="btn btn-sm btn-outline-danger" (click)="cargarTareaSiEsEdicion()">
+              Reintentar
+            </button>
+          }
+        </div>
+      </div>
+    }
+
+    @if (!loading() && !hayMaterias()) {
+      <div class="alert alert-warning" role="alert">
+        <i class="bi bi-info-circle me-1" aria-hidden="true"></i>
+        Necesitas al menos una materia registrada para crear tareas.
+        <a routerLink="/materias/nueva" class="alert-link">Registrar materia</a>
+      </div>
+    }
+
+    @if (!loading()) {
+      <form [formGroup]="form" (ngSubmit)="onSubmit()" novalidate>
+        <div class="row g-4">
+          <div class="col-lg-8">
+            <app-card class="h-100">
+              <div class="card-body">
+                <h2 class="h4 fw-semibold mb-4">Datos de la tarea</h2>
+
+                <!-- Materia -->
+                <div class="mb-3">
+                  <label for="materia_id" class="form-label fw-medium">
+                    Materia <span class="text-danger">*</span>
+                  </label>
+                  <select
+                    id="materia_id"
+                    class="form-select"
+                    formControlName="materia_id"
+                    [class.is-invalid]="tieneError('materia_id', 'required')"
+                  >
+                    <option value="">Selecciona una materia</option>
+                    @for (materia of materias(); track materia.id) {
+                      <option [value]="materia.id">
+                        {{ materia.nombre }} ({{ materia.codigo }}){{ materia.estado === 'archivado' ? ' — archivada' : '' }}
+                      </option>
+                    }
+                  </select>
+                  @if (tieneError('materia_id', 'required')) {
+                    <div class="invalid-feedback">{{ obtenerMensajeError('materia_id') }}</div>
+                  }
+                </div>
+
+                <!-- Título -->
+                <div class="mb-3">
+                  <label for="titulo" class="form-label fw-medium">
+                    Título <span class="text-danger">*</span>
+                  </label>
+                  <input
+                    id="titulo"
+                    type="text"
+                    class="form-control"
+                    formControlName="titulo"
+                    placeholder="Ej: Resolver taller de derivadas"
+                    [class.is-invalid]="tieneError('titulo', 'required') || tieneError('titulo', 'minlength') || tieneError('titulo', 'maxlength')"
+                  />
+                  @if (tieneError('titulo', 'required') || tieneError('titulo', 'minlength') || tieneError('titulo', 'maxlength')) {
+                    <div class="invalid-feedback">{{ obtenerMensajeError('titulo') }}</div>
+                  }
+                  <div class="form-text">Entre 3 y 200 caracteres.</div>
+                </div>
+
+                <!-- Descripción -->
+                <div class="mb-3">
+                  <label for="descripcion" class="form-label fw-medium">Descripción</label>
+                  <textarea
+                    id="descripcion"
+                    class="form-control"
+                    formControlName="descripcion"
+                    rows="4"
+                    placeholder="Detalles, indicaciones o recursos de la actividad"
+                    [class.is-invalid]="tieneError('descripcion', 'maxlength')"
+                  ></textarea>
+                  @if (tieneError('descripcion', 'maxlength')) {
+                    <div class="invalid-feedback">{{ obtenerMensajeError('descripcion') }}</div>
+                  }
+                  <div class="form-text">
+                    {{ descripcionActual() }}/{{ largoMaximoDescripcion }} caracteres.
+                  </div>
+                </div>
+
+                <!-- Tipo y prioridad -->
+                <div class="row g-3">
+                  <div class="col-md-6">
+                    <div class="mb-3">
+                      <label for="tipo" class="form-label fw-medium">
+                        Tipo de actividad <span class="text-danger">*</span>
+                      </label>
+                      <select id="tipo" class="form-select" formControlName="tipo">
+                        @for (tipo of tipos; track tipo) {
+                          <option [value]="tipo">{{ tipo }}</option>
+                        }
+                      </select>
+                    </div>
+                  </div>
+
+                  <div class="col-md-6">
+                    <div class="mb-3">
+                      <label for="prioridad" class="form-label fw-medium">
+                        Prioridad <span class="text-danger">*</span>
+                      </label>
+                      <select id="prioridad" class="form-select" formControlName="prioridad">
+                        @for (prioridad of prioridades; track prioridad) {
+                          <option [value]="prioridad">{{ prioridad }}</option>
+                        }
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </app-card>
+          </div>
+
+          <div class="col-lg-4">
+            <app-card class="h-100">
+              <div class="card-body">
+                <h2 class="h4 fw-semibold mb-4">Fechas y estado</h2>
+
+                <!-- Fecha de asignación -->
+                <div class="mb-3">
+                  <label for="fecha_asignacion" class="form-label fw-medium">
+                    Fecha de asignación <span class="text-danger">*</span>
+                  </label>
+                  <input
+                    id="fecha_asignacion"
+                    type="date"
+                    class="form-control"
+                    formControlName="fecha_asignacion"
+                    [class.is-invalid]="tieneError('fecha_asignacion', 'required')"
+                  />
+                  @if (tieneError('fecha_asignacion', 'required')) {
+                    <div class="invalid-feedback">{{ obtenerMensajeError('fecha_asignacion') }}</div>
+                  }
+                </div>
+
+                <!-- Fecha de entrega -->
+                <div class="mb-3">
+                  <label for="fecha_entrega" class="form-label fw-medium">Fecha de entrega</label>
+                  <input
+                    id="fecha_entrega"
+                    type="date"
+                    class="form-control"
+                    formControlName="fecha_entrega"
+                    [class.is-invalid]="tieneErrorRango()"
+                    [attr.aria-describedby]="tieneErrorRango() ? 'fecha-entrega-error' : null"
+                  />
+                  @if (tieneErrorRango()) {
+                    <div id="fecha-entrega-error" class="invalid-feedback d-block">
+                      La fecha de entrega no puede ser anterior a la de asignación.
+                    </div>
+                  }
+                  <div class="form-text">Opcional. Déjala vacía si no tiene fecha límite.</div>
+                </div>
+
+                <!-- Estado -->
+                <div class="mb-3">
+                  <label for="estado" class="form-label fw-medium">
+                    Estado <span class="text-danger">*</span>
+                  </label>
+                  <select id="estado" class="form-select" formControlName="estado">
+                    @for (estado of estados; track estado) {
+                      <option [value]="estado">{{ estado }}</option>
+                    }
+                  </select>
+                </div>
+
+                <div class="alert alert-light small mb-0">
+                  <div class="fw-medium mb-1">Consejos:</div>
+                  <ul class="mb-0">
+                    <li>Usa la prioridad para ordenar tu trabajo.</li>
+                    <li>Las tareas vencidas se resaltan automáticamente.</li>
+                    <li>Puedes cambiar el estado desde el listado.</li>
+                  </ul>
+                </div>
+              </div>
+            </app-card>
+          </div>
+        </div>
+
+        <footer class="mt-4 pt-4 border-top d-flex justify-content-between align-items-center">
+          <button type="button" class="btn btn-outline-secondary" (click)="cancelar()" [disabled]="guardando()">
+            Cancelar
+          </button>
+
+          <button
+            type="submit"
+            class="btn btn-primary"
+            [disabled]="guardando() || !hayMaterias()"
+          >
+            @if (guardando()) {
+              <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+            } @else {
+              <i class="bi bi-check-circle me-1" aria-hidden="true"></i>
+            }
+            {{ botonGuardarTexto() }}
+          </button>
+        </footer>
+      </form>
+    }
+  </div>
+</div>

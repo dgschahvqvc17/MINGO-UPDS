@@ -1,348 +1,343 @@
 /**
- * Repositorio para operaciones CRUD de materias académicas.
- * Cada usuario solo puede acceder a sus propias materias (controlado por RLS).
+ * Acceso a datos de las materias académicas.
+ * Usa el cliente de Supabase del usuario para que RLS se aplique en cada consulta.
+ * No conoce HTTP ni reglas de negocio.
  */
+const MATERIA_COLUMNS =
+  'id, usuario_id, nombre, codigo, docente, descripcion, periodo_academico, color, estado, fecha_creacion, fecha_actualizacion';
+
+// HU07 es la historia que agrega documentos. Hasta entonces el contador es cero.
+const TOTAL_DOCUMENTOS_PENDIENTE = 0;
+
 class MateriaRepository {
-  constructor(dbClient) {
-    this.db = dbClient;
+  /**
+   * @param {{ supabase: import('@supabase/supabase-js').SupabaseClient | null }} dependencies
+   */
+  constructor({ supabase }) {
+    this.supabase = supabase;
   }
 
   /**
-   * Lista materias de un usuario con opciones de búsqueda y paginación.
-   * @param {string} usuarioId - UUID del usuario
-   * @param {Object} options - Opciones de búsqueda
-   * @returns {Promise<Array>} Lista de materias
+   * Lista las materias del usuario con filtros y paginación.
+   *
+   * @param {string} usuarioId UUID del usuario.
+   * @param {object} filtros Filtros validados.
+   * @returns {Promise<{ items: object[], total: number }>}
    */
-  async listarMaterias(usuarioId, { query, periodo_academico, estado, limit = 20, offset = 0 }) {
-    const params = [usuarioId];
-    let whereClauses = ['m.usuario_id = $1'];
-    let paramCount = 2;
+  async listarMaterias(usuarioId, filtros = {}) {
+    const { query, periodo_academico, estado, limit = 20, offset = 0 } = filtros;
 
-    // Construir condiciones WHERE dinámicamente
+    let builder = this.requireClient()
+      .from('materias')
+      .select(MATERIA_COLUMNS, { count: 'exact' })
+      .eq('usuario_id', usuarioId);
+
     if (query) {
-      whereClauses.push(
-        `(m.nombre ILIKE $${paramCount} OR m.codigo ILIKE $${paramCount} OR m.docente ILIKE $${paramCount})`
-      );
-      params.push(`%${query}%`);
-      paramCount++;
+      // PostgREST usa comas y parentesis como sintaxis: se eliminan del termino.
+      const terminoSeguro = String(query).replace(/[,()]/g, ' ').trim();
+
+      if (terminoSeguro) {
+        builder = builder.or(
+          `nombre.ilike.%${terminoSeguro}%,codigo.ilike.%${terminoSeguro}%,docente.ilike.%${terminoSeguro}%`,
+        );
+      }
     }
 
     if (periodo_academico) {
-      whereClauses.push(`m.periodo_academico = $${paramCount}`);
-      params.push(periodo_academico);
-      paramCount++;
+      builder = builder.eq('periodo_academico', periodo_academico);
     }
 
     if (estado) {
-      whereClauses.push(`m.estado = $${paramCount}`);
-      params.push(estado);
-      paramCount++;
+      builder = builder.eq('estado', estado);
     }
 
-    // Construir la consulta principal
-    let sql = `
-      SELECT 
-        m.id,
-        m.usuario_id,
-        m.nombre,
-        m.codigo,
-        m.docente,
-        m.descripcion,
-        m.periodo_academico,
-        m.color,
-        m.estado,
-        m.fecha_creacion,
-        m.fecha_actualizacion,
-        COUNT(t.id) as total_tareas,
-        COUNT(t.id) FILTER (WHERE t.estado = 'pendiente') as tareas_pendientes,
-        COUNT(d.id) as total_documentos
-      FROM public.materias m
-      LEFT JOIN public.tareas t ON m.id = t.materia_id AND t.estado != 'eliminado'
-      LEFT JOIN public.documentos d ON m.id = d.materia_id AND d.estado != 'eliminado'
-    `;
-
-    if (whereClauses.length > 0) {
-      sql += ` WHERE ${whereClauses.join(' AND ')}`;
-    }
-
-    sql += `
-      GROUP BY m.id, m.usuario_id, m.nombre, m.codigo, m.docente, m.descripcion, 
-               m.periodo_academico, m.color, m.estado, m.fecha_creacion, m.fecha_actualizacion
-      ORDER BY 
-        CASE WHEN m.estado = 'activo' THEN 1 ELSE 2 END,
-        m.periodo_academico DESC,
-        m.nombre ASC
-      LIMIT $${paramCount}
-      OFFSET $${paramCount + 1}
-    `;
-
-    params.push(limit, offset);
-
-    const { data, error } = await this.db.query(sql, params);
+    const { data, error, count } = await builder
+      .order('estado', { ascending: true })
+      .order('periodo_academico', { ascending: false })
+      .order('nombre', { ascending: true })
+      .range(offset, offset + limit - 1);
 
     if (error) {
-      throw new Error(`Error al listar materias: ${error.message}`, { cause: error });
+      throw error;
     }
 
-    return data;
+    const items = await this.agregarContadores(data ?? []);
+
+    return { items, total: count ?? items.length };
   }
 
   /**
-   * Obtiene una materia específica por ID verificando propiedad.
-   * @param {string} usuarioId - UUID del usuario
-   * @param {string} materiaId - UUID de la materia
-   * @returns {Promise<Object|null>} Materia con detalles o null si no existe/no pertenece
+   * Obtiene una materia por ID verificando la propiedad con RLS.
+   *
+   * @param {string} usuarioId UUID del usuario.
+   * @param {string} materiaId UUID de la materia.
+   * @returns {Promise<object | null>}
    */
   async obtenerMateriaPorId(usuarioId, materiaId) {
-    const { data, error } = await this.db.query(
-      `
-      SELECT 
-        m.id,
-        m.usuario_id,
-        m.nombre,
-        m.codigo,
-        m.docente,
-        m.descripcion,
-        m.periodo_academico,
-        m.color,
-        m.estado,
-        m.fecha_creacion,
-        m.fecha_actualizacion,
-        COUNT(t.id) as total_tareas,
-        COUNT(t.id) FILTER (WHERE t.estado = 'pendiente') as tareas_pendientes,
-        COUNT(d.id) as total_documentos
-      FROM public.materias m
-      LEFT JOIN public.tareas t ON m.id = t.materia_id AND t.estado != 'eliminado'
-      LEFT JOIN public.documentos d ON m.id = d.materia_id AND d.estado != 'eliminado'
-      WHERE m.id = $1 AND m.usuario_id = $2
-      GROUP BY m.id, m.usuario_id, m.nombre, m.codigo, m.docente, m.descripcion, 
-               m.periodo_academico, m.color, m.estado, m.fecha_creacion, m.fecha_actualizacion
-      `,
-      [materiaId, usuarioId]
-    );
+    const { data, error } = await this.requireClient()
+      .from('materias')
+      .select(MATERIA_COLUMNS)
+      .eq('id', materiaId)
+      .eq('usuario_id', usuarioId)
+      .maybeSingle();
 
     if (error) {
-      throw new Error(`Error al obtener materia: ${error.message}`, { cause: error });
+      throw error;
     }
 
-    if (data.length === 0) {
+    if (!data) {
       return null;
     }
 
-    return data[0];
+    const [materia] = await this.agregarContadores([data]);
+    return materia;
   }
 
   /**
-   * Crea una nueva materia para un usuario.
-   * @param {string} usuarioId - UUID del usuario
-   * @param {Object} materiaData - Datos de la materia
-   * @returns {Promise<Object>} Materia creada
+   * Crea una materia para el usuario.
+   *
+   * @param {string} usuarioId UUID del usuario.
+   * @param {object} materiaData Datos validados.
+   * @returns {Promise<object>}
    */
   async crearMateria(usuarioId, materiaData) {
     const { nombre, codigo, docente, descripcion, periodo_academico, color } = materiaData;
 
-    const { data, error } = await this.db.query(
-      `
-      INSERT INTO public.materias (
-        usuario_id, nombre, codigo, docente, descripcion, 
-        periodo_academico, color, estado
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, 'activo')
-      RETURNING 
-        id, usuario_id, nombre, codigo, docente, descripcion, 
-        periodo_academico, color, estado, fecha_creacion, fecha_actualizacion
-      `,
-      [usuarioId, nombre, codigo, docente, descripcion, periodo_academico, color]
-    );
+    const { data, error } = await this.requireClient()
+      .from('materias')
+      .insert({
+        usuario_id: usuarioId,
+        nombre,
+        codigo,
+        docente,
+        descripcion: descripcion ?? null,
+        periodo_academico,
+        color: color ?? '#3B82F6',
+        estado: 'activo',
+      })
+      .select(MATERIA_COLUMNS)
+      .single();
 
     if (error) {
-      // Verificar si es error de duplicado (mismo código para el mismo usuario)
       if (error.code === '23505') {
-        throw new Error(`Ya existe una materia con el código "${codigo}"`, { cause: error });
+        throw new Error(`Ya existe una materia con el código "${codigo}"`);
       }
-      throw new Error(`Error al crear materia: ${error.message}`, { cause: error });
+      throw error;
     }
 
-    return data[0];
+    const [materia] = await this.agregarContadores([data]);
+    return materia;
   }
 
   /**
    * Actualiza una materia existente.
-   * @param {string} usuarioId - UUID del usuario
-   * @param {string} materiaId - UUID de la materia
-   * @param {Object} materiaData - Datos a actualizar
-   * @returns {Promise<Object>} Materia actualizada
+   *
+   * @param {string} usuarioId UUID del usuario.
+   * @param {string} materiaId UUID de la materia.
+   * @param {object} materiaData Datos a actualizar.
+   * @returns {Promise<object>}
    */
   async actualizarMateria(usuarioId, materiaId, materiaData) {
-    const updates = [];
-    const params = [];
-    let paramCount = 1;
+    const updates = { ...materiaData, fecha_actualizacion: new Date().toISOString() };
 
-    // Construir SET dinámicamente
-    if (materiaData.nombre !== undefined) {
-      updates.push(`nombre = $${paramCount}`);
-      params.push(materiaData.nombre);
-      paramCount++;
-    }
-
-    if (materiaData.codigo !== undefined) {
-      updates.push(`codigo = $${paramCount}`);
-      params.push(materiaData.codigo);
-      paramCount++;
-    }
-
-    if (materiaData.docente !== undefined) {
-      updates.push(`docente = $${paramCount}`);
-      params.push(materiaData.docente);
-      paramCount++;
-    }
-
-    if (materiaData.descripcion !== undefined) {
-      updates.push(`descripcion = $${paramCount}`);
-      params.push(materiaData.descripcion);
-      paramCount++;
-    }
-
-    if (materiaData.periodo_academico !== undefined) {
-      updates.push(`periodo_academico = $${paramCount}`);
-      params.push(materiaData.periodo_academico);
-      paramCount++;
-    }
-
-    if (materiaData.color !== undefined) {
-      updates.push(`color = $${paramCount}`);
-      params.push(materiaData.color);
-      paramCount++;
-    }
-
-    if (materiaData.estado !== undefined) {
-      updates.push(`estado = $${paramCount}`);
-      params.push(materiaData.estado);
-      paramCount++;
-    }
-
-    if (updates.length === 0) {
+    if (Object.keys(materiaData).length === 0) {
       throw new Error('No se proporcionaron datos para actualizar');
     }
 
-    // Añadir fecha de actualización
-    updates.push(`fecha_actualizacion = NOW()`);
-
-    // Añadir parámetros de WHERE
-    params.push(materiaId, usuarioId);
-
-    const sql = `
-      UPDATE public.materias
-      SET ${updates.join(', ')}
-      WHERE id = $${paramCount} AND usuario_id = $${paramCount + 1}
-      RETURNING 
-        id, usuario_id, nombre, codigo, docente, descripcion, 
-        periodo_academico, color, estado, fecha_creacion, fecha_actualizacion
-    `;
-
-    const { data, error } = await this.db.query(sql, params);
+    const { data, error } = await this.requireClient()
+      .from('materias')
+      .update(updates)
+      .eq('id', materiaId)
+      .eq('usuario_id', usuarioId)
+      .select(MATERIA_COLUMNS)
+      .maybeSingle();
 
     if (error) {
       if (error.code === '23505') {
-        throw new Error(`Ya existe una materia con el código "${materiaData.codigo}"`, { cause: error });
+        throw new Error(`Ya existe una materia con el código "${materiaData.codigo}"`);
       }
-      throw new Error(`Error al actualizar materia: ${error.message}`, { cause: error });
+      throw error;
     }
 
-    if (data.length === 0) {
+    if (!data) {
       throw new Error('Materia no encontrada o no tienes permisos para modificarla');
     }
 
-    return data[0];
+    const [materia] = await this.agregarContadores([data]);
+    return materia;
   }
 
   /**
-   * Cambia el estado de una materia (activar/archivar).
-   * @param {string} usuarioId - UUID del usuario
-   * @param {string} materiaId - UUID de la materia
-   * @param {string} estado - Nuevo estado ('activo' o 'archivado')
+   * Cambia el estado de una materia.
+   *
+   * @param {string} usuarioId UUID del usuario.
+   * @param {string} materiaId UUID de la materia.
+   * @param {'activo' | 'archivado'} estado Nuevo estado.
    * @returns {Promise<void>}
    */
   async cambiarEstadoMateria(usuarioId, materiaId, estado) {
-    const { error } = await this.db.query(
-      `
-      UPDATE public.materias
-      SET estado = $1, fecha_actualizacion = NOW()
-      WHERE id = $2 AND usuario_id = $3
-      `,
-      [estado, materiaId, usuarioId]
-    );
+    const { error } = await this.requireClient()
+      .from('materias')
+      .update({ estado, fecha_actualizacion: new Date().toISOString() })
+      .eq('id', materiaId)
+      .eq('usuario_id', usuarioId);
 
     if (error) {
-      throw new Error(`Error al cambiar estado de materia: ${error.message}`, { cause: error });
+      throw error;
     }
   }
 
   /**
    * Verifica si una materia existe y pertenece al usuario.
-   * @param {string} usuarioId - UUID del usuario
-   * @param {string} materiaId - UUID de la materia
+   *
+   * @param {string} usuarioId UUID del usuario.
+   * @param {string} materiaId UUID de la materia.
    * @returns {Promise<boolean>}
    */
   async existeMateria(usuarioId, materiaId) {
-    const { data, error } = await this.db.query(
-      'SELECT 1 FROM public.materias WHERE id = $1 AND usuario_id = $2',
-      [materiaId, usuarioId]
-    );
+    const { data, error } = await this.requireClient()
+      .from('materias')
+      .select('id')
+      .eq('id', materiaId)
+      .eq('usuario_id', usuarioId)
+      .maybeSingle();
 
     if (error) {
-      throw new Error(`Error al verificar materia: ${error.message}`, { cause: error });
+      throw error;
     }
 
-    return data.length > 0;
+    return Boolean(data);
   }
 
   /**
-   * Obtiene estadísticas de materias para un usuario.
-   * @param {string} usuarioId - UUID del usuario
-   * @returns {Promise<Object>} Estadísticas
+   * Obtiene estadísticas de las materias del usuario.
+   *
+   * @param {string} usuarioId UUID del usuario.
+   * @returns {Promise<{ total: number, activas: number, archivadas: number, por_periodo: Record<string, number> }>}
    */
   async obtenerEstadisticas(usuarioId) {
-    const { data, error } = await this.db.query(`
-      SELECT 
-        COUNT(*) as total,
-        COUNT(*) FILTER (WHERE estado = 'activo') as activas,
-        COUNT(*) FILTER (WHERE estado = 'archivado') as archivadas,
-        JSON_OBJECT_AGG(
-          COALESCE(periodo_academico, 'sin-periodo'),
-          COUNT(*)
-        ) FILTER (WHERE periodo_academico IS NOT NULL) as por_periodo
-      FROM public.materias
-      WHERE usuario_id = $1
-    `, [usuarioId]);
+    const client = this.requireClient();
+    const contar = (estado) => {
+      let builder = client
+        .from('materias')
+        .select('id', { count: 'exact', head: true })
+        .eq('usuario_id', usuarioId);
 
-    if (error) {
-      throw new Error(`Error al obtener estadísticas: ${error.message}`, { cause: error });
-    }
+      if (estado) {
+        builder = builder.eq('estado', estado);
+      }
 
-    return data[0];
+      return builder;
+    };
+
+    const [totalResult, activasResult, archivadasResult, periodosResult] = await Promise.all([
+      contar(),
+      contar('activo'),
+      contar('archivado'),
+      client.from('materias').select('periodo_academico').eq('usuario_id', usuarioId),
+    ]);
+
+    if (totalResult.error) throw totalResult.error;
+    if (activasResult.error) throw activasResult.error;
+    if (archivadasResult.error) throw archivadasResult.error;
+    if (periodosResult.error) throw periodosResult.error;
+
+    const porPeriodo = (periodosResult.data ?? []).reduce((acumulado, materia) => {
+      const periodo = materia.periodo_academico || 'sin-periodo';
+      acumulado[periodo] = (acumulado[periodo] ?? 0) + 1;
+      return acumulado;
+    }, {});
+
+    return {
+      total: totalResult.count ?? 0,
+      activas: activasResult.count ?? 0,
+      archivadas: archivadasResult.count ?? 0,
+      por_periodo: porPeriodo,
+    };
   }
 
   /**
-   * Obtiene los periodos académicos únicos de un usuario.
-   * @param {string} usuarioId - UUID del usuario
-   * @returns {Promise<Array>} Lista de periodos académicos
+   * Obtiene los periodos académicos distintos del usuario.
+   *
+   * @param {string} usuarioId UUID del usuario.
+   * @returns {Promise<string[]>}
    */
   async obtenerPeriodosAcademicos(usuarioId) {
-    const { data, error } = await this.db.query(
-      `
-      SELECT DISTINCT periodo_academico
-      FROM public.materias
-      WHERE usuario_id = $1 AND periodo_academico IS NOT NULL
-      ORDER BY periodo_academico DESC
-      `,
-      [usuarioId]
-    );
+    const { data, error } = await this.requireClient()
+      .from('materias')
+      .select('periodo_academico')
+      .eq('usuario_id', usuarioId)
+      .not('periodo_academico', 'is', null);
 
     if (error) {
-      throw new Error(`Error al obtener periodos académicos: ${error.message}`, { cause: error });
+      throw error;
     }
 
-    return data.map(row => row.periodo_academico);
+    return [...new Set((data ?? []).map((materia) => materia.periodo_academico))]
+      .filter(Boolean)
+      .sort()
+      .reverse();
+  }
+
+  /**
+   * Agrega los contadores que consume la interfaz de materias.
+   * Si la tabla de tareas todavía no existe (antes de apply la migración de HU04)
+   * se devuelven ceros para no romper la lista de materias.
+   *
+   * @param {object[]} materias Materias sin contadores.
+   * @returns {Promise<object[]>}
+   */
+  async agregarContadores(materias) {
+    if (materias.length === 0) {
+      return [];
+    }
+
+    const ids = materias.map((materia) => materia.id);
+    const { data, error } = await this.requireClient()
+      .from('tareas')
+      .select('materia_id, estado')
+      .in('materia_id', ids);
+
+    if (error) {
+      return materias.map((materia) => ({
+        ...materia,
+        total_tareas: 0,
+        tareas_pendientes: 0,
+        total_documentos: TOTAL_DOCUMENTOS_PENDIENTE,
+      }));
+    }
+
+    const contadores = new Map();
+
+    for (const tarea of data ?? []) {
+      const actual = contadores.get(tarea.materia_id) ?? { total: 0, pendientes: 0 };
+      actual.total += 1;
+
+      if (tarea.estado === 'pendiente') {
+        actual.pendientes += 1;
+      }
+
+      contadores.set(tarea.materia_id, actual);
+    }
+
+    return materias.map((materia) => {
+      const contador = contadores.get(materia.id) ?? { total: 0, pendientes: 0 };
+
+      return {
+        ...materia,
+        total_tareas: contador.total,
+        tareas_pendientes: contador.pendientes,
+        total_documentos: TOTAL_DOCUMENTOS_PENDIENTE,
+      };
+    });
+  }
+
+  requireClient() {
+    if (!this.supabase) {
+      throw new Error('Supabase no esta configurado en el servidor.');
+    }
+
+    return this.supabase;
   }
 }
 

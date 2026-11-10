@@ -35,7 +35,9 @@ function validate(schemas = {}) {
         validated[source] = result.data;
       }
 
-      req.validated = validated;
+      // Se combina con validaciones anteriores: una ruta puede validar
+      // params y body con middlewares encadenados.
+      req.validated = { ...(req.validated ?? {}), ...validated };
       return next();
     } catch (error) {
       return next(error);

@@ -1,0 +1,28 @@
+/* Estilos del módulo de tareas académicas */
+
+.tareas-page {
+  min-height: calc(100vh - 200px);
+}
+
+.tarea-card {
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.tarea-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.08);
+}
+
+.tarea-card .badge {
+  font-size: 0.7rem;
+  font-weight: 500;
+}
+
+@media (max-width: 768px) {
+  .tareas-page {
+    padding-top: 1rem;
+    padding-bottom: 1rem;
+  }
+}

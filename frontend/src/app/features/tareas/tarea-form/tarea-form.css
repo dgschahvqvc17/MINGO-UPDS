@@ -1,0 +1,12 @@
+/* Estilos del formulario de tareas académicas */
+
+.tarea-form-page {
+  min-height: calc(100vh - 200px);
+}
+
+@media (max-width: 768px) {
+  .tarea-form-page {
+    padding-top: 1rem;
+    padding-bottom: 1rem;
+  }
+}

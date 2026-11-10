@@ -25,8 +25,8 @@ router.use(authMiddleware);
  */
 router.use((req, _res, next) => {
   try {
-    // Crear servicio con el ID del usuario actual
-    req.materiaService = createMateriaService(req.user.id);
+    // Crear servicio con el cliente del usuario para que RLS se aplique.
+    req.materiaService = createMateriaService(req.user.id, req.accessToken);
     next();
   } catch (error) {
     next(error);
@@ -39,7 +39,7 @@ router.use((req, _res, next) => {
  */
 router.get(
   '/',
-  validationMiddleware({ schema: materiaBusquedaSchema, source: 'query' }),
+  validationMiddleware({ query: materiaBusquedaSchema }),
   asyncHandler(async (req, res) => {
     const controller = new (require('../controllers/materia.controller'))(req.materiaService);
     await controller.listarMaterias(req, res);
@@ -100,7 +100,7 @@ router.get(
  */
 router.get(
   '/:id',
-  validationMiddleware({ schema: materiaIdParamSchema, source: 'params' }),
+  validationMiddleware({ params: materiaIdParamSchema }),
   asyncHandler(async (req, res) => {
     const controller = new (require('../controllers/materia.controller'))(req.materiaService);
     await controller.obtenerMateria(req, res);
@@ -113,7 +113,7 @@ router.get(
  */
 router.post(
   '/',
-  validationMiddleware({ schema: materiaCrearSchema, source: 'body' }),
+  validationMiddleware({ body: materiaCrearSchema }),
   asyncHandler(async (req, res) => {
     const controller = new (require('../controllers/materia.controller'))(req.materiaService);
     await controller.crearMateria(req, res);
@@ -126,8 +126,8 @@ router.post(
  */
 router.patch(
   '/:id',
-  validationMiddleware({ schema: materiaIdParamSchema, source: 'params' }),
-  validationMiddleware({ schema: materiaActualizarSchema, source: 'body' }),
+  validationMiddleware({ params: materiaIdParamSchema }),
+  validationMiddleware({ body: materiaActualizarSchema }),
   asyncHandler(async (req, res) => {
     const controller = new (require('../controllers/materia.controller'))(req.materiaService);
     await controller.actualizarMateria(req, res);
@@ -140,8 +140,8 @@ router.patch(
  */
 router.patch(
   '/:id/estado',
-  validationMiddleware({ schema: materiaIdParamSchema, source: 'params' }),
-  validationMiddleware({ schema: materiaCambiarEstadoSchema, source: 'body' }),
+  validationMiddleware({ params: materiaIdParamSchema }),
+  validationMiddleware({ body: materiaCambiarEstadoSchema }),
   asyncHandler(async (req, res) => {
     const controller = new (require('../controllers/materia.controller'))(req.materiaService);
     await controller.cambiarEstadoMateria(req, res);
@@ -154,7 +154,7 @@ router.patch(
  */
 router.get(
   '/:id/acceso',
-  validationMiddleware({ schema: materiaIdParamSchema, source: 'params' }),
+  validationMiddleware({ params: materiaIdParamSchema }),
   asyncHandler(async (req, res) => {
     const controller = new (require('../controllers/materia.controller'))(req.materiaService);
     await controller.validarAccesoMateria(req, res);

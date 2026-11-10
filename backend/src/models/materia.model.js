@@ -86,8 +86,8 @@ const materiaBusquedaSchema = z.object({
   query: z.string().min(1).max(100).optional(),
   periodo_academico: z.string().optional(),
   estado: z.enum(['activo', 'archivado']).optional(),
-  limit: z.number().int().positive().max(50).default(20),
-  offset: z.number().int().nonnegative().default(0),
+  limit: z.coerce.number().int().positive().max(50).default(20),
+  offset: z.coerce.number().int().nonnegative().default(0),
 });
 
 // Esquema para validación de parámetros de ruta
