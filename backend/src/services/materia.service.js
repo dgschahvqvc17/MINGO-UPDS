@@ -28,16 +28,16 @@ class MateriaService {
       // Validar filtros
       const filtrosValidados = materiaBusquedaSchema.parse(filtros);
       
-      const materias = await this.repository.listarMaterias(this.usuarioActualId, filtrosValidados);
+      const resultado = await this.repository.listarMaterias(this.usuarioActualId, filtrosValidados);
       const estadisticas = await this.repository.obtenerEstadisticas(this.usuarioActualId);
       const periodos = await this.repository.obtenerPeriodosAcademicos(this.usuarioActualId);
 
       return {
-        materias,
+        materias: resultado.items,
         paginacion: {
           limit: filtrosValidados.limit,
           offset: filtrosValidados.offset,
-          total: parseInt(estadisticas.total || 0)
+          total: parseInt(resultado.total || 0)
         },
         estadisticas: {
           total: parseInt(estadisticas.total || 0),
@@ -248,11 +248,13 @@ class MateriaService {
    */
   async buscarMaterias(termino, limit = 10) {
     try {
-      return await this.repository.listarMaterias(this.usuarioActualId, {
+      const resultado = await this.repository.listarMaterias(this.usuarioActualId, {
         query: termino,
         limit,
         offset: 0
       });
+
+      return resultado.items;
     } catch (error) {
       throw new ApiError(500, `Error al buscar materias: ${error.message}`);
     }

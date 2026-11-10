@@ -81,6 +81,18 @@ export const routes: Routes = [
         path: 'tareas',
         loadComponent: () => import('./features/tareas/tareas').then((m) => m.TareasPage),
       },
+      {
+        path: 'tareas/nueva',
+        title: 'Nueva tarea | MINGO',
+        loadComponent: () =>
+          import('./features/tareas/tarea-form/tarea-form').then((m) => m.TareaFormPage),
+      },
+      {
+        path: 'tareas/:id/editar',
+        title: 'Editar tarea | MINGO',
+        loadComponent: () =>
+          import('./features/tareas/tarea-form/tarea-form').then((m) => m.TareaFormPage),
+      },
 
       {
         path: 'calendario',

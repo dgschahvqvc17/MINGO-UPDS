@@ -29,13 +29,20 @@ La base de datos se organiza en ocho grupos:
 | Tipo de tabla | Clave primaria | Motivo |
 |---|---|---|
 | `perfiles` | `UUID` | Es el mismo identificador de `auth.users.id` de Supabase Auth. |
-| Tablas de dominio | `SERIAL` (entero autoincremental) | Modelo definido por el equipo para el resto de entidades. |
+| Tablas de dominio implementadas (`materias`, `tareas`) | `UUID` | Implementación real en `backend/sql/materias.sql` y `supabase/migrations/0002_hu04_tareas.sql`. |
+| Tablas de dominio pendientes | `SERIAL` (entero autoincremental) | Modelo del diagrama para las entidades aún no implementadas. |
 
 Regla de integración:
 
 - `perfiles.id` = `auth.users.id` (UUID).
 - Todas las columnas `usuario_id` son `UUID` y referencian `perfiles.id`.
-- Las demás claves foráneas son enteras y referencian el `id SERIAL` de su tabla.
+- `materias.id` y `tareas.id` son `UUID` y todas sus claves foráneas son `UUID`.
+- Las tablas de dominio que aún no tienen historia implementada conservarán `SERIAL` hasta su migración.
+- El cliente trata cualquier ID como cadena opaca, sin asumir formato numérico.
+
+> **Estado de implementación (2026-11-07):** HU03 y HU04 se implementaron con `UUID` y campos
+> adicionales respecto del diagrama original. Las secciones 3.5 y 3.6 describen la
+> implementación real; el DDL de la sección 6 incluye esas diferencias.
 
 ## 2. Diagrama entidad-relación
 
@@ -105,34 +112,39 @@ erDiagram
     }
 
     materias {
-        serial id PK
+        uuid id PK
         uuid usuario_id FK
-        int periodo_id FK
         varchar nombre
         varchar codigo
         varchar docente
+        text descripcion
+        varchar periodo_academico
         varchar color
         varchar estado
         timestamp fecha_creacion
+        timestamp fecha_actualizacion
     }
 
     tareas {
-        serial id PK
+        uuid id PK
         uuid usuario_id FK
-        int materia_id FK
+        uuid materia_id FK
         varchar titulo
         text descripcion
+        varchar tipo
         varchar prioridad
+        timestamp fecha_asignacion
         timestamp fecha_entrega
         varchar estado
         timestamp fecha_creacion
+        timestamp fecha_actualizacion
     }
 
     eventos_calendario {
         serial id PK
         uuid usuario_id FK
-        int materia_id FK
-        int tarea_id FK
+        uuid materia_id FK
+        uuid tarea_id FK
         varchar titulo
         text descripcion
         varchar tipo_evento
@@ -143,7 +155,7 @@ erDiagram
     documentos {
         serial id PK
         uuid usuario_id FK
-        int materia_id FK
+        uuid materia_id FK
         varchar nombre
         text ruta_almacenamiento
         bigint tamano
@@ -275,41 +287,52 @@ Asignaturas que cursa el estudiante.
 
 | Campo | Tipo | Nulo | Clave | Descripción |
 |---|---|---|:---:|---|
-| `id` | `SERIAL` | No | PK | Identificador de la materia. |
+| `id` | `UUID` | No | PK | Identificador de la materia. |
 | `usuario_id` | `UUID` | No | FK → `perfiles.id` | Propietario de la materia. |
-| `periodo_id` | `INT` | No | FK → `periodos_academicos.id` | Periodo al que pertenece. |
-| `nombre` | `VARCHAR` | No | | Nombre de la asignatura. |
-| `codigo` | `VARCHAR` | Sí | | Código académico. |
-| `docente` | `VARCHAR` | Sí | | Nombre del docente. |
-| `color` | `VARCHAR` | Sí | | Color hexadecimal para la interfaz. |
-| `estado` | `VARCHAR` | No | | `activa` o `archivada`. |
-| `fecha_creacion` | `TIMESTAMP` | No | | Fecha de creación. |
+| `nombre` | `VARCHAR(100)` | No | | Nombre de la asignatura. |
+| `codigo` | `VARCHAR(20)` | No | | Código académico, único por usuario. |
+| `docente` | `VARCHAR(100)` | No | | Nombre del docente. |
+| `descripcion` | `TEXT` | Sí | | Descripción de la materia. |
+| `periodo_academico` | `VARCHAR(10)` | No | | Formato `AAAA-S`, por ejemplo `2026-2`. |
+| `color` | `VARCHAR(7)` | No | | Color hexadecimal; por defecto `#3B82F6`. |
+| `estado` | `VARCHAR(20)` | No | | `activo` o `archivado`. |
+| `fecha_creacion` | `TIMESTAMPTZ` | No | | Fecha de creación. |
+| `fecha_actualizacion` | `TIMESTAMPTZ` | Sí | | La mantiene un trigger en cada actualización. |
 
 Reglas:
 
-- El `periodo_id` debe pertenecer al mismo `usuario_id`.
-- El código no debería repetirse dentro del mismo usuario y periodo.
+- `UNIQUE (usuario_id, codigo)`: el mismo código no se repite para un usuario.
+- `periodo_academico` se valida con un trigger contra `^\d{4}-[12]$`.
+- La implementación real no usa `periodos_academicos`; el periodo es un texto en la propia materia.
+- DDL: `backend/sql/materias.sql` (idempotente).
 
 ### 3.6. `tareas`
 
-Actividades y evaluaciones del estudiante.
+Actividades y evaluaciones del estudiante (HU04).
 
 | Campo | Tipo | Nulo | Clave | Descripción |
 |---|---|---|:---:|---|
-| `id` | `SERIAL` | No | PK | Identificador de la tarea. |
+| `id` | `UUID` | No | PK | Identificador de la tarea. |
 | `usuario_id` | `UUID` | No | FK → `perfiles.id` | Propietario de la tarea. |
-| `materia_id` | `INT` | No | FK → `materias.id` | Materia relacionada. |
-| `titulo` | `VARCHAR` | No | | Título de la actividad. |
+| `materia_id` | `UUID` | No | FK → `materias.id` | Materia relacionada. |
+| `titulo` | `VARCHAR(200)` | No | | Título de la actividad. |
 | `descripcion` | `TEXT` | Sí | | Detalle de la actividad. |
-| `prioridad` | `VARCHAR` | No | | `baja`, `media` o `alta`. |
-| `fecha_entrega` | `TIMESTAMP` | Sí | | Fecha límite. |
-| `estado` | `VARCHAR` | No | | `pendiente`, `en_progreso` o `completada`. |
-| `fecha_creacion` | `TIMESTAMP` | No | | Fecha de registro. |
+| `tipo` | `VARCHAR(20)` | No | | `tarea`, `taller`, `parcial`, `examen`, `proyecto`, `exposicion`, `laboratorio`, `practica` u `otro`. Por defecto `tarea`. |
+| `prioridad` | `VARCHAR(10)` | No | | `baja`, `media` o `alta`. Por defecto `media`. |
+| `fecha_asignacion` | `TIMESTAMPTZ` | No | | Fecha en que se asignó la actividad. Por defecto `now()`. |
+| `fecha_entrega` | `TIMESTAMPTZ` | Sí | | Fecha límite; `NULL` si no tiene plazo. |
+| `estado` | `VARCHAR(20)` | No | | `pendiente`, `en_progreso` o `completada`. Por defecto `pendiente`. |
+| `fecha_creacion` | `TIMESTAMPTZ` | No | | Fecha de registro. |
+| `fecha_actualizacion` | `TIMESTAMPTZ` | Sí | | La mantiene un trigger en cada actualización. |
 
 Reglas:
 
-- La materia debe pertenecer al mismo usuario.
-- Una tarea completada no debería volver a `pendiente` sin registrar el cambio.
+- `CHECK`: `fecha_entrega IS NULL OR fecha_entrega >= fecha_asignacion`.
+- `tipo`, `prioridad` y `estado` usan `CHECK` con lista cerrada y nombres de restricción estables.
+- La materia debe pertenecer al mismo usuario; se valida en el servicio y con RLS.
+- Una tarea de otro usuario no es visible ni editable.
+- Una tarea con `fecha_entrega` anterior a ahora y estado distinto de `completada` cuenta como vencida.
+- DDL: `supabase/migrations/0002_hu04_tareas.sql` (idempotente).
 
 ### 3.7. `eventos_calendario`
 
@@ -319,8 +342,8 @@ Eventos del calendario académico.
 |---|---|---|:---:|---|
 | `id` | `SERIAL` | No | PK | Identificador del evento. |
 | `usuario_id` | `UUID` | No | FK → `perfiles.id` | Propietario del evento. |
-| `materia_id` | `INT` | No | FK → `materias.id` | Materia asociada. |
-| `tarea_id` | `INT` | No | FK → `tareas.id` | Tarea que origina el evento. |
+| `materia_id` | `UUID` | No | FK → `materias.id` | Materia asociada. |
+| `tarea_id` | `UUID` | No | FK → `tareas.id` | Tarea que origina el evento. |
 | `titulo` | `VARCHAR` | No | | Título del evento. |
 | `descripcion` | `TEXT` | Sí | | Descripción. |
 | `tipo_evento` | `VARCHAR` | No | | `examen`, `entrega`, `clase`, `estudio`, `personal` u `otro`. |
@@ -341,7 +364,7 @@ Metadatos de los documentos académicos.
 |---|---|---|:---:|---|
 | `id` | `SERIAL` | No | PK | Identificador del documento. |
 | `usuario_id` | `UUID` | No | FK → `perfiles.id` | Propietario del documento. |
-| `materia_id` | `INT` | No | FK → `materias.id` | Materia a la que pertenece. |
+| `materia_id` | `UUID` | No | FK → `materias.id` | Materia a la que pertenece. |
 | `nombre` | `VARCHAR` | No | | Nombre visible del documento. |
 | `ruta_almacenamiento` | `TEXT` | No | | Clave del objeto en S3. |
 | `tamano` | `BIGINT` | No | | Tamaño en bytes. |
@@ -417,7 +440,7 @@ Cuestionarios generados o registrados por el estudiante.
 |---|---|---|:---:|---|
 | `id` | `SERIAL` | No | PK | Identificador del cuestionario. |
 | `usuario_id` | `UUID` | No | FK → `perfiles.id` | Propietario. |
-| `materia_id` | `INT` | No | FK → `materias.id` | Materia relacionada. |
+| `materia_id` | `UUID` | No | FK → `materias.id` | Materia relacionada. |
 | `documento_id` | `INT` | No | FK → `documentos.id` | Documento base. |
 | `titulo` | `VARCHAR` | No | | Título del cuestionario. |
 | `fecha_creacion` | `TIMESTAMP` | No | | Fecha de creación. |
@@ -484,7 +507,7 @@ Regla: en preguntas de opción múltiple debe existir al menos una opción corre
 | Tablas | `snake_case`, en plural. |
 | Columnas | `snake_case`. |
 | Clave primaria de `perfiles` | `UUID`, igual a `auth.users.id`. |
-| Clave primaria de dominio | `SERIAL` entero. |
+| Clave primaria de dominio | `UUID` en `materias` y `tareas`; `SERIAL` en las tablas aún no migradas. |
 | Fechas | `TIMESTAMPTZ` en la implementación real (el diagrama usa `TIMESTAMP`). |
 | Booleanos | `BOOLEAN NOT NULL DEFAULT false`. |
 | Estados | `VARCHAR` con `CHECK`, nunca texto libre. |
@@ -494,7 +517,7 @@ Regla: en preguntas de opción múltiple debe existir al menos una opción corre
 
 ## 6. DDL de referencia
 
-> El DDL es una propuesta de implementación fiel al diagrama. Los tipos `TIMESTAMP` se implementan como `TIMESTAMPTZ` y los `SERIAL` pueden cambiarse por `GENERATED BY DEFAULT AS IDENTITY` sin alterar el contrato lógico.
+> El DDL es una propuesta de implementación fiel al diagrama. Los tipos `TIMESTAMP` se implementan como `TIMESTAMPTZ` y los `SERIAL` pueden cambiarse por `GENERATED BY DEFAULT AS IDENTITY` sin alterar el contrato lógico. `materias` y `tareas` ya están implementadas con `UUID`: su DDL vigente vive en `backend/sql/materias.sql` y `supabase/migrations/0002_hu04_tareas.sql`.
 
 ```sql
 create extension if not exists vector;
@@ -540,41 +563,50 @@ create table public.periodos_academicos (
   check (fecha_fin >= fecha_inicio)
 );
 
+-- Implementación real de HU03: backend/sql/materias.sql
 create table public.materias (
-  id serial primary key,
+  id uuid primary key default gen_random_uuid(),
   usuario_id uuid not null references public.perfiles(id) on delete cascade,
-  periodo_id integer not null references public.periodos_academicos(id) on delete restrict,
-  nombre varchar(120) not null,
-  codigo varchar(30),
-  docente varchar(120),
-  color varchar(7) default '#2563eb'
-    check (color is null or color ~ '^#[0-9a-fA-F]{6}$'),
-  estado varchar(20) not null default 'activa'
-    check (estado in ('activa', 'archivada')),
+  nombre varchar(100) not null,
+  codigo varchar(20) not null,
+  docente varchar(100) not null,
+  descripcion text,
+  periodo_academico varchar(10) not null,
+  color varchar(7) not null default '#3B82F6',
+  estado varchar(20) not null default 'activo'
+    check (estado in ('activo', 'archivado')),
   fecha_creacion timestamptz not null default now(),
-  unique (usuario_id, periodo_id, codigo)
+  fecha_actualizacion timestamptz,
+  unique (usuario_id, codigo)
 );
 
 -- C. Actividades
+-- Implementación real de HU04: supabase/migrations/0002_hu04_tareas.sql
 create table public.tareas (
-  id serial primary key,
+  id uuid primary key default gen_random_uuid(),
   usuario_id uuid not null references public.perfiles(id) on delete cascade,
-  materia_id integer not null references public.materias(id) on delete cascade,
+  materia_id uuid not null references public.materias(id) on delete cascade,
   titulo varchar(200) not null,
   descripcion text,
+  tipo varchar(20) not null default 'tarea'
+    check (tipo in ('tarea', 'taller', 'parcial', 'examen', 'proyecto',
+                    'exposicion', 'laboratorio', 'practica', 'otro')),
   prioridad varchar(10) not null default 'media'
     check (prioridad in ('baja', 'media', 'alta')),
+  fecha_asignacion timestamptz not null default now(),
   fecha_entrega timestamptz,
   estado varchar(20) not null default 'pendiente'
     check (estado in ('pendiente', 'en_progreso', 'completada')),
-  fecha_creacion timestamptz not null default now()
+  fecha_creacion timestamptz not null default now(),
+  fecha_actualizacion timestamptz,
+  check (fecha_entrega is null or fecha_entrega >= fecha_asignacion)
 );
 
 create table public.eventos_calendario (
   id serial primary key,
   usuario_id uuid not null references public.perfiles(id) on delete cascade,
-  materia_id integer references public.materias(id) on delete set null,
-  tarea_id integer references public.tareas(id) on delete set null,
+  materia_id uuid references public.materias(id) on delete set null,
+  tarea_id uuid references public.tareas(id) on delete set null,
   titulo varchar(200) not null,
   descripcion text,
   tipo_evento varchar(20) not null default 'otro'
@@ -588,7 +620,7 @@ create table public.eventos_calendario (
 create table public.documentos (
   id serial primary key,
   usuario_id uuid not null references public.perfiles(id) on delete cascade,
-  materia_id integer references public.materias(id) on delete set null,
+  materia_id uuid references public.materias(id) on delete set null,
   nombre varchar(255) not null,
   ruta_almacenamiento text not null,
   tamano bigint not null check (tamano > 0),
@@ -634,7 +666,7 @@ create table public.referencias_respuesta (
 create table public.cuestionarios (
   id serial primary key,
   usuario_id uuid not null references public.perfiles(id) on delete cascade,
-  materia_id integer references public.materias(id) on delete set null,
+  materia_id uuid references public.materias(id) on delete set null,
   documento_id integer references public.documentos(id) on delete set null,
   titulo varchar(200) not null,
   fecha_creacion timestamptz not null default now()
@@ -666,10 +698,14 @@ create index usuario_roles_rol_idx on public.usuario_roles (rol_id);
 create index periodos_usuario_idx on public.periodos_academicos (usuario_id);
 
 create index materias_usuario_idx on public.materias (usuario_id);
-create index materias_periodo_idx on public.materias (periodo_id);
+create index materias_codigo_idx on public.materias (codigo);
+create index materias_nombre_trgm_idx on public.materias using gin (nombre gin_trgm_ops);
 
-create index tareas_usuario_estado_idx on public.tareas (usuario_id, estado);
+-- HU04 (supabase/migrations/0002_hu04_tareas.sql)
+create index tareas_usuario_estado_entrega_idx on public.tareas (usuario_id, estado, fecha_entrega);
 create index tareas_materia_idx on public.tareas (materia_id);
+create index tareas_estado_idx on public.tareas (estado);
+create index tareas_prioridad_idx on public.tareas (prioridad);
 create index tareas_fecha_entrega_idx on public.tareas (fecha_entrega);
 
 create index eventos_usuario_fecha_idx on public.eventos_calendario (usuario_id, fecha_inicio);
@@ -702,7 +738,7 @@ Restricciones recomendadas:
 - `perfiles.correo` único.
 - `usuario_roles (usuario_id, rol_id)` único.
 - `roles.nombre` único.
-- `materias (usuario_id, periodo_id, codigo)` único cuando `codigo` no es nulo.
+- `materias (usuario_id, codigo)` único.
 - Una sola opción correcta por pregunta de opción múltiple (validar en servicio; opcionalmente con índice parcial).
 - `tamano > 0` en documentos.
 - `fecha_fin >= fecha_inicio` en periodos y eventos.
@@ -871,7 +907,7 @@ Reglas:
 Estos cambios no alteran el modelo del diagrama, pero evitan problemas reales:
 
 1. **`TIMESTAMPTZ` en lugar de `TIMESTAMP`.** Guardar en UTC y convertir en el frontend.
-2. **`GENERATED BY DEFAULT AS IDENTITY` en lugar de `SERIAL`.** Es la forma recomendada en PostgreSQL moderno; el tipo sigue siendo entero.
+2. **`GENERATED BY DEFAULT AS IDENTITY` en lugar de `SERIAL`.** Es la forma recomendada en PostgreSQL moderno; el tipo sigue siendo entero. Las tablas ya implementadas (`materias`, `tareas`) usan `UUID`.
 3. **Permitir `NULL` en relaciones opcionales:**
    - `eventos_calendario.materia_id` y `tarea_id`;
    - `documentos.materia_id`;
@@ -930,7 +966,7 @@ El diagrama actual cubre el núcleo académico, documental, de IA y de evaluaci�
 | `preguntas.explicacion` | HU13, HU16 | Explicación de la respuesta. |
 | `cuestionarios.cantidad_preguntas` y `descripcion` | HU13 | Configuración del cuestionario. |
 | `documentos.nombre_archivo`, `tipo_archivo` | HU07, HU08 | Metadatos del archivo. |
-| `tareas.tipo`, `fecha_asignacion` | HU04 | Tipo de actividad y fecha de asignación. |
+| `tareas.tipo`, `fecha_asignacion`, `fecha_actualizacion` | HU04 | Implementado en `0002_hu04_tareas.sql`. |
 | `eventos_calendario.recordatorio` | HU05, HU18 | Anticipación del recordatorio. |
 | `mensajes.modelo_utilizado` | HU12 | Modelo usado en la respuesta. |
 | `conversaciones.tipo_conversacion`, `fecha_actualizacion` | HU12 | Clasificación y última actividad. |
@@ -942,6 +978,14 @@ El diagrama actual cubre el núcleo académico, documental, de IA y de evaluaci�
 
 - Usar **Supabase CLI** y migraciones versionadas en `supabase/migrations/`.
 - Nunca modificar el esquema de producción desde el panel sin migración.
+- Migraciones existentes:
+
+| Archivo | Contenido |
+|---|---|
+| `supabase/migrations/0001_hu01_auth.sql` | Perfiles, roles y `usuario_roles` (HU01/HU02). |
+| `backend/sql/materias.sql` | Tabla `materias`, índices, RLS y funciones de HU03 (idempotente). |
+| `supabase/migrations/0002_hu04_tareas.sql` | Tabla `tareas`, índices, trigger de actualización, RLS y RPC `obtener_estadisticas_tareas` (HU04, idempotente). |
+
 - Flujo:
 
 ```bash
@@ -971,15 +1015,15 @@ on conflict (nombre) do nothing;
 
 | Documento | Ajuste realizado |
 |---|---|
-| `docs/api.md` | Los IDs de recursos de dominio son enteros (`SERIAL`); el ID de usuario sigue siendo UUID. |
+| `docs/api.md` | Los IDs de `materias` y `tareas` son UUID; el ID de usuario también es UUID. |
 | `docs/convenciones.md` | Se actualizó la convención de claves primarias y validación de IDs. |
-| `docs/seguridad.md` | Se aclaró que los UUID se validan en campos de usuario y los IDs de dominio son enteros positivos. |
+| `docs/seguridad.md` | Se aclaró que los UUID se validan en campos de usuario y en los IDs de `materias` y `tareas`. |
 | `tecnologias.md` | La sección 5.2 describe el diseño inicial con más campos y tablas; este documento refleja el diagrama actual del equipo y deja lo faltante en la sección 11. |
 
 ## 14. Checklist antes de crear una tabla
 
 - [ ] ¿La tabla está en el diagrama o en la sección de pendientes?
-- [ ] ¿Tiene clave primaria (`UUID` en `perfiles`, `SERIAL` en dominio)?
+- [ ] ¿Tiene clave primaria (`UUID` en `perfiles`, `materias` y `tareas`; `SERIAL` en las pendientes de migrar)?
 - [ ] ¿Tiene `usuario_id` cuando corresponde?
 - [ ] ¿Todas las claves foráneas tienen índice?
 - [ ] ¿Tiene RLS activado y políticas?
@@ -994,5 +1038,6 @@ on conflict (nombre) do nothing;
 
 | Fecha | Cambio |
 |---|---|
+| 2026-11-07 | HU04: `tareas` implementada con UUID, `tipo`, `fecha_asignacion`, `fecha_actualizacion`, RLS y RPC de estadísticas. `materias` documentada según la implementación real de HU03. |
 | 2026-11-07 | Versión 2.0: modelo reemplazado por el diagrama PlantUML del equipo (15 tablas, PK UUID en `perfiles` y `SERIAL` en dominio). |
 | 2026-11-07 | Versión 1.0: propuesta inicial basada en `tecnologias.md`. |

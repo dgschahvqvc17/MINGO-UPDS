@@ -21,6 +21,20 @@ export class ApiService {
       .pipe(map((response) => response.data));
   }
 
+  /**
+   * Obtiene un recurso junto con sus metadatos (paginación, rangos, totales).
+   */
+  getWithMeta<T, M>(
+    path: string,
+    params?: QueryParams,
+  ): Observable<{ data: T; meta: M }> {
+    return this.http
+      .get<ApiResponse<T> & { meta: M }>(this.buildUrl(path), {
+        params: this.buildParams(params),
+      })
+      .pipe(map((response) => ({ data: response.data, meta: response.meta })));
+  }
+
   post<T>(path: string, body: unknown = {}): Observable<T> {
     return this.http
       .post<ApiResponse<T>>(this.buildUrl(path), body)

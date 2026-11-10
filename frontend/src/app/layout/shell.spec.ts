@@ -31,6 +31,10 @@ function navigationPaths(shell: ShellComponent): string[] {
 }
 
 describe('ShellComponent', () => {
+  afterEach(() => {
+    TestBed.resetTestingModule();
+  });
+
   it('oculta la administracion a un estudiante', () => {
     const shell = createShell('estudiante');
 

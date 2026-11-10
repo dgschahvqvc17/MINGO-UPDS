@@ -57,15 +57,18 @@ async function runAllMigrations() {
   console.log('Iniciando migraciones de base de datos...\n');
   
   const pool = await createDatabasePool();
+  const repositoryRoot = path.join(__dirname, '..', '..');
   
   try {
-    // Definir orden de migraciones
+    // Orden de migraciones: identidad, materias y tareas.
     const migrations = [
-      'materias.sql'
+      path.join('supabase', 'migrations', '0001_hu01_auth.sql'),
+      path.join('backend', 'sql', 'materias.sql'),
+      path.join('supabase', 'migrations', '0002_hu04_tareas.sql'),
     ];
     
     for (const migrationFile of migrations) {
-      const migrationPath = path.join(__dirname, '..', 'sql', migrationFile);
+      const migrationPath = path.join(repositoryRoot, migrationFile);
       await runMigration(pool, migrationPath);
     }
     

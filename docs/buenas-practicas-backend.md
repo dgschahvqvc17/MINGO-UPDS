@@ -208,7 +208,7 @@ Si se supera, dividir.
 - Un esquema por operación, no un esquema gigante reutilizado para todo.
 - Mensajes de error en español y orientados al usuario.
 - Límites de longitud en todos los strings.
-- IDs de dominio: entero positivo (`z.coerce.number().int().positive()`).
+- IDs de dominio: según la tabla. `uuidSchema` para `materias` y `tareas`; `z.coerce.number().int().positive()` para las tablas aún no migradas a UUID.
 - `usuario_id`: UUID (normalmente no viene del cliente, se obtiene del token).
 - Fechas ISO 8601; validar coherencia (`start <= end`).
 - Enums cerrados para estados, prioridades, roles y tipos.
@@ -386,7 +386,7 @@ Reglas:
 - No construir SQL concatenando strings. Usar el query builder o parámetros.
 - Mapear `snake_case` de la base a `camelCase` del dominio en el repositorio.
 - No devolver filas completas si el cliente solo necesita un subconjunto.
-- Respetar el modelo de IDs: `perfiles.id` UUID, IDs de dominio enteros (`SERIAL`).
+- Respetar el modelo de IDs: `perfiles.id`, `materias.id` y `tareas.id` son UUID; las tablas aún no migradas usan enteros (`SERIAL`).
 
 ### Paginación
 

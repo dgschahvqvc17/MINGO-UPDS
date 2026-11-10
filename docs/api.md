@@ -13,7 +13,7 @@
 3. Toda respuesta usa el sobre `{ success, data }` o `{ success, error }`.
 4. Las fechas viajan en ISO 8601 UTC: `2026-11-07T18:30:00.000Z`.
 5. Las listas se paginan siempre. Sin paginación explícita se aplica `page=1&limit=20`.
-6. Los identificadores de usuario (`perfiles.id`, `usuario_id`) son UUID; los identificadores de recursos de dominio (materias, tareas, documentos, conversaciones, etc.) son enteros (`SERIAL`).
+6. Los identificadores de usuario (`perfiles.id`, `usuario_id`) son UUID. En la implementación actual, `materias` (HU03) y `tareas` (HU04) también usan `UUID`; el resto de las entidades de dominio migrará a `UUID` cuando se implemente su historia. El cliente no debe asumir el tipo de un ID: lo trata como cadena opaca.
 7. Los endpoints que modifican datos validan la entrada con Zod antes de llegar al controlador.
 8. Las operaciones de IA y de carga de archivos tienen límites de uso (ver [seguridad.md](seguridad.md) e [ia-rag.md](ia-rag.md)).
 
@@ -245,39 +245,143 @@ Pendiente para HU02. Contrato previsto:
 
 | Método | Endpoint | Historia | Descripción |
 |---|---|---|---|
-| GET | `/api/tareas` | HU04 | Lista tareas con filtros. |
+| GET | `/api/tareas` | HU04 | Lista tareas con filtros y paginación. |
 | POST | `/api/tareas` | HU04 | Crea una tarea. |
+| GET | `/api/tareas/proximas` | HU04, HU06 | Tareas no completadas próximas a vencer. |
+| GET | `/api/tareas/estadisticas` | HU04 | Contadores por estado, prioridad y vencidas. |
 | GET | `/api/tareas/:id` | HU04 | Detalle. |
-| PUT | `/api/tareas/:id` | HU04 | Actualiza. |
+| PUT | `/api/tareas/:id` | HU04 | Actualiza total o parcialmente. |
 | PATCH | `/api/tareas/:id/estado` | HU04 | Cambia solo el estado. |
 | DELETE | `/api/tareas/:id` | HU04 | Elimina. |
-| GET | `/api/tareas/proximas` | HU04, HU06 | Tareas próximas a vencer. |
 
-**Filtros**
-
-`materia_id`, `estado` (`pendiente` \| `en_progreso` \| `completada`), `prioridad` (`baja` \| `media` \| `alta`), `desde`, `hasta`, `q`, `page`, `limit`.
-
-**Body `POST /api/tareas`**
+**Objeto `tarea`**
 
 ```json
 {
-  "materia_id": 1,
-  "unidad_id": null,
+  "id": "8f14e45f-ceea-467a-9c2f-7c1d2b0d1a11",
+  "usuario_id": "3f2b7e5c-1a4d-4c8e-9f10-2b6d8a7c9e01",
+  "materia_id": "5c9f2a10-4b7e-4d1a-9f3e-1a2b3c4d5e6f",
   "titulo": "Taller de derivadas",
   "descripcion": "Ejercicios 1 al 20.",
   "tipo": "taller",
   "prioridad": "alta",
   "fecha_asignacion": "2026-11-01T00:00:00.000Z",
-  "fecha_entrega": "2026-11-12T23:59:00.000Z"
+  "fecha_entrega": "2026-11-12T23:59:59.000Z",
+  "estado": "pendiente",
+  "fecha_creacion": "2026-11-01T14:05:00.000Z",
+  "fecha_actualizacion": null,
+  "materias": { "nombre": "Cálculo Diferencial", "codigo": "MAT101", "color": "#3B82F6" }
 }
 ```
+
+- `id`, `usuario_id` y `materia_id` son UUID.
+- `materias` es el resumen embebido de la materia (Supabase puede devolverlo como objeto o como arreglo de un elemento).
+- `fecha_entrega` es `null` cuando la actividad no tiene plazo.
+- `fecha_actualizacion` la mantiene un trigger de la base de datos.
+
+**Filtros de `GET /api/tareas`**
+
+| Parámetro | Tipo | Ejemplo |
+|---|---|---|
+| `materia_id` | UUID | `?materia_id=5c9f2a10-...` |
+| `estado` | `pendiente` \| `en_progreso` \| `completada` | `?estado=pendiente` |
+| `prioridad` | `baja` \| `media` \| `alta` | `?prioridad=alta` |
+| `tipo` | `tarea` \| `taller` \| `parcial` \| `examen` \| `proyecto` \| `exposicion` \| `laboratorio` \| `practica` \| `otro` | `?tipo=parcial` |
+| `query` | texto (máx. 200) | `?query=derivadas` |
+| `desde`, `hasta` | ISO 8601 | `?desde=2026-11-01T00:00:00.000Z` |
+| `vencidas` | `true` \| `false` | `?vencidas=true` |
+| `sort` | `fecha_entrega` \| `fecha_creacion` \| `titulo` | `?sort=fecha_entrega` |
+| `order` | `asc` \| `desc` | `?order=asc` |
+| `limit` | entero 1–100 (por defecto 20) | `?limit=10` |
+| `offset` | entero ≥ 0 (por defecto 0) | `?offset=20` |
+
+**Respuesta de `GET /api/tareas`**
+
+```json
+{
+  "success": true,
+  "data": [],
+  "meta": {
+    "paginacion": { "limit": 20, "offset": 0, "total": 0 }
+  }
+}
+```
+
+**Body `POST /api/tareas`**
+
+```json
+{
+  "materia_id": "5c9f2a10-4b7e-4d1a-9f3e-1a2b3c4d5e6f",
+  "titulo": "Taller de derivadas",
+  "descripcion": "Ejercicios 1 al 20.",
+  "tipo": "taller",
+  "prioridad": "alta",
+  "fecha_asignacion": "2026-11-01T00:00:00.000Z",
+  "fecha_entrega": "2026-11-12T23:59:59.000Z",
+  "estado": "pendiente"
+}
+```
+
+- `titulo`: obligatorio, 3–200 caracteres.
+- `descripcion`: opcional, máximo 2000 caracteres.
+- `tipo` y `prioridad` tienen valores por defecto `tarea` y `media`.
+- `fecha_asignacion` por defecto es la fecha actual; si la actividad ya está vencida y no se envía, se usa `fecha_entrega`.
+- `fecha_entrega` es opcional y `null` significa “sin plazo”.
+- `estado` por defecto `pendiente`.
+
+**`PATCH /api/tareas/:id/estado`**
+
+```json
+{ "estado": "completada" }
+```
+
+**`GET /api/tareas/proximas`**
+
+Parámetros `dias` (1–30, por defecto 7) y `limit` (1–50, por defecto 10). Devuelve solo tareas no completadas con `fecha_entrega` dentro del rango:
+
+```json
+{
+  "success": true,
+  "data": [],
+  "meta": {
+    "total": 0,
+    "rango": {
+      "dias": 7,
+      "desde": "2026-11-10T15:00:00.000Z",
+      "hasta": "2026-11-17T15:00:00.000Z"
+    }
+  }
+}
+```
+
+**`GET /api/tareas/estadisticas`**
+
+```json
+{
+  "success": true,
+  "data": {
+    "total": 42,
+    "pendientes": 12,
+    "en_progreso": 5,
+    "completadas": 25,
+    "vencidas": 3,
+    "prioridad_alta": 10,
+    "prioridad_media": 20,
+    "prioridad_baja": 12
+  }
+}
+```
+
+Una tarea cuenta como vencida cuando tiene `fecha_entrega` anterior a ahora y su estado no es `completada`.
 
 **Reglas**
 
 - `fecha_entrega` no puede ser anterior a `fecha_asignacion`.
-- `materia_id` debe pertenecer al usuario.
-- Al crear una tarea con `fecha_entrega`, se puede generar automáticamente un evento de calendario.
-- `PATCH /estado` body: `{ "estado": "completada" }`.
+- `materia_id` debe existir y pertenecer al usuario; en caso contrario responde `404`.
+- Una tarea de otro usuario responde `404`, nunca `403`.
+- `PUT /api/tareas/:id` acepta actualización parcial: al menos un campo, y los campos no enviados conservan su valor.
+- `DELETE /api/tareas/:id` responde `200` con `{ "id": "<uuid>" }`.
+- Al crear una tarea con `fecha_entrega`, HU05 podrá generar automáticamente un evento de calendario.
 
 ## 9. Calendario
 
@@ -656,8 +760,9 @@ No requiere autenticación.
 
 ## 16. Paginación, orden y filtros
 
-- `page`: entero ≥ 1, por defecto 1.
+- `page`: entero ≥ 1, por defecto 1 (módulos con paginación por páginas).
 - `limit`: entero entre 1 y 50, por defecto 20.
+- `offset`: entero ≥ 0, por defecto 0 (HU03 y HU04 paginan con `limit` + `offset` y devuelven `meta.paginacion`).
 - `sort`: campo permitido por módulo, por defecto `fecha_creacion`.
 - `order`: `asc` \| `desc`, por defecto `desc`.
 - Los campos de ordenamiento se validan contra una lista blanca; nunca se interpolan en SQL.
@@ -665,7 +770,7 @@ No requiere autenticación.
 Ejemplo:
 
 ```text
-GET /api/tareas?estado=pendiente&prioridad=alta&sort=fecha_entrega&order=asc&page=1&limit=20
+GET /api/tareas?estado=pendiente&prioridad=alta&sort=fecha_entrega&order=asc&limit=20&offset=0
 ```
 
 ## 17. Idempotencia

@@ -1,6 +1,9 @@
 -- Creación de tabla materias para HU03: Gestionar materias académicas
 -- Fecha: 2024-01-01
 -- Autor: Sistema MINGO
+-- Idempotente: se puede ejecutar más de una vez sin duplicar objetos.
+
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
 
 -- Tabla materias
 CREATE TABLE IF NOT EXISTS public.materias (
@@ -46,19 +49,23 @@ ALTER TABLE public.materias ENABLE ROW LEVEL SECURITY;
 
 -- Políticas de seguridad RLS
 -- Política 1: Usuarios pueden ver solo sus propias materias
-CREATE POLICY IF NOT EXISTS "Usuarios pueden ver sus propias materias" ON public.materias
+DROP POLICY IF EXISTS "Usuarios pueden ver sus propias materias" ON public.materias;
+CREATE POLICY "Usuarios pueden ver sus propias materias" ON public.materias
     FOR SELECT USING (auth.uid() = usuario_id);
 
 -- Política 2: Usuarios pueden crear materias solo para sí mismos
-CREATE POLICY IF NOT EXISTS "Usuarios pueden crear sus propias materias" ON public.materias
+DROP POLICY IF EXISTS "Usuarios pueden crear sus propias materias" ON public.materias;
+CREATE POLICY "Usuarios pueden crear sus propias materias" ON public.materias
     FOR INSERT WITH CHECK (auth.uid() = usuario_id);
 
 -- Política 3: Usuarios pueden actualizar solo sus propias materias
-CREATE POLICY IF NOT EXISTS "Usuarios pueden actualizar sus propias materias" ON public.materias
+DROP POLICY IF EXISTS "Usuarios pueden actualizar sus propias materias" ON public.materias;
+CREATE POLICY "Usuarios pueden actualizar sus propias materias" ON public.materias
     FOR UPDATE USING (auth.uid() = usuario_id);
 
 -- Política 4: Usuarios pueden eliminar solo sus propias materias
-CREATE POLICY IF NOT EXISTS "Usuarios pueden eliminar sus propias materias" ON public.materias
+DROP POLICY IF EXISTS "Usuarios pueden eliminar sus propias materias" ON public.materias;
+CREATE POLICY "Usuarios pueden eliminar sus propias materias" ON public.materias
     FOR DELETE USING (auth.uid() = usuario_id);
 
 -- Trigger para actualizar fecha_actualizacion automáticamente
@@ -69,6 +76,8 @@ BEGIN
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trigger_actualizar_fecha_modificacion ON public.materias;
 
 CREATE TRIGGER trigger_actualizar_fecha_modificacion
     BEFORE UPDATE ON public.materias
@@ -90,10 +99,16 @@ BEGIN
         COUNT(*) FILTER (WHERE estado = 'activo')::INTEGER as activas,
         COUNT(*) FILTER (WHERE estado = 'archivado')::INTEGER as archivadas,
         COALESCE(
-            JSONB_OBJECT_AGG(
-                periodo_academico,
-                COUNT(*)::INTEGER
-            ) FILTER (WHERE periodo_academico IS NOT NULL),
+            (
+                SELECT JSONB_OBJECT_AGG(agrupado.periodo_academico, agrupado.cantidad)
+                FROM (
+                    SELECT periodo_academico, COUNT(*)::INTEGER AS cantidad
+                    FROM public.materias
+                    WHERE usuario_id = p_usuario_id
+                      AND periodo_academico IS NOT NULL
+                    GROUP BY periodo_academico
+                ) AS agrupado
+            ),
             '{}'::JSONB
         ) as por_periodo
     FROM public.materias
@@ -119,6 +134,8 @@ BEGIN
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trigger_validar_periodo_academico ON public.materias;
 
 CREATE TRIGGER trigger_validar_periodo_academico
     BEFORE INSERT OR UPDATE ON public.materias
@@ -147,10 +164,10 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql IMMUTABLE;
 
--- Inserción de datos de ejemplo (opcional, solo para desarrollo)
-INSERT INTO public.materias (usuario_id, nombre, codigo, docente, descripcion, periodo_academico, color) VALUES
-    ('00000000-0000-0000-0000-000000000001', 'Matemáticas Discretas', 'MAT101', 'Dr. Juan Pérez', 'Fundamentos de lógica matemática y teoría de conjuntos', '2024-1', '#3B82F6'),
-    ('00000000-0000-0000-0000-000000000001', 'Algoritmos y Estructuras de Datos', 'INF201', 'Dra. María Gómez', 'Diseño y análisis de algoritmos eficientes', '2024-1', '#10B981'),
-    ('00000000-0000-0000-0000-000000000001', 'Bases de Datos', 'INF301', 'Ing. Carlos López', 'Diseño e implementación de sistemas de bases de datos', '2024-2', '#F59E0B'),
-    ('00000000-0000-0000-0000-000000000002', 'Ingeniería de Software', 'INF401', 'MSc. Ana Rodríguez', 'Metodologías de desarrollo de software', '2024-1', '#8B5CF6')
-ON CONFLICT (usuario_id, codigo) DO NOTHING;
+-- Datos de ejemplo: no se insertan automáticamente porque los identificadores
+-- deben existir en public.perfiles. Para datos de demostración, créalos desde
+-- la aplicación con un usuario real.
+
+-- Grants para el cliente autenticado; RLS limita las filas por usuario.
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.materias TO authenticated;
+REVOKE ALL ON public.materias FROM anon;
