@@ -64,6 +64,18 @@ export const routes: Routes = [
         path: 'materias',
         loadComponent: () => import('./features/materias/materias').then((m) => m.MateriasPage),
       },
+      {
+        path: 'materias/nueva',
+        loadComponent: () => import('./features/materias/materia-form/materia-form').then((m) => m.MateriaFormPage),
+      },
+      {
+        path: 'materias/:id',
+        loadComponent: () => import('./features/materias/materia-detalle/materia-detalle').then((m) => m.MateriaDetallePage),
+      },
+      {
+        path: 'materias/:id/editar',
+        loadComponent: () => import('./features/materias/materia-form/materia-form').then((m) => m.MateriaFormPage),
+      },
 
       {
         path: 'tareas',
