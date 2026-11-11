@@ -60,7 +60,12 @@ export class ShellComponent {
   private readonly router = inject(Router);
 
   readonly menuOpen = signal(false);
+  readonly collapsed = signal(false);
   readonly role = this.authService.role;
+  readonly roleLabel = computed(() => {
+    const role = this.role();
+    return role ? role.charAt(0).toUpperCase() + role.slice(1) : 'Estudiante';
+  });
   readonly fullName = this.authService.fullName;
   readonly isAdmin = computed(() => this.role() === 'administrador');
 
@@ -96,17 +101,23 @@ export class ShellComponent {
     { initialValue: this.router.url },
   );
 
-  readonly sectionTitle = computed(() => {
+  private readonly activeNavItem = computed(() => {
     const url = this.currentUrl() ?? '';
-    const match = NAV_SECTIONS.flatMap((section) => section.items).find((item) =>
+
+    return NAV_SECTIONS.flatMap((section) => section.items).find((item) =>
       url.startsWith(item.path),
     );
-
-    return match?.label ?? 'Panel academico';
   });
+
+  readonly sectionTitle = computed(() => this.activeNavItem()?.label ?? 'Panel académico');
+  readonly sectionIcon = computed(() => this.activeNavItem()?.icon ?? 'bi-mortarboard');
 
   closeMenu(): void {
     this.menuOpen.set(false);
+  }
+
+  toggleCollapsed(): void {
+    this.collapsed.update((value) => !value);
   }
 
   async logout(): Promise<void> {

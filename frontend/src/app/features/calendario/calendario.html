@@ -1,222 +1,296 @@
-<div class="calendario-page py-4 py-lg-5">
-  <div class="container">
-    <header class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
-      <div>
-        <h1 class="h2 fw-bold mb-1">Calendario académico</h1>
-        <p class="text-muted mb-0">
-          Visualiza tus clases, entregas, exámenes y eventos personales en un solo lugar.
+<div class="calendario-page">
+  <header class="cal-hero mb-4">
+    <div class="d-flex flex-wrap justify-content-between align-items-start gap-3">
+      <div class="cal-hero-text">
+        <span class="page-eyebrow">Agenda académica</span>
+        <h1 class="page-title mt-1 mb-2">Calendario académico</h1>
+        <p class="page-subtitle">
+          Clases, entregas, exámenes y eventos personales en una sola vista. Haz clic en un día para
+          crear un evento o arrastra los existentes para reprogramarlos.
         </p>
       </div>
 
-      <button type="button" class="btn btn-primary" (click)="irANuevoEvento()">
-        <i class="bi bi-plus-lg me-1" aria-hidden="true"></i>
-        Nuevo evento
+      <button type="button" class="btn-cta" (click)="irANuevoEvento()">
+        <span class="btn-cta-icon" aria-hidden="true"><i class="bi bi-plus-lg"></i></span>
+        <span class="btn-cta-copy">
+          <strong>Nuevo evento</strong>
+          <small>Agenda una clase, examen o entrega</small>
+        </span>
       </button>
-    </header>
+    </div>
+  </header>
 
-    <section class="card mb-4" aria-label="Filtros del calendario">
-      <div class="card-body">
-        <div class="row g-3 align-items-end">
-          <div class="col-12 col-md-4">
-            <label for="filtro-tipo" class="form-label small fw-semibold">Tipo de evento</label>
-            <select
-              id="filtro-tipo"
-              class="form-select"
-              [value]="filtroTipo()"
-              (change)="alCambiarTipo($event)"
-            >
-              <option value="">Todos los tipos</option>
-              @for (tipo of tiposEvento; track tipo.valor) {
-                <option [value]="tipo.valor">{{ tipo.etiqueta }}</option>
-              }
-            </select>
-          </div>
+  <section class="cal-filters mb-4" aria-label="Filtros del calendario">
+    <div class="cal-filters-head">
+      <span class="cal-filters-title">
+        <i class="bi bi-funnel-fill" aria-hidden="true"></i>
+        Filtros
+        @if (filtrosActivos()) {
+          <span class="cal-count-chip">{{ totalFiltrosActivos() }}</span>
+        }
+      </span>
+      @if (filtrosActivos()) {
+        <button type="button" class="cal-clear-btn" (click)="limpiarFiltros()">
+          <i class="bi bi-x-circle" aria-hidden="true"></i>
+          Limpiar filtros
+        </button>
+      }
+    </div>
 
-          <div class="col-12 col-md-4">
-            <label for="filtro-materia" class="form-label small fw-semibold">Materia</label>
-            <select
-              id="filtro-materia"
-              class="form-select"
-              [value]="filtroMateria()"
-              (change)="alCambiarMateria($event)"
-            >
-              <option value="">Todas las materias</option>
-              @for (materia of materias(); track materia.id) {
-                <option [value]="materia.id">{{ materia.nombre }} ({{ materia.codigo }})</option>
-              }
-            </select>
-          </div>
-
-          <div class="col-12 col-md-4 d-flex gap-2">
-            <button type="button" class="btn btn-primary flex-grow-1" (click)="aplicarFiltros()">
-              <i class="bi bi-funnel me-1" aria-hidden="true"></i>
-              Aplicar filtros
-              @if (filtrosActivos()) {
-                <span class="badge text-bg-light ms-1">{{ totalFiltrosActivos() }}</span>
-              }
-            </button>
-            @if (filtrosActivos()) {
-              <button type="button" class="btn btn-outline-secondary" (click)="limpiarFiltros()">
-                Limpiar
-              </button>
-            }
-          </div>
-        </div>
+    <div class="row g-3 align-items-end">
+      <div class="col-12 col-md-5">
+        <label for="filtro-tipo" class="cal-filter-label">
+          <i class="bi bi-tag" aria-hidden="true"></i>
+          Tipo de evento
+        </label>
+        <select
+          id="filtro-tipo"
+          class="form-select"
+          [value]="filtroTipo()"
+          (change)="alCambiarTipo($event)"
+        >
+          <option value="">Todos los tipos</option>
+          @for (tipo of tiposEvento; track tipo.valor) {
+            <option [value]="tipo.valor">{{ tipo.etiqueta }}</option>
+          }
+        </select>
       </div>
-    </section>
 
-    @if (error()) {
-      <div class="alert alert-danger d-flex flex-wrap align-items-center gap-2" role="alert">
-        <i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i>
-        <span class="flex-grow-1">{{ error() }}</span>
-        <button type="button" class="btn btn-sm btn-outline-danger" (click)="aplicarFiltros()">
-          Reintentar
+      <div class="col-12 col-md-5">
+        <label for="filtro-materia" class="cal-filter-label">
+          <i class="bi bi-journal-bookmark" aria-hidden="true"></i>
+          Materia
+        </label>
+        <select
+          id="filtro-materia"
+          class="form-select"
+          [value]="filtroMateria()"
+          (change)="alCambiarMateria($event)"
+        >
+          <option value="">Todas las materias</option>
+          @for (materia of materias(); track materia.id) {
+            <option [value]="materia.id">{{ materia.nombre }} ({{ materia.codigo }})</option>
+          }
+        </select>
+      </div>
+
+      <div class="col-12 col-md-2 d-grid">
+        <button type="button" class="btn btn-primary" (click)="aplicarFiltros()">
+          <i class="bi bi-funnel me-1" aria-hidden="true"></i>
+          Aplicar
         </button>
       </div>
-    }
+    </div>
+  </section>
 
-    <div class="row g-4">
-      <div class="col-12 col-xl-8">
-        <section class="card calendario-card" aria-label="Calendario de eventos">
-          <div class="card-body">
-            @if (cargando()) {
-              <p class="text-muted small mb-2" role="status" aria-live="polite">
-                <span class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span>
-                Cargando eventos...
-              </p>
-            }
+  @if (error()) {
+    <div class="alert alert-danger d-flex flex-wrap align-items-center gap-2" role="alert">
+      <i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i>
+      <span class="flex-grow-1">{{ error() }}</span>
+      <button type="button" class="btn btn-sm btn-outline-danger" (click)="aplicarFiltros()">
+        Reintentar
+      </button>
+    </div>
+  }
 
-            <full-calendar [options]="calendarOptions" [events]="eventosFullCalendar()" />
-
-            @if (!cargando() && !error() && eventos().length === 0) {
-              <p class="text-muted text-center mt-3 mb-0" role="status">
-                No hay eventos en este período. Puedes crear uno nuevo o cambiar los filtros.
-              </p>
-            }
+  <div class="row g-4 align-items-start">
+    <div class="col-12 col-xl-8">
+      <section class="cal-panel cal-panel--calendar" aria-label="Calendario de eventos">
+        <div class="cal-panel-head">
+          <span class="cal-panel-icon" aria-hidden="true"><i class="bi bi-calendar3"></i></span>
+          <div class="cal-panel-heading">
+            <h2>Mi calendario</h2>
+            <small>{{ eventos().length }} eventos en el rango visible</small>
           </div>
-        </section>
+          @if (cargando()) {
+            <span class="cal-sync" role="status" aria-live="polite">
+              <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
+              Sincronizando
+            </span>
+          }
+        </div>
 
-        <section class="mt-3" aria-label="Leyenda de tipos de evento">
-          <div class="d-flex flex-wrap gap-3 small">
-            @for (tipo of tiposEvento; track tipo.valor) {
-              <span class="d-inline-flex align-items-center gap-1">
-                <span
-                  class="leyenda-punto"
-                  [style.background-color]="tipo.color"
-                  aria-hidden="true"
-                ></span>
-                {{ tipo.etiqueta }}
-              </span>
-            }
-          </div>
-        </section>
-      </div>
+        <div class="cal-panel-body">
+          <full-calendar [options]="calendarOptions" [events]="eventosFullCalendar()" />
 
-      <div class="col-12 col-xl-4">
-        @if (eventoSeleccionado(); as evento) {
-          <section class="card mb-4" aria-label="Detalle del evento">
-            <div class="card-header d-flex justify-content-between align-items-center">
-              <h2 class="h6 mb-0">Detalle del evento</h2>
-              <button
-                type="button"
-                class="btn btn-sm btn-outline-secondary"
-                aria-label="Cerrar detalle"
-                (click)="cerrarDetalle()"
-              >
-                <i class="bi bi-x-lg" aria-hidden="true"></i>
-              </button>
+          @if (!cargando() && !error() && eventos().length === 0) {
+            <div class="cal-empty" role="status">
+              <i class="bi bi-calendar-x" aria-hidden="true"></i>
+              <p class="mb-1 fw-semibold">Nada por aquí todavía</p>
+              <p class="small text-muted-soft mb-0">
+                No hay eventos en este período. Crea uno nuevo o ajusta los filtros.
+              </p>
             </div>
-            <div class="card-body">
-              <span [class]="obtenerTipoBadgeClase(evento.tipo_evento)">
-                {{ obtenerTipoTexto(evento.tipo_evento) }}
-              </span>
-              <h3 class="h5">{{ evento.titulo }}</h3>
+          }
+        </div>
+      </section>
 
-              <dl class="row small mb-3">
-                <dt class="col-5">Inicio</dt>
-                <dd class="col-7">{{ formatearFechaHora(evento.fecha_inicio) }}</dd>
-
-                <dt class="col-5">Fin</dt>
-                <dd class="col-7">{{ formatearFechaHora(evento.fecha_fin) }}</dd>
-
-                @if (obtenerMateria(evento); as materia) {
-                  <dt class="col-5">Materia</dt>
-                  <dd class="col-7">{{ materia.nombre }} ({{ materia.codigo }})</dd>
-                }
-
-                <dt class="col-5">Recordatorio</dt>
-                <dd class="col-7">
-                  {{ evento.recordatorio ? evento.recordatorio + ' min antes' : 'Sin recordatorio' }}
-                </dd>
-              </dl>
-
-              @if (evento.descripcion) {
-                <p class="mb-3">{{ evento.descripcion }}</p>
-              }
-
-              <div class="d-flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  class="btn btn-sm btn-primary"
-                  (click)="editarEvento(evento)"
-                >
-                  <i class="bi bi-pencil me-1" aria-hidden="true"></i>
-                  Editar
-                </button>
-                <button
-                  type="button"
-                  class="btn btn-sm btn-outline-danger"
-                  [disabled]="eliminando()"
-                  (click)="eliminarEvento(evento)"
-                >
-                  <i class="bi bi-trash me-1" aria-hidden="true"></i>
-                  Eliminar
-                </button>
-              </div>
-            </div>
-          </section>
+      <section class="cal-legend mt-3" aria-label="Leyenda de tipos de evento">
+        @for (tipo of tiposEvento; track tipo.valor) {
+          <span class="cal-legend-chip">
+            <span
+              class="cal-legend-dot"
+              [style.background-color]="tipo.color"
+              [style.box-shadow]="'0 0 8px ' + tipo.color"
+              aria-hidden="true"
+            ></span>
+            {{ tipo.etiqueta }}
+          </span>
         }
+      </section>
+    </div>
 
-        <section class="card" aria-label="Próximas actividades">
-          <div class="card-header">
-            <h2 class="h6 mb-0">Próximos {{ diasProximos }} días</h2>
+    <div class="col-12 col-xl-4">
+      @if (eventoSeleccionado(); as evento) {
+        <section class="cal-panel cal-detail mb-4" aria-label="Detalle del evento">
+          <div class="cal-panel-head">
+            <span class="cal-panel-icon cal-panel-icon--ai" aria-hidden="true">
+              <i class="bi bi-card-text"></i>
+            </span>
+            <div class="cal-panel-heading">
+              <h2>Detalle del evento</h2>
+              <small>Información completa</small>
+            </div>
+            <button
+              type="button"
+              class="btn-icon cal-close"
+              aria-label="Cerrar detalle"
+              (click)="cerrarDetalle()"
+            >
+              <i class="bi bi-x-lg" aria-hidden="true"></i>
+            </button>
           </div>
 
-          @if (cargandoProximos()) {
-            <div class="card-body text-muted small" role="status" aria-live="polite">
-              <span class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span>
-              Cargando próximas actividades...
-            </div>
-          } @else if (errorProximos()) {
-            <div class="card-body">
-              <p class="text-danger small mb-2" role="alert">{{ errorProximos() }}</p>
-              <button type="button" class="btn btn-sm btn-outline-secondary" (click)="cargarProximos()">
-                Reintentar
-              </button>
-            </div>
-          } @else if (proximos().length === 0) {
-            <div class="card-body text-muted small" role="status">
-              No tienes actividades próximas.
-            </div>
-          } @else {
-            <ul class="list-group list-group-flush">
-              @for (evento of proximos(); track evento.id) {
-                <li class="list-group-item">
-                  <div class="d-flex justify-content-between align-items-start gap-2">
-                    <div>
-                      <div class="fw-semibold">{{ evento.titulo }}</div>
-                      <div class="small text-muted">{{ formatearFechaHora(evento.fecha_inicio) }}</div>
-                    </div>
-                    <span [class]="obtenerTipoBadgeClase(evento.tipo_evento)">
-                      {{ obtenerTipoTexto(evento.tipo_evento) }}
-                    </span>
-                  </div>
+          <div class="cal-panel-body">
+            <span [class]="obtenerTipoBadgeClase(evento.tipo_evento) + ' cal-detail-badge'">
+              {{ obtenerTipoTexto(evento.tipo_evento) }}
+            </span>
+            <h3 class="cal-detail-title">{{ evento.titulo }}</h3>
+
+            <ul class="cal-detail-list">
+              <li>
+                <span class="cal-detail-icon" aria-hidden="true"><i class="bi bi-calendar-event"></i></span>
+                <span class="cal-detail-meta">
+                  <small>Inicio</small>
+                  <strong>{{ formatearFechaHora(evento.fecha_inicio) }}</strong>
+                </span>
+              </li>
+              <li>
+                <span class="cal-detail-icon" aria-hidden="true"><i class="bi bi-calendar-check"></i></span>
+                <span class="cal-detail-meta">
+                  <small>Fin</small>
+                  <strong>{{ formatearFechaHora(evento.fecha_fin) }}</strong>
+                </span>
+              </li>
+              @if (obtenerMateria(evento); as materia) {
+                <li>
+                  <span class="cal-detail-icon" aria-hidden="true"><i class="bi bi-journal-bookmark"></i></span>
+                  <span class="cal-detail-meta">
+                    <small>Materia</small>
+                    <strong>{{ materia.nombre }} ({{ materia.codigo }})</strong>
+                  </span>
                 </li>
               }
+              <li>
+                <span class="cal-detail-icon" aria-hidden="true"><i class="bi bi-bell"></i></span>
+                <span class="cal-detail-meta">
+                  <small>Recordatorio</small>
+                  <strong>
+                    {{ evento.recordatorio ? evento.recordatorio + ' min antes' : 'Sin recordatorio' }}
+                  </strong>
+                </span>
+              </li>
             </ul>
-          }
+
+            @if (evento.descripcion) {
+              <p class="cal-detail-desc">{{ evento.descripcion }}</p>
+            }
+
+            <div class="d-flex flex-wrap gap-2">
+              <button type="button" class="btn btn-primary" (click)="editarEvento(evento)">
+                <i class="bi bi-pencil me-1" aria-hidden="true"></i>
+                Editar
+              </button>
+              <button
+                type="button"
+                class="btn btn-outline-danger"
+                [disabled]="eliminando()"
+                (click)="eliminarEvento(evento)"
+              >
+                @if (eliminando()) {
+                  <span class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span>
+                } @else {
+                  <i class="bi bi-trash me-1" aria-hidden="true"></i>
+                }
+                Eliminar
+              </button>
+            </div>
+          </div>
         </section>
-      </div>
+      }
+
+      <section class="cal-panel cal-upcoming" aria-label="Próximas actividades">
+        <div class="cal-panel-head">
+          <span class="cal-panel-icon cal-panel-icon--warning" aria-hidden="true">
+            <i class="bi bi-alarm"></i>
+          </span>
+          <div class="cal-panel-heading">
+            <h2>Próximas actividades</h2>
+            <small>Los próximos {{ diasProximos }} días</small>
+          </div>
+        </div>
+
+        @if (cargandoProximos()) {
+          <div class="cal-panel-body cal-upcoming-status" role="status" aria-live="polite">
+            <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
+            Cargando próximas actividades...
+          </div>
+        } @else if (errorProximos()) {
+          <div class="cal-panel-body">
+            <p class="text-danger small mb-2" role="alert">{{ errorProximos() }}</p>
+            <button type="button" class="btn btn-sm btn-outline-secondary" (click)="cargarProximos()">
+              Reintentar
+            </button>
+          </div>
+        } @else if (proximos().length === 0) {
+          <div class="cal-panel-body cal-upcoming-empty" role="status">
+            <i class="bi bi-check2-circle" aria-hidden="true"></i>
+            <p class="mb-0">No tienes actividades próximas.</p>
+          </div>
+        } @else {
+          <ul class="cal-upcoming-list">
+            @for (evento of proximos(); track evento.id) {
+              <li>
+                <span
+                  class="cal-upcoming-icon"
+                  [style.color]="obtenerColorTipo(evento.tipo_evento)"
+                  [style.border-color]="obtenerColorTipo(evento.tipo_evento)"
+                  aria-hidden="true"
+                >
+                  <i
+                    class="bi"
+                    [class.bi-clipboard2-check]="evento.tipo_evento === 'examen'"
+                    [class.bi-inbox]="evento.tipo_evento === 'entrega'"
+                    [class.bi-journal-text]="evento.tipo_evento === 'clase'"
+                    [class.bi-book]="evento.tipo_evento === 'estudio'"
+                    [class.bi-person]="evento.tipo_evento === 'personal'"
+                    [class.bi-three-dots]="evento.tipo_evento === 'otro'"
+                  ></i>
+                </span>
+                <span class="cal-upcoming-meta">
+                  <strong>{{ evento.titulo }}</strong>
+                  <small>
+                    <i class="bi bi-clock me-1" aria-hidden="true"></i>{{ formatearFechaHora(evento.fecha_inicio) }}
+                  </small>
+                </span>
+                <span [class]="obtenerTipoBadgeClase(evento.tipo_evento) + ' cal-upcoming-badge'">
+                  {{ obtenerTipoTexto(evento.tipo_evento) }}
+                </span>
+              </li>
+            }
+          </ul>
+        }
+      </section>
     </div>
   </div>
 </div>

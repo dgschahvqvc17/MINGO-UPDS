@@ -1,161 +1,404 @@
-<div class="dashboard-page py-4 py-lg-5">
-  <div class="container">
-    <!-- Header del dashboard -->
-    <header class="mb-5">
-      <div class="d-flex justify-content-between align-items-start">
-        <div>
-          <span class="page-eyebrow">Panel principal</span>
-          <h1 class="h2 fw-bold mt-1 mb-3">{{ welcomeMessage() }}</h1>
-          <p class="text-muted-soft mb-0">
-            Accede rápidamente a las herramientas que necesitas para tu día académico.
-          </p>
+<div class="dashboard-page">
+  <header class="dashboard-header mb-4">
+    <div class="d-flex flex-wrap justify-content-between align-items-start gap-3">
+      <div>
+        <span class="page-eyebrow">Panel principal</span>
+        <h1 class="h2 fw-bold mt-1 mb-2">{{ saludo() }}</h1>
+        <p class="text-muted-soft mb-0">{{ mensajeBienvenida() }}</p>
+        <div class="d-flex flex-wrap gap-3 mt-2 small text-muted-soft">
+          <span>
+            <i class="bi bi-calendar3 me-1" aria-hidden="true"></i>
+            {{ fechaHoy }}
+          </span>
+          @if (ultimaActualizacion()) {
+            <span>
+              <i class="bi bi-clock-history me-1" aria-hidden="true"></i>
+              Actualizado a las {{ horaActualizacion() }}
+            </span>
+          }
+        </div>
+      </div>
+
+      <div class="d-flex align-items-center gap-2">
+        <span
+          class="role-badge"
+          [class.role-administrador]="rol() === 'administrador'"
+          [class.role-estudiante]="rol() === 'estudiante'"
+        >
+          <i [class]="iconoRol()" aria-hidden="true"></i>
+          {{ rolTexto() }}
+        </span>
+
+        <button
+          type="button"
+          class="btn btn-outline-light btn-sm d-inline-flex align-items-center gap-2"
+          (click)="recargar()"
+          [disabled]="isLoading()"
+          aria-label="Actualizar panel académico"
+        >
+          <i class="bi bi-arrow-clockwise" [class.spin]="isLoading()" aria-hidden="true"></i>
+          <span>Actualizar</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  @if (errorMessage()) {
+    <div
+      class="alert alert-danger d-flex flex-wrap align-items-center justify-content-between gap-2"
+      role="alert"
+    >
+      <span>
+        <i class="bi bi-exclamation-triangle me-2" aria-hidden="true"></i>
+        {{ errorMessage() }}
+      </span>
+      <button type="button" class="btn btn-sm btn-outline-danger" (click)="recargar()">
+        Reintentar
+      </button>
+    </div>
+  }
+
+  @if (isLoading() && !resumen()) {
+    <div class="app-card" role="status" aria-live="polite">
+      <div class="card-body p-5 text-center">
+        <span class="spinner-border spinner-border-sm text-primary me-2" aria-hidden="true"></span>
+        Cargando tu panel académico...
+      </div>
+    </div>
+  } @else if (resumen()) {
+    <section class="row g-3 mb-4" aria-label="Resumen académico">
+      <div class="col-12 col-sm-6 col-xl-3">
+        <app-card class="h-100">
+          <div class="card-body d-flex align-items-center gap-3 p-3 p-lg-4">
+            <span class="stat-icon stat-icon--primary" aria-hidden="true">
+              <i class="bi bi-journal-bookmark"></i>
+            </span>
+            <div>
+              <div class="stat-value">{{ materias().total }}</div>
+              <div class="stat-label">Materias registradas</div>
+              <div class="small text-muted-soft">
+                {{ materias().activas }} activas · {{ materias().archivadas }} archivadas
+              </div>
+            </div>
+          </div>
+        </app-card>
+      </div>
+
+      <div class="col-12 col-sm-6 col-xl-3">
+        <app-card class="h-100">
+          <div class="card-body d-flex align-items-center gap-3 p-3 p-lg-4">
+            <span class="stat-icon stat-icon--warning" aria-hidden="true">
+              <i class="bi bi-hourglass-split"></i>
+            </span>
+            <div>
+              <div class="stat-value">{{ totalPendientes() }}</div>
+              <div class="stat-label">Tareas pendientes</div>
+              <div class="small text-muted-soft">
+                {{ tareas().pendientes }} pendientes · {{ tareas().en_progreso }} en progreso
+              </div>
+              @if (tareas().vencidas > 0) {
+                <div class="small text-danger">
+                  <i class="bi bi-exclamation-circle me-1" aria-hidden="true"></i>
+                  {{ tareas().vencidas }} vencidas
+                </div>
+              }
+            </div>
+          </div>
+        </app-card>
+      </div>
+
+      <div class="col-12 col-sm-6 col-xl-3">
+        <app-card class="h-100">
+          <div class="card-body d-flex align-items-center gap-3 p-3 p-lg-4">
+            <span class="stat-icon stat-icon--success" aria-hidden="true">
+              <i class="bi bi-check2-circle"></i>
+            </span>
+            <div>
+              <div class="stat-value">{{ tareas().completadas }}</div>
+              <div class="stat-label">Tareas completadas</div>
+              <div class="small text-muted-soft">
+                {{ progreso().porcentaje_completado }} % de avance
+              </div>
+            </div>
+          </div>
+        </app-card>
+      </div>
+
+      <div class="col-12 col-sm-6 col-xl-3">
+        <app-card class="h-100">
+          <div class="card-body d-flex align-items-center gap-3 p-3 p-lg-4">
+            <span class="stat-icon stat-icon--danger" aria-hidden="true">
+              <i class="bi bi-clipboard2-pulse"></i>
+            </span>
+            <div>
+              <div class="stat-value">{{ proximosExamenes().length }}</div>
+              <div class="stat-label">Exámenes próximos</div>
+              <div class="small text-muted-soft">En los próximos 30 días</div>
+            </div>
+          </div>
+        </app-card>
+      </div>
+    </section>
+
+    <app-card class="d-block mb-4">
+      <div class="card-body p-3 p-lg-4">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+          <h2 class="h6 text-uppercase text-muted-soft fw-semibold mb-0">
+            Resumen de avance académico
+          </h2>
+          <span class="fw-semibold">{{ progreso().porcentaje_completado }} %</span>
         </div>
 
-        <div class="user-badge">
-          <span class="role-badge" [class]="'role-' + userRole()">
-            <i [class]="getRoleIcon()"></i>
-            {{ userRole() | titlecase }}
+        <div
+          class="progress dashboard-progress"
+          role="progressbar"
+          [attr.aria-valuenow]="progreso().porcentaje_completado"
+          aria-valuemin="0"
+          aria-valuemax="100"
+          [attr.aria-label]="
+            'Avance académico: ' + progreso().porcentaje_completado + ' por ciento'
+          "
+        >
+          <div
+            class="progress-bar bg-success"
+            [style.width.%]="progreso().porcentaje_completado"
+          ></div>
+        </div>
+
+        <div class="d-flex flex-wrap gap-3 mt-2 small text-muted-soft">
+          <span>
+            <i class="bi bi-check2-square me-1" aria-hidden="true"></i>
+            {{ progreso().tareas_completadas }} de {{ progreso().tareas_totales }} tareas
+            completadas
+          </span>
+          <span>
+            <i class="bi bi-journal-bookmark me-1" aria-hidden="true"></i>
+            {{ progreso().materias_activas }} materias activas
           </span>
         </div>
       </div>
-    </header>
+    </app-card>
 
-    <!-- Accesos rápidos -->
-    <section class="mb-5" aria-labelledby="quick-links-title">
-      <h2 id="quick-links-title" class="h4 fw-semibold mb-4">Accesos rápidos</h2>
-      <div class="row g-4">
-        @for (link of getQuickLinks(); track link.path) {
-          <div class="col-md-6 col-lg-4">
-            <div
-              class="app-card hover-card h-100"
-              (click)="navigateTo(link.path)"
-              tabindex="0"
-              role="button"
-            >
-              <div class="card-body p-4">
-                <div class="d-flex align-items-center gap-3 mb-3">
-                  <span class="link-icon">
-                    <i [class]="link.icon"></i>
-                  </span>
-                  <h3 class="h5 fw-semibold mb-0">{{ link.label }}</h3>
-                </div>
-                <p class="text-muted-soft mb-0">{{ link.description }}</p>
-                <div class="mt-3 text-end">
-                  <span class="text-primary small">
-                    Ir <i class="bi bi-arrow-right ms-1"></i>
-                  </span>
-                </div>
-              </div>
+    <div class="row g-3 mb-4">
+      <div class="col-12 col-xl-7">
+        <app-card class="h-100">
+          <div class="card-body p-3 p-lg-4 d-flex flex-column h-100">
+            <div class="d-flex justify-content-between align-items-center gap-2 mb-3">
+              <h2 class="h6 text-uppercase text-muted-soft fw-semibold mb-0">
+                <i class="bi bi-alarm me-1" aria-hidden="true"></i>
+                Actividades próximas a vencer
+              </h2>
+              <a
+                class="small text-decoration-none"
+                routerLink="/tareas"
+                aria-label="Ver todas las tareas"
+              >
+                Ver todas <i class="bi bi-arrow-right" aria-hidden="true"></i>
+              </a>
             </div>
+
+            <ul class="list-unstyled mb-0 flex-grow-1">
+              @for (actividad of actividades(); track actividad.id) {
+                <li class="dashboard-item">
+                  <span
+                    class="dashboard-dot"
+                    [style.background-color]="actividad.materiaColor"
+                    aria-hidden="true"
+                  ></span>
+                  <div class="dashboard-item-main">
+                    <a class="dashboard-item-title" [routerLink]="actividad.ruta">
+                      {{ actividad.titulo }}
+                    </a>
+                    <div class="dashboard-item-meta">
+                      @if (actividad.materiaNombre) {
+                        <span class="text-truncate">{{ actividad.materiaNombre }}</span>
+                        <span aria-hidden="true">·</span>
+                      }
+                      <span>{{ actividad.tipoTexto }}</span>
+                      <span aria-hidden="true">·</span>
+                      <span>{{ actividad.fechaTexto }}</span>
+                    </div>
+                  </div>
+                  <div class="dashboard-item-side">
+                    <span [class]="actividad.prioridadClase">{{ actividad.prioridadTexto }}</span>
+                    <span [class]="actividad.vencimientoClase">
+                      {{ actividad.vencimientoTexto }}
+                    </span>
+                  </div>
+                </li>
+              } @empty {
+                <li class="dashboard-empty">
+                  <i class="bi bi-check2-all" aria-hidden="true"></i>
+                  <span>No tienes tareas próximas a vencer. ¡Estás al día!</span>
+                </li>
+              }
+            </ul>
+          </div>
+        </app-card>
+      </div>
+
+      <div class="col-12 col-xl-5">
+        <app-card class="h-100">
+          <div class="card-body p-3 p-lg-4 d-flex flex-column h-100">
+            <div class="d-flex justify-content-between align-items-center gap-2 mb-3">
+              <h2 class="h6 text-uppercase text-muted-soft fw-semibold mb-0">
+                <i class="bi bi-clipboard2-pulse me-1" aria-hidden="true"></i>
+                Próximos exámenes
+              </h2>
+              <a
+                class="small text-decoration-none"
+                routerLink="/tareas"
+                aria-label="Ver todas las tareas y exámenes"
+              >
+                Ver tareas <i class="bi bi-arrow-right" aria-hidden="true"></i>
+              </a>
+            </div>
+
+            <ul class="list-unstyled mb-0 flex-grow-1">
+              @for (examen of proximosExamenes(); track examen.id) {
+                <li class="dashboard-item">
+                  <span
+                    class="dashboard-dot"
+                    [style.background-color]="examen.materiaColor"
+                    aria-hidden="true"
+                  ></span>
+                  <div class="dashboard-item-main">
+                    <a class="dashboard-item-title" [routerLink]="examen.ruta">
+                      {{ examen.titulo }}
+                    </a>
+                    <div class="dashboard-item-meta">
+                      @if (examen.materiaNombre) {
+                        <span class="text-truncate">{{ examen.materiaNombre }}</span>
+                        <span aria-hidden="true">·</span>
+                      }
+                      <span>{{ examen.tipoTexto }}</span>
+                      <span aria-hidden="true">·</span>
+                      <span>{{ examen.fechaTexto }}</span>
+                    </div>
+                  </div>
+                  <div class="dashboard-item-side">
+                    <span [class]="examen.vencimientoClase">{{ examen.vencimientoTexto }}</span>
+                  </div>
+                </li>
+              } @empty {
+                <li class="dashboard-empty">
+                  <i class="bi bi-calendar-check" aria-hidden="true"></i>
+                  <span>No tienes exámenes programados en los próximos 30 días.</span>
+                </li>
+              }
+            </ul>
+          </div>
+        </app-card>
+      </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+      <div class="col-12 col-xl-7">
+        <app-card class="h-100">
+          <div class="card-body p-3 p-lg-4 d-flex flex-column h-100">
+            <div class="d-flex justify-content-between align-items-center gap-2 mb-3">
+              <h2 class="h6 text-uppercase text-muted-soft fw-semibold mb-0">
+                <i class="bi bi-calendar3 me-1" aria-hidden="true"></i>
+                Próximos eventos académicos
+              </h2>
+              <a
+                class="small text-decoration-none"
+                routerLink="/calendario"
+                aria-label="Ver todos los eventos del calendario"
+              >
+                Ver calendario <i class="bi bi-arrow-right" aria-hidden="true"></i>
+              </a>
+            </div>
+
+            <ul class="list-unstyled mb-0 flex-grow-1">
+              @for (evento of eventos(); track evento.id) {
+                <li class="dashboard-item">
+                  <span
+                    class="dashboard-dot"
+                    [style.background-color]="evento.materiaColor"
+                    aria-hidden="true"
+                  ></span>
+                  <div class="dashboard-item-main">
+                    <a class="dashboard-item-title" routerLink="/calendario">{{ evento.titulo }}</a>
+                    <div class="dashboard-item-meta">
+                      @if (evento.materiaNombre) {
+                        <span class="text-truncate">{{ evento.materiaNombre }}</span>
+                        <span aria-hidden="true">·</span>
+                      }
+                      <span [class]="evento.tipoClase">{{ evento.tipoTexto }}</span>
+                      <span aria-hidden="true">·</span>
+                      <span>{{ evento.fechaTexto }}</span>
+                    </div>
+                  </div>
+                </li>
+              } @empty {
+                <li class="dashboard-empty">
+                  <i class="bi bi-calendar-x" aria-hidden="true"></i>
+                  <span>No hay eventos académicos en los próximos 14 días.</span>
+                </li>
+              }
+            </ul>
+          </div>
+        </app-card>
+      </div>
+
+      <div class="col-12 col-xl-5">
+        <app-card class="h-100">
+          <div class="card-body p-3 p-lg-4 d-flex flex-column h-100">
+            <div class="d-flex justify-content-between align-items-center gap-2 mb-3">
+              <h2 class="h6 text-uppercase text-muted-soft fw-semibold mb-0">
+                <i class="bi bi-bell me-1" aria-hidden="true"></i>
+                Notificaciones recientes
+              </h2>
+            </div>
+
+            <ul class="list-unstyled mb-0 flex-grow-1">
+              @for (notificacion of notificaciones(); track notificacion.id) {
+                <li class="dashboard-item">
+                  <span
+                    class="dashboard-dot"
+                    [class.dashboard-dot--unread]="!notificacion.leida"
+                    aria-hidden="true"
+                  ></span>
+                  <div class="dashboard-item-main">
+                    <span class="dashboard-item-title">{{ notificacion.titulo }}</span>
+                    <div class="dashboard-item-meta">
+                      <span class="text-truncate">{{ notificacion.mensaje }}</span>
+                      <span aria-hidden="true">·</span>
+                      <span>{{ notificacion.fechaTexto }}</span>
+                    </div>
+                  </div>
+                </li>
+              } @empty {
+                <li class="dashboard-empty">
+                  <i class="bi bi-bell-slash" aria-hidden="true"></i>
+                  <span>Aún no tienes notificaciones. Aquí verás los recordatorios de MINGO.</span>
+                </li>
+              }
+            </ul>
+          </div>
+        </app-card>
+      </div>
+    </div>
+
+    <section aria-labelledby="accesos-rapidos-title">
+      <h2 id="accesos-rapidos-title" class="h5 fw-semibold mb-3">Accesos rápidos</h2>
+      <div class="row g-3">
+        @for (enlace of enlacesRapidos(); track enlace.path) {
+          <div class="col-12 col-sm-6 col-xl-4">
+            <a class="quick-link h-100" [routerLink]="enlace.path">
+              <span class="quick-link-icon" aria-hidden="true">
+                <i [class]="enlace.icon"></i>
+              </span>
+              <span class="quick-link-body">
+                <span class="quick-link-title">{{ enlace.label }}</span>
+                <span class="quick-link-desc">{{ enlace.description }}</span>
+              </span>
+              <i class="bi bi-arrow-right quick-link-arrow" aria-hidden="true"></i>
+            </a>
           </div>
         }
       </div>
     </section>
-
-    <!-- Información contextual según rol -->
-    <section class="mb-5" aria-labelledby="context-info-title">
-      <h2 id="context-info-title" class="h4 fw-semibold mb-4">Información importante</h2>
-      <div class="app-card">
-        <div class="card-body p-4">
-          @switch (userRole()) {
-            @case ('administrador') {
-              <div class="d-flex gap-3">
-                <span class="icon-badge icon-badge--warning">
-                  <i class="bi bi-shield-check"></i>
-                </span>
-                <div>
-                  <h3 class="h5 fw-semibold mb-2">Panel de administración</h3>
-                  <p class="mb-2">
-                    Como administrador, tienes acceso completo al sistema. Desde aquí puedes
-                    gestionar usuarios, materias, roles y configuraciones del sistema.
-                  </p>
-                  <p class="mb-0">
-                    <strong>Acción recomendada:</strong> Revisa la sección de administración para
-                    gestionar permisos.
-                  </p>
-                </div>
-              </div>
-            }
-            @default {
-              <div class="d-flex gap-3">
-                <span class="icon-badge icon-badge--success">
-                  <i class="bi bi-book"></i>
-                </span>
-                <div>
-                  <h3 class="h5 fw-semibold mb-2">Tu espacio de estudio</h3>
-                  <p class="mb-2">
-                    Este es tu centro de control académico. Desde aquí puedes acceder a todas tus
-                    materias, tareas pendientes, calendario de actividades y herramientas de estudio
-                    inteligente.
-                  </p>
-                  <p class="mb-0">
-                    <strong>Próximo paso:</strong> Revisa tus tareas pendientes o visita el centro
-                    de estudio para sesiones personalizadas.
-                  </p>
-                </div>
-              </div>
-            }
-          }
-        </div>
-      </div>
-    </section>
-
-    <!-- Recordatorios -->
-    <section aria-labelledby="reminders-title">
-      <h2 id="reminders-title" class="h4 fw-semibold mb-4">Recordatorios</h2>
-      <div class="row g-4">
-        <div class="col-lg-6">
-          <div class="app-card">
-            <div class="card-header border-0 pb-0">
-              <h3 class="h5 fw-semibold mb-0">Próximas actividades</h3>
-            </div>
-            <div class="card-body p-4">
-              <div class="d-flex align-items-center gap-3 mb-3">
-                <span class="status-indicator status-indicator--warning"></span>
-                <div>
-                  <div class="fw-medium">Semana de exámenes parciales</div>
-                  <small class="text-muted">Del 10 al 15 de noviembre</small>
-                </div>
-              </div>
-              <div class="d-flex align-items-center gap-3">
-                <span class="status-indicator status-indicator--info"></span>
-                <div>
-                  <div class="fw-medium">Entrega de proyecto final</div>
-                  <small class="text-muted">30 de noviembre, 23:59 hrs</small>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div class="col-lg-6">
-          <div class="app-card">
-            <div class="card-header border-0 pb-0">
-              <h3 class="h5 fw-semibold mb-0">Recursos disponibles</h3>
-            </div>
-            <div class="card-body p-4">
-              <div class="d-flex align-items-center gap-3 mb-3">
-                <span class="resource-badge resource-badge--ai">
-                  <i class="bi bi-stars"></i>
-                </span>
-                <div>
-                  <div class="fw-medium">Asistente IA disponible</div>
-                  <small class="text-muted">Consulta dudas sobre tu material de estudio</small>
-                </div>
-              </div>
-              <div class="d-flex align-items-center gap-3">
-                <span class="resource-badge resource-badge--library">
-                  <i class="bi bi-folder2-open"></i>
-                </span>
-                <div>
-                  <div class="fw-medium">Biblioteca actualizada</div>
-                  <small class="text-muted">Nuevos materiales de cálculo disponibles</small>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
-  </div>
+  }
 </div>

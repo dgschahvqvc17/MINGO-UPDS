@@ -1,8 +1,7 @@
 import { ChangeDetectionStrategy, Component, DestroyRef, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { RouterLink } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { CardComponent } from '../../shared/components/card/card.component';
 import { mensajeDeErrorHttp } from '../../core/utils/http-error';
 import { MateriaService, type Materia } from '../../core/services/materia.service';
 import {
@@ -32,7 +31,7 @@ const ESTADISTICAS_INICIALES: TareaEstadisticas = {
 
 @Component({
   selector: 'app-tareas',
-  imports: [FormsModule, RouterLink, CardComponent],
+  imports: [FormsModule, RouterLink],
   templateUrl: './tareas.html',
   styleUrl: './tareas.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -40,6 +39,7 @@ const ESTADISTICAS_INICIALES: TareaEstadisticas = {
 export class TareasPage {
   private readonly tareaService = inject(TareaService);
   private readonly materiaService = inject(MateriaService);
+  private readonly route = inject(ActivatedRoute);
   private readonly destroyRef = inject(DestroyRef);
 
   readonly tareas = signal<Tarea[]>([]);
@@ -100,6 +100,12 @@ export class TareasPage {
   });
 
   constructor() {
+    // Permite deep-linking desde el detalle de una materia (?materia_id=<uuid>).
+    const materiaId = this.route.snapshot.queryParamMap.get('materia_id');
+    if (materiaId) {
+      this.filtros.update((filtros) => ({ ...filtros, materia_id: materiaId }));
+    }
+
     this.cargarMaterias();
     this.cargarTareas();
     this.cargarEstadisticas();

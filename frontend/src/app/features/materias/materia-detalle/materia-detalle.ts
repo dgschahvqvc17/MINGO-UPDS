@@ -1,5 +1,4 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { MateriaService, type Materia } from '../../../core/services/materia.service';
 import { AuthService } from '../../../core/services/auth.service';
@@ -7,7 +6,7 @@ import { CardComponent } from '../../../shared/components/card/card.component';
 
 @Component({
   selector: 'app-materia-detalle',
-  imports: [CommonModule, CardComponent, RouterLink],
+  imports: [CardComponent, RouterLink],
   templateUrl: './materia-detalle.html',
   styleUrl: './materia-detalle.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -48,16 +47,6 @@ export class MateriaDetallePage {
   readonly estadoTexto = computed(() => {
     const materia = this.materia();
     return materia ? this.materiaService.obtenerEstadoTexto(materia.estado) : '';
-  });
-
-  readonly estadoBadgeClase = computed(() => {
-    const materia = this.materia();
-    return materia ? this.materiaService.obtenerEstadoBadgeClase(materia.estado) : '';
-  });
-
-  readonly periodoBadgeClase = computed(() => {
-    const materia = this.materia();
-    return materia ? this.materiaService.obtenerPeriodoBadgeClase(materia.periodo_academico) : '';
   });
 
   readonly descripcionPeriodo = computed(() => {
@@ -132,19 +121,19 @@ export class MateriaDetallePage {
   }
 
   /**
-   * Navega a las tareas de esta materia
+   * Navega a las tareas filtradas por esta materia
    */
   verTareas(): void {
-    // TODO: Implementar cuando exista el módulo de tareas
-    alert('Módulo de tareas en desarrollo');
+    const materia = this.materia();
+    if (!materia) return;
+    this.router.navigate(['/tareas'], { queryParams: { materia_id: materia.id } });
   }
 
   /**
-   * Navega a los documentos de esta materia
+   * Navega a la biblioteca de documentos del usuario
    */
   verDocumentos(): void {
-    // TODO: Implementar cuando exista el módulo de documentos
-    alert('Módulo de documentos en desarrollo');
+    this.router.navigate(['/biblioteca']);
   }
 
   /**

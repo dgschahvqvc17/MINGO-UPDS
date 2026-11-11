@@ -233,22 +233,6 @@ export class MateriaService {
   }
 
   /**
-   * Obtiene la clase CSS para el badge del estado
-   */
-  obtenerEstadoBadgeClase(estado: 'activo' | 'archivado'): string {
-    return estado === 'activo' 
-      ? 'badge bg-success-subtle text-success-emphasis'
-      : 'badge bg-secondary-subtle text-secondary-emphasis';
-  }
-
-  /**
-   * Obtiene la clase CSS para el badge del periodo académico
-   */
-  obtenerPeriodoBadgeClase(periodo: string): string {
-    return 'badge bg-info-subtle text-info-emphasis';
-  }
-
-  /**
    * Valida el formato del periodo académico
    */
   validarPeriodoAcademico(periodo: string): boolean {

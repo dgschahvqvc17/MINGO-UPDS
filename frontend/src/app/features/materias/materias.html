@@ -1,348 +1,341 @@
-<div class="materias-page py-4 py-lg-5">
-  <div class="container">
-    <!-- Header -->
-    <header class="mb-4">
-      <div class="d-flex justify-content-between align-items-center mb-3">
-        <div>
-          <h1 class="h2 fw-bold mb-1">Mis materias académicas</h1>
-          <p class="text-muted-soft mb-0">
-            Organiza y gestiona todas tus asignaturas en un solo lugar
-          </p>
-        </div>
-        
-        <div class="d-flex align-items-center gap-2">
-          <button 
-            class="btn btn-primary"
-            routerLink="/materias/nueva"
-          >
-            <i class="bi bi-plus-circle me-1"></i>
-            Nueva materia
-          </button>
-        </div>
+<div class="materias-page">
+  <header class="mat-hero mb-4">
+    <div class="d-flex flex-wrap justify-content-between align-items-start gap-3">
+      <div class="hero-text">
+        <span class="page-eyebrow">Gestión académica</span>
+        <h1 class="page-title mt-1 mb-2">Mis materias</h1>
+        <p class="page-subtitle">
+          Organiza y sigue el avance de tus asignaturas: tareas, documentos, notas y progreso en un
+          solo lugar.
+        </p>
       </div>
-    </header>
 
-    <!-- Estadísticas -->
-    <div class="row g-3 mb-4">
-      <div class="col-6 col-md-3">
-        <app-card class="h-100">
-          <div class="card-body text-center py-3">
-            <div class="h4 fw-bold mb-1 text-primary">{{ estadisticas().total }}</div>
-            <div class="small text-muted">Total materias</div>
-          </div>
-        </app-card>
-      </div>
-      
-      <div class="col-6 col-md-3">
-        <app-card class="h-100">
-          <div class="card-body text-center py-3">
-            <div class="h4 fw-bold mb-1 text-success">{{ estadisticas().activas }}</div>
-            <div class="small text-muted">Activas</div>
-          </div>
-        </app-card>
-      </div>
-      
-      <div class="col-6 col-md-3">
-        <app-card class="h-100">
-          <div class="card-body text-center py-3">
-            <div class="h4 fw-bold mb-1 text-secondary">{{ estadisticas().archivadas }}</div>
-            <div class="small text-muted">Archivadas</div>
-          </div>
-        </app-card>
-      </div>
-      
-      <div class="col-6 col-md-3">
-        <app-card class="h-100">
-          <div class="card-body text-center py-3">
-            <div class="h4 fw-bold mb-1 text-info">{{ periodosAcademicos().length }}</div>
-            <div class="small text-muted">Periodos</div>
-          </div>
-        </app-card>
+      <button type="button" class="btn-cta" routerLink="/materias/nueva">
+        <span class="btn-cta-icon" aria-hidden="true"><i class="bi bi-plus-lg"></i></span>
+        <span class="btn-cta-copy">
+          <strong>Nueva materia</strong>
+          <small>Registra una asignatura</small>
+        </span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Estadísticas -->
+  <section class="row g-3 mb-4" aria-label="Resumen de materias">
+    <div class="col-6 col-lg-3">
+      <div class="mat-stat mat-stat--primary h-100">
+        <span class="mat-stat-icon" aria-hidden="true"><i class="bi bi-journal-bookmark"></i></span>
+        <div class="mat-stat-copy">
+          <span class="mat-stat-value">{{ estadisticas().total }}</span>
+          <span class="mat-stat-label">Total materias</span>
+        </div>
       </div>
     </div>
-
-    <!-- Filtros de búsqueda -->
-    <app-card class="mb-4">
-      <div class="card-body">
-        <div class="row g-3">
-          <div class="col-md-4">
-            <div class="input-group input-group-sm">
-              <span class="input-group-text">
-                <i class="bi bi-search"></i>
-              </span>
-              <input
-                type="text"
-                class="form-control"
-                placeholder="Buscar por nombre, código o docente..."
-                [(ngModel)]="filtros().query"
-                (keyup.enter)="aplicarFiltros()"
-              />
-            </div>
-          </div>
-          
-          <div class="col-md-3">
-            <select 
-              class="form-select form-select-sm"
-              [(ngModel)]="filtros().periodo_academico"
-            >
-              <option value="todos">Todos los periodos</option>
-              @for (periodo of periodosAcademicos(); track periodo) {
-                <option [value]="periodo">{{ obtenerDescripcionPeriodo(periodo) }}</option>
-              }
-            </select>
-          </div>
-          
-          <div class="col-md-3">
-            <select 
-              class="form-select form-select-sm"
-              [(ngModel)]="filtros().estado"
-            >
-              <option value="todos">Todos los estados</option>
-              <option value="activo">Activas</option>
-              <option value="archivado">Archivadas</option>
-            </select>
-          </div>
-          
-          <div class="col-md-2">
-            <div class="d-flex gap-2">
-              <button 
-                class="btn btn-sm btn-outline-primary flex-fill"
-                (click)="aplicarFiltros()"
-              >
-                <i class="bi bi-filter me-1"></i>
-                Filtrar
-              </button>
-              
-              @if (filtrosActivos()) {
-                <button 
-                  class="btn btn-sm btn-outline-secondary"
-                  (click)="limpiarFiltros()"
-                  title="Limpiar filtros"
-                >
-                  <i class="bi bi-x-lg"></i>
-                </button>
-              }
-            </div>
-          </div>
+    <div class="col-6 col-lg-3">
+      <div class="mat-stat mat-stat--success h-100">
+        <span class="mat-stat-icon" aria-hidden="true"><i class="bi bi-check2-circle"></i></span>
+        <div class="mat-stat-copy">
+          <span class="mat-stat-value">{{ estadisticas().activas }}</span>
+          <span class="mat-stat-label">Activas</span>
         </div>
       </div>
-    </app-card>
-
-    <!-- Estados de carga -->
-    @if (mostrarCargando()) {
-      <div class="text-center py-5">
-        <div class="spinner-border text-primary" role="status">
-          <span class="visually-hidden">Cargando materias...</span>
-        </div>
-        <p class="text-muted mt-3">Cargando tus materias académicas...</p>
-      </div>
-    }
-
-    @if (mostrarError()) {
-      <div class="alert alert-danger" role="alert">
-        <div class="d-flex align-items-center gap-2">
-          <i class="bi bi-exclamation-triangle-fill"></i>
-          <div class="flex-fill">{{ error() }}</div>
-          <button class="btn btn-sm btn-outline-danger" (click)="cargarMaterias()">
-            Reintentar
-          </button>
+    </div>
+    <div class="col-6 col-lg-3">
+      <div class="mat-stat mat-stat--muted h-100">
+        <span class="mat-stat-icon" aria-hidden="true"><i class="bi bi-archive"></i></span>
+        <div class="mat-stat-copy">
+          <span class="mat-stat-value">{{ estadisticas().archivadas }}</span>
+          <span class="mat-stat-label">Archivadas</span>
         </div>
       </div>
-    }
-
-    @if (mostrarListaVacia()) {
-      <div class="text-center py-5">
-        <div class="mb-4">
-          <i class="bi bi-book fs-1 text-muted"></i>
+    </div>
+    <div class="col-6 col-lg-3">
+      <div class="mat-stat mat-stat--ai h-100">
+        <span class="mat-stat-icon" aria-hidden="true"><i class="bi bi-calendar-range"></i></span>
+        <div class="mat-stat-copy">
+          <span class="mat-stat-value">{{ periodosAcademicos().length }}</span>
+          <span class="mat-stat-label">Periodos</span>
         </div>
-        <h3 class="h4 fw-medium mb-2">No hay materias registradas</h3>
-        <p class="text-muted mb-4">
-          @if (filtrosActivos()) {
-            No se encontraron materias con los filtros aplicados.
-          } @else {
-            Comienza registrando tu primera materia académica.
+      </div>
+    </div>
+  </section>
+
+  <!-- Filtros de búsqueda -->
+  <section class="mat-filters mb-4" aria-label="Filtros de materias">
+    <div class="mat-filters-head">
+      <span class="mat-filters-title">
+        <i class="bi bi-funnel-fill" aria-hidden="true"></i>
+        Filtra tus materias
+        @if (filtrosActivos()) {
+          <span class="mat-count-chip"><i class="bi bi-check2" aria-hidden="true"></i>Activos</span>
+        }
+      </span>
+      @if (filtrosActivos()) {
+        <button type="button" class="mat-clear-btn" (click)="limpiarFiltros()">
+          <i class="bi bi-x-circle" aria-hidden="true"></i>
+          Limpiar filtros
+        </button>
+      }
+    </div>
+
+    <div class="row g-3 align-items-end">
+      <div class="col-12 col-md-4">
+        <label for="filtro-buscar" class="mat-filter-label">
+          <i class="bi bi-search" aria-hidden="true"></i>
+          Buscar
+        </label>
+        <input
+          id="filtro-buscar"
+          type="text"
+          class="form-control"
+          placeholder="Nombre, código o docente..."
+          [(ngModel)]="filtros().query"
+          (keyup.enter)="aplicarFiltros()"
+        />
+      </div>
+
+      <div class="col-6 col-md-3">
+        <label for="filtro-periodo" class="mat-filter-label">
+          <i class="bi bi-calendar3" aria-hidden="true"></i>
+          Periodo
+        </label>
+        <select id="filtro-periodo" class="form-select" [(ngModel)]="filtros().periodo_academico">
+          <option value="todos">Todos los periodos</option>
+          @for (periodo of periodosAcademicos(); track periodo) {
+            <option [value]="periodo">{{ obtenerDescripcionPeriodo(periodo) }}</option>
           }
-        </p>
-        <button 
-          class="btn btn-primary"
-          routerLink="/materias/nueva"
-        >
-          <i class="bi bi-plus-circle me-1"></i>
-          Registrar primera materia
+        </select>
+      </div>
+
+      <div class="col-6 col-md-3">
+        <label for="filtro-estado" class="mat-filter-label">
+          <i class="bi bi-toggle-on" aria-hidden="true"></i>
+          Estado
+        </label>
+        <select id="filtro-estado" class="form-select" [(ngModel)]="filtros().estado">
+          <option value="todos">Todos los estados</option>
+          <option value="activo">Activas</option>
+          <option value="archivado">Archivadas</option>
+        </select>
+      </div>
+
+      <div class="col-12 col-md-2 d-grid">
+        <button type="button" class="btn btn-primary" (click)="aplicarFiltros()">
+          <i class="bi bi-funnel me-1" aria-hidden="true"></i>
+          Filtrar
         </button>
       </div>
-    }
+    </div>
+  </section>
 
-    <!-- Listado de materias -->
-    @if (tieneResultados() && !loading()) {
-      <div class="row g-4">
-        @for (materia of materias(); track materia.id) {
-          <div class="col-md-6 col-lg-4">
-            <div 
-              class="materia-card h-100 rounded-3 border-0 shadow-sm"
-              [style.background-color]="obtenerColorFondo(materia.color + '20')"
-              [style.border-left]="'4px solid ' + materia.color"
-            >
-              <div class="p-4">
-                <!-- Header de la materia -->
-                <div class="d-flex justify-content-between align-items-start mb-3">
-                  <div class="flex-fill">
-                    <h3 class="h5 fw-semibold mb-1" [style.color]="obtenerColorTexto(materia.color)">
+  <!-- Estados de carga -->
+  @if (mostrarCargando()) {
+    <div class="mat-state" role="status" aria-live="polite">
+      <span class="spinner-border" aria-hidden="true"></span>
+      <p>Cargando tus materias académicas...</p>
+    </div>
+  }
+
+  @if (mostrarError()) {
+    <div class="alert alert-danger d-flex flex-wrap align-items-center gap-2" role="alert">
+      <i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i>
+      <span class="flex-grow-1">{{ error() }}</span>
+      <button type="button" class="btn btn-sm btn-outline-danger" (click)="cargarMaterias()">
+        Reintentar
+      </button>
+    </div>
+  }
+
+  @if (mostrarListaVacia()) {
+    <div class="mat-state mat-state--empty" role="status">
+      <span class="mat-empty-icon" aria-hidden="true"><i class="bi bi-journal-bookmark"></i></span>
+      <h3>No hay materias registradas</h3>
+      <p class="text-muted-soft">
+        @if (filtrosActivos()) {
+          Ninguna materia coincide con los filtros aplicados.
+        } @else {
+          Comienza registrando tu primera materia académica.
+        }
+      </p>
+      <button type="button" class="btn btn-primary" routerLink="/materias/nueva">
+        <i class="bi bi-plus-lg me-1" aria-hidden="true"></i>
+        Registrar primera materia
+      </button>
+    </div>
+  }
+
+  <!-- Listado de materias -->
+  @if (tieneResultados() && !loading()) {
+    <div class="row g-4">
+      @for (materia of materias(); track materia.id) {
+        <div class="col-md-6 col-xl-4">
+          <article
+            class="mat-card h-100"
+            [style.border-color]="materia.color + '55'"
+          >
+            <span
+              class="mat-card-glow"
+              [style.background]="'radial-gradient(120px circle at 85% 0%, ' + materia.color + '33, transparent 70%)'"
+              aria-hidden="true"
+            ></span>
+            <span class="mat-card-accent" [style.background]="materia.color" aria-hidden="true"></span>
+
+            <div class="mat-card-body">
+              <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
+                <div class="d-flex align-items-center gap-2 min-width-0">
+                  <span class="mat-card-avatar" [style.--mat-color]="materia.color" aria-hidden="true">
+                    {{ obtenerIniciales(materia) }}
+                  </span>
+                  <div class="min-width-0">
+                    <h3 class="mat-card-title" [title]="obtenerNombreCompleto(materia)">
                       {{ obtenerNombreCompleto(materia) }}
                     </h3>
-                    <p class="small text-muted mb-0">{{ materia.docente }}</p>
-                  </div>
-                  
-                  <div class="dropdown">
-                    <button 
-                      class="btn btn-sm btn-outline-secondary border-0"
-                      type="button"
-                      data-bs-toggle="dropdown"
-                      aria-expanded="false"
-                    >
-                      <i class="bi bi-three-dots-vertical"></i>
-                    </button>
-                    <ul class="dropdown-menu dropdown-menu-end">
-                      <li>
-                        <a 
-                          class="dropdown-item"
-                          [routerLink]="['/materias', materia.id]"
-                        >
-                          <i class="bi bi-eye me-2"></i>
-                          Ver detalles
-                        </a>
-                      </li>
-                      <li>
-                        <a 
-                          class="dropdown-item"
-                          [routerLink]="['/materias', materia.id, 'editar']"
-                        >
-                          <i class="bi bi-pencil me-2"></i>
-                          Editar
-                        </a>
-                      </li>
-                      <li><hr class="dropdown-divider"></li>
-                      <li>
-                        <button 
-                          class="dropdown-item text-warning"
-                          (click)="cambiarEstado(materia)"
-                        >
-                          <i class="bi bi-archive me-2"></i>
-                          {{ materia.estado === 'activo' ? 'Archivar' : 'Activar' }}
-                        </button>
-                      </li>
-                    </ul>
+                    <p class="mat-card-docente">
+                      <i class="bi bi-person me-1" aria-hidden="true"></i>{{ materia.docente }}
+                    </p>
                   </div>
                 </div>
 
-                <!-- Descripción -->
-                @if (materia.descripcion) {
-                  <p class="small text-muted mb-3">
-                    {{ materia.descripcion.length > 100 ? materia.descripcion.substring(0, 100) + '...' : materia.descripcion }}
-                  </p>
-                }
-
-                <!-- Estadísticas -->
-                <div class="row g-2 mb-3">
-                  <div class="col-4">
-                    <div class="text-center">
-                      <div class="h6 fw-bold mb-0">{{ materia.total_tareas }}</div>
-                      <div class="small text-muted">Tareas</div>
-                    </div>
-                  </div>
-                  <div class="col-4">
-                    <div class="text-center">
-                      <div class="h6 fw-bold mb-0">{{ materia.tareas_pendientes }}</div>
-                      <div class="small text-muted">Pendientes</div>
-                    </div>
-                  </div>
-                  <div class="col-4">
-                    <div class="text-center">
-                      <div class="h6 fw-bold mb-0">{{ materia.total_documentos }}</div>
-                      <div class="small text-muted">Documentos</div>
-                    </div>
-                  </div>
-                </div>
-
-                <!-- Progreso de tareas -->
-                @if (materia.total_tareas > 0) {
-                  <div class="mb-3">
-                    <div class="d-flex justify-content-between align-items-center mb-1">
-                      <span class="small text-muted">Progreso</span>
-                      <span class="small fw-medium">{{ calcularProgresoTareas(materia) }}%</span>
-                    </div>
-                    <div class="progress" style="height: 4px;">
-                      <div 
-                        class="progress-bar"
-                        [style.width.%]="calcularProgresoTareas(materia)"
-                        [style.background-color]="materia.color"
-                      ></div>
-                    </div>
-                  </div>
-                }
-
-                <!-- Footer -->
-                <div class="d-flex justify-content-between align-items-center">
-                  <div class="d-flex gap-2">
-                    <span [class]="obtenerEstadoBadgeClase(materia.estado)" class="small">
-                      {{ obtenerEstadoTexto(materia.estado) }}
-                    </span>
-                    <span [class]="obtenerPeriodoBadgeClase(materia.periodo_academico)" class="small">
-                      {{ materia.periodo_academico }}
-                    </span>
-                  </div>
-                  
-                  <div class="small text-muted">
-                    {{ formatearFecha(materia.fecha_creacion) }}
-                  </div>
+                <div class="dropdown">
+                  <button
+                    class="btn-icon mat-card-menu"
+                    type="button"
+                    data-bs-toggle="dropdown"
+                    aria-expanded="false"
+                    [attr.aria-label]="'Opciones de ' + materia.nombre"
+                  >
+                    <i class="bi bi-three-dots-vertical" aria-hidden="true"></i>
+                  </button>
+                  <ul class="dropdown-menu dropdown-menu-end">
+                    <li>
+                      <a class="dropdown-item" [routerLink]="['/materias', materia.id]">
+                        <i class="bi bi-eye me-2" aria-hidden="true"></i>Ver detalles
+                      </a>
+                    </li>
+                    <li>
+                      <a class="dropdown-item" [routerLink]="['/materias', materia.id, 'editar']">
+                        <i class="bi bi-pencil me-2" aria-hidden="true"></i>Editar
+                      </a>
+                    </li>
+                    <li><hr class="dropdown-divider" /></li>
+                    <li>
+                      <button
+                        type="button"
+                        class="dropdown-item mat-archive-item"
+                        (click)="cambiarEstado(materia)"
+                      >
+                        <i class="bi bi-archive me-2" aria-hidden="true"></i>
+                        {{ materia.estado === 'activo' ? 'Archivar' : 'Activar' }}
+                      </button>
+                    </li>
+                  </ul>
                 </div>
               </div>
-            </div>
-          </div>
-        }
-      </div>
 
-      <!-- Controles de paginación -->
-      @if (tieneResultados() && !loading()) {
-        <div class="mt-4 pt-4 border-top">
-          <div class="d-flex justify-content-between align-items-center">
-            <div class="small text-muted">
-              Mostrando {{ paginacion().offset + 1 }}-{{ 
-                (paginacion().offset + paginacion().limit > paginacion().total ? paginacion().total : paginacion().offset + paginacion().limit) 
-              }} de {{ paginacion().total }} materias
+              @if (materia.descripcion) {
+                <p class="mat-card-desc">
+                  {{ materia.descripcion.length > 110 ? materia.descripcion.substring(0, 110) + '…' : materia.descripcion }}
+                </p>
+              }
+
+              <div class="mat-card-stats">
+                <span class="mat-mini-stat">
+                  <strong>{{ materia.total_tareas }}</strong>
+                  <small>Tareas</small>
+                </span>
+                <span class="mat-mini-stat mat-mini-stat--warning">
+                  <strong>{{ materia.tareas_pendientes }}</strong>
+                  <small>Pendientes</small>
+                </span>
+                <span class="mat-mini-stat mat-mini-stat--ai">
+                  <strong>{{ materia.total_documentos }}</strong>
+                  <small>Documentos</small>
+                </span>
+              </div>
+
+              @if (materia.total_tareas > 0) {
+                <div class="mb-3">
+                  <div class="d-flex justify-content-between align-items-center mb-1">
+                    <span class="mat-progress-label">Progreso</span>
+                    <span class="mat-progress-value">{{ calcularProgresoTareas(materia) }}%</span>
+                  </div>
+                  <div class="mat-progress" role="progressbar" [attr.aria-valuenow]="calcularProgresoTareas(materia)" aria-valuemin="0" aria-valuemax="100">
+                    <span
+                      class="mat-progress-fill"
+                      [style.width.%]="calcularProgresoTareas(materia)"
+                      [style.background]="materia.color"
+                      [style.box-shadow]="'0 0 10px ' + materia.color"
+                    ></span>
+                  </div>
+                </div>
+              }
+
+              <div class="mat-card-foot">
+                <div class="d-flex flex-wrap gap-2">
+                  <span
+                    class="mat-badge"
+                    [class.mat-badge--success]="materia.estado === 'activo'"
+                    [class.mat-badge--muted]="materia.estado !== 'activo'"
+                  >
+                    <span class="mat-badge-dot" aria-hidden="true"></span>
+                    {{ obtenerEstadoTexto(materia.estado) }}
+                  </span>
+                  <span class="mat-badge mat-badge--info">{{ materia.periodo_academico }}</span>
+                </div>
+                <time class="mat-card-date">
+                  <i class="bi bi-calendar3 me-1" aria-hidden="true"></i>{{ formatearFecha(materia.fecha_creacion) }}
+                </time>
+              </div>
             </div>
-            
-            <div class="btn-group btn-group-sm" role="group">
-              <button 
-                class="btn btn-outline-secondary"
-                (click)="paginaAnterior()"
-                [disabled]="paginacion().offset === 0"
-              >
-                <i class="bi bi-chevron-left"></i>
-              </button>
-              
-              <select 
-                class="form-select form-select-sm border-secondary"
-                style="width: auto;"
-                [(ngModel)]="paginacion().limit"
-                (change)="cambiarLimite(paginacion().limit)"
-              >
-                <option value="12">12 por página</option>
-                <option value="24">24 por página</option>
-                <option value="48">48 por página</option>
-              </select>
-              
-              <button 
-                class="btn btn-outline-secondary"
-                (click)="paginaSiguiente()"
-                [disabled]="paginacion().offset + paginacion().limit >= paginacion().total"
-              >
-                <i class="bi bi-chevron-right"></i>
-              </button>
-            </div>
-          </div>
+          </article>
         </div>
       }
-    }
-  </div>
+    </div>
+
+    <!-- Paginación -->
+    <div class="mat-pagination mt-4">
+      <p class="mat-pagination-info mb-0">
+        Mostrando
+        <strong>{{ paginacion().offset + 1 }}–{{
+          paginacion().offset + paginacion().limit > paginacion().total
+            ? paginacion().total
+            : paginacion().offset + paginacion().limit
+        }}</strong>
+        de <strong>{{ paginacion().total }}</strong> materias
+      </p>
+
+      <div class="d-flex align-items-center gap-2">
+        <button
+          type="button"
+          class="btn-icon"
+          (click)="paginaAnterior()"
+          [disabled]="paginacion().offset === 0"
+          aria-label="Página anterior"
+        >
+          <i class="bi bi-chevron-left" aria-hidden="true"></i>
+        </button>
+
+        <select
+          class="form-select mat-pagination-select"
+          [(ngModel)]="paginacion().limit"
+          (change)="cambiarLimite(paginacion().limit)"
+          aria-label="Materias por página"
+        >
+          <option [value]="12">12 por página</option>
+          <option [value]="24">24 por página</option>
+          <option [value]="48">48 por página</option>
+        </select>
+
+        <button
+          type="button"
+          class="btn-icon"
+          (click)="paginaSiguiente()"
+          [disabled]="paginacion().offset + paginacion().limit >= paginacion().total"
+          aria-label="Página siguiente"
+        >
+          <i class="bi bi-chevron-right" aria-hidden="true"></i>
+        </button>
+      </div>
+    </div>
+  }
 </div>

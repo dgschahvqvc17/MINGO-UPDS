@@ -1,6 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, inject, OnInit, signal } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { FormsModule, ReactiveFormsModule, FormBuilder, Validators, FormGroup } from '@angular/forms';
+import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { MateriaService, type Materia } from '../../../core/services/materia.service';
 import { AuthService } from '../../../core/services/auth.service';
@@ -8,7 +7,7 @@ import { CardComponent } from '../../../shared/components/card/card.component';
 
 @Component({
   selector: 'app-materia-form',
-  imports: [CommonModule, FormsModule, ReactiveFormsModule, CardComponent, RouterLink],
+  imports: [ReactiveFormsModule, CardComponent, RouterLink],
   templateUrl: './materia-form.html',
   styleUrl: './materia-form.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -23,6 +22,7 @@ export class MateriaFormPage implements OnInit {
   // Estado del componente
   readonly materiaId = signal<string | null>(null);
   readonly modoEdicion = computed(() => this.materiaId() !== null);
+  readonly estadoMateria = signal<'activo' | 'archivado' | null>(null);
   readonly loading = signal(false);
   readonly error = signal<string | null>(null);
   readonly guardando = signal(false);
@@ -82,15 +82,6 @@ export class MateriaFormPage implements OnInit {
   // Usuario actual
   readonly usuarioActual = this.authService.profile;
 
-  // Lista de años disponibles (últimos 5 años)
-  readonly añosDisponibles = computed(() => {
-    const añoActual = new Date().getFullYear();
-    return Array.from({ length: 5 }, (_, i) => añoActual - i);
-  });
-
-  // Lista de semestres
-  readonly semestres = ['1', '2'];
-
   ngOnInit(): void {
     this.cargarMetadatos();
     this.cargarMateriaSiEsEdicion();
@@ -127,6 +118,7 @@ export class MateriaFormPage implements OnInit {
     try {
       const materia = await this.materiaService.obtenerMateria(id).toPromise();
       if (materia) {
+        this.estadoMateria.set(materia.estado);
         this.form.patchValue({
           nombre: materia.nombre,
           codigo: materia.codigo,
@@ -187,6 +179,34 @@ export class MateriaFormPage implements OnInit {
       const mensajeError = error instanceof Error ? error.message : 'Error al guardar la materia';
       this.error.set(mensajeError);
       alert(`Error: ${mensajeError}`);
+    } finally {
+      this.guardando.set(false);
+    }
+  }
+
+  /**
+   * Archiva o activa la materia (no existe borrado definitivo en el backend)
+   */
+  async archivarMateria(): Promise<void> {
+    const id = this.materiaId();
+    const estadoActual = this.estadoMateria();
+    if (!id || !estadoActual || this.guardando()) return;
+
+    const nuevoEstado = estadoActual === 'activo' ? 'archivado' : 'activo';
+    const confirmacion = confirm(
+      `¿Estás seguro de ${nuevoEstado === 'archivado' ? 'archivar' : 'activar'} la materia?`,
+    );
+    if (!confirmacion) return;
+
+    this.guardando.set(true);
+    this.error.set(null);
+
+    try {
+      await this.materiaService.cambiarEstadoMateria(id, nuevoEstado).toPromise();
+      this.estadoMateria.set(nuevoEstado);
+    } catch (error) {
+      const mensaje = error instanceof Error ? error.message : 'Error al cambiar el estado de la materia';
+      this.error.set(mensaje);
     } finally {
       this.guardando.set(false);
     }

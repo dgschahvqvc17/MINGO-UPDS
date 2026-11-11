@@ -56,13 +56,19 @@ export class AuthService {
   async signIn(email: string, password: string): Promise<void> {
     this.lastAuthErrorSignal.set(null);
 
-    const { error } = await this.supabaseService.client.auth.signInWithPassword({
+    const { data, error } = await this.supabaseService.client.auth.signInWithPassword({
       email,
       password,
     });
 
     if (error) {
       throw new Error(this.translateError(error.message));
+    }
+
+    // La sesión llega directamente en la respuesta: fijarla aquí evita depender
+    // del listener asíncrono de onAuthStateChange para el interceptor.
+    if (data?.session) {
+      this.sessionSignal.set(data.session);
     }
 
     try {
@@ -128,6 +134,13 @@ export class AuthService {
       return null;
     }
 
+    // La sesión en memoria se fija de forma síncrona al iniciar sesión
+    // (onAuthStateChange); evita depender del almacenamiento del navegador.
+    const inMemoryToken = this.sessionSignal()?.access_token;
+    if (inMemoryToken) {
+      return inMemoryToken;
+    }
+
     const { data } = await this.supabaseService.client.auth.getSession();
     return data.session?.access_token ?? null;
   }
@@ -135,6 +148,10 @@ export class AuthService {
   async hasActiveSession(): Promise<boolean> {
     if (!this.isConfigured) {
       return false;
+    }
+
+    if (this.sessionSignal()) {
+      return true;
     }
 
     const { data } = await this.supabaseService.client.auth.getSession();
@@ -158,8 +175,13 @@ export class AuthService {
   }
 
   private async restoreSession(): Promise<void> {
-    const { data } = await this.supabaseService.client.auth.getSession();
-    this.sessionSignal.set(data.session);
+    try {
+      const { data } = await this.supabaseService.client.auth.getSession();
+      this.sessionSignal.set(data.session);
+    } catch {
+      // Una sesión corrupta o un almacenamiento no disponible no deben romper el arranque.
+      this.sessionSignal.set(null);
+    }
   }
 
   private translateError(message: string): string {

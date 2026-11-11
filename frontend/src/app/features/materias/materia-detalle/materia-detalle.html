@@ -1,402 +1,345 @@
-<div class="materia-detalle-page py-4 py-lg-5">
-  <div class="container">
-    <!-- Navegación -->
-    <nav aria-label="breadcrumb" class="mb-4">
-      <ol class="breadcrumb">
-        <li class="breadcrumb-item">
-          <a routerLink="/materias" class="text-decoration-none">Materias</a>
-        </li>
-        <li class="breadcrumb-item active" aria-current="page">
-          @if (materia()) {
-            {{ obtenerNombreCompleto() }}
-          } @else {
-            Materia
-          }
-        </li>
-      </ol>
-    </nav>
+<div class="materia-detalle-page">
+  <nav aria-label="breadcrumb">
+    <ol class="app-breadcrumb mb-4">
+      <li><a routerLink="/materias">Materias</a></li>
+      <li aria-hidden="true"><i class="bi bi-chevron-right"></i></li>
+      <li class="app-breadcrumb-current" aria-current="page">
+        {{ materia() ? obtenerNombreCompleto() : 'Materia' }}
+      </li>
+    </ol>
+  </nav>
 
-    <!-- Estados de carga -->
-    @if (loading()) {
-      <div class="text-center py-5">
-        <div class="spinner-border text-primary" role="status">
-          <span class="visually-hidden">Cargando información...</span>
-        </div>
-        <p class="text-muted mt-3">Cargando información de la materia...</p>
-      </div>
-    }
+  <!-- Estados de carga -->
+  @if (loading()) {
+    <div class="mat-state" role="status" aria-live="polite">
+      <span class="spinner-border" aria-hidden="true"></span>
+      <p>Cargando información de la materia...</p>
+    </div>
+  }
 
-    @if (error() && !loading()) {
-      <div class="alert alert-danger" role="alert">
-        <div class="d-flex align-items-center gap-2">
-          <i class="bi bi-exclamation-triangle-fill"></i>
-          <div class="flex-fill">{{ error() }}</div>
-          <button class="btn btn-sm btn-outline-danger" (click)="cargarMateria()">
-            Reintentar
-          </button>
-        </div>
-      </div>
-    }
+  @if (error() && !loading()) {
+    <div class="alert alert-danger d-flex flex-wrap align-items-center gap-2" role="alert">
+      <i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i>
+      <span class="flex-grow-1">{{ error() }}</span>
+      <button type="button" class="btn btn-sm btn-outline-danger" (click)="cargarMateria()">
+        Reintentar
+      </button>
+    </div>
+  }
 
-    <!-- Detalles de la materia -->
-    @if (materia() && !loading() && !error()) {
-      <div class="row g-4">
-        <!-- Información principal -->
-        <div class="col-lg-8">
-          <!-- Header -->
-          <header class="mb-4">
-            <div class="d-flex justify-content-between align-items-start">
-              <div>
-                <div class="d-flex align-items-center gap-2 mb-2">
-                  <span 
-                    class="badge rounded-pill"
-                    [style.background-color]="materia()!.color"
-                    [style.color]="materia()!.color"
-                  ></span>
-                  <h1 class="h2 fw-bold mb-0">{{ materia()!.nombre }}</h1>
-                </div>
-                <div class="d-flex align-items-center gap-3">
-                  <span [class]="estadoBadgeClase()" class="fs-6">
+  <!-- Detalles de la materia -->
+  @if (materia() && !loading() && !error()) {
+    <div class="row g-4">
+      <!-- Columna principal -->
+      <div class="col-lg-8">
+        <!-- Header -->
+        <header class="detail-hero mb-4">
+          <div class="d-flex justify-content-between align-items-start gap-3">
+            <div class="d-flex align-items-start gap-3 min-width-0">
+              <span
+                class="detail-dot"
+                [style.background]="materia()!.color"
+                aria-hidden="true"
+              ></span>
+              <div class="min-width-0">
+                <h1 class="page-title mb-2">{{ materia()!.nombre }}</h1>
+                <div class="d-flex flex-wrap align-items-center gap-2">
+                  <span
+                    class="mat-badge"
+                    [class.mat-badge--success]="materia()!.estado === 'activo'"
+                    [class.mat-badge--muted]="materia()!.estado !== 'activo'"
+                  >
+                    <span class="mat-badge-dot" aria-hidden="true"></span>
                     {{ estadoTexto() }}
                   </span>
-                  <span [class]="periodoBadgeClase()" class="fs-6">
-                    {{ materia()!.periodo_academico }}
-                  </span>
-                  <span class="text-muted-soft">
-                    {{ descripcionPeriodo() }}
-                  </span>
+                  <span class="mat-badge mat-badge--info">{{ materia()!.periodo_academico }}</span>
+                  <span class="detail-periodo">{{ descripcionPeriodo() }}</span>
                 </div>
               </div>
-              
-              <div class="dropdown">
-                <button 
-                  class="btn btn-outline-secondary border-0"
-                  type="button"
-                  data-bs-toggle="dropdown"
-                  aria-expanded="false"
-                >
-                  <i class="bi bi-three-dots-vertical"></i>
-                </button>
-                <ul class="dropdown-menu dropdown-menu-end">
-                  <li>
-                    <button 
-                      class="dropdown-item"
-                      (click)="editarMateria()"
-                      [disabled]="!puedeModificar()"
-                      [title]="puedeModificar() ? '' : 'No puedes editar esta materia'"
-                    >
-                      <i class="bi bi-pencil me-2"></i>
-                      Editar
-                    </button>
-                  </li>
-                  <li>
-                    <button 
-                      class="dropdown-item text-warning"
-                      (click)="cambiarEstado()"
-                      [disabled]="!puedeModificar()"
-                    >
-                      <i class="bi bi-archive me-2"></i>
-                      {{ materia()!.estado === 'activo' ? 'Archivar' : 'Activar' }}
-                    </button>
-                  </li>
-                  <li><hr class="dropdown-divider"></li>
-                  <li>
-                    <button 
-                      class="dropdown-item text-danger"
-                      [disabled]="!puedeModificar()"
-                    >
-                      <i class="bi bi-trash me-2"></i>
-                      Eliminar
-                    </button>
-                  </li>
-                </ul>
-              </div>
-            </div>
-          </header>
-
-          <!-- Tarjetas de información -->
-          <div class="row g-3 mb-4">
-            <!-- Información básica -->
-            <div class="col-md-6">
-              <app-card class="h-100">
-                <div class="card-body">
-                  <h2 class="h5 fw-semibold mb-3">Información básica</h2>
-                  
-                  <div class="mb-3">
-                    <div class="small text-muted mb-1">Código</div>
-                    <div class="fw-medium">{{ materia()!.codigo }}</div>
-                  </div>
-                  
-                  <div class="mb-3">
-                    <div class="small text-muted mb-1">Docente</div>
-                    <div class="fw-medium">{{ materia()!.docente }}</div>
-                  </div>
-                  
-                  <div class="mb-3">
-                    <div class="small text-muted mb-1">Periodo académico</div>
-                    <div class="fw-medium">{{ descripcionPeriodo() }}</div>
-                  </div>
-                  
-                  <div>
-                    <div class="small text-muted mb-1">Registrada el</div>
-                    <div class="fw-medium">{{ formatearFecha(materia()!.fecha_creacion) }}</div>
-                  </div>
-                </div>
-              </app-card>
             </div>
 
-            <!-- Estadísticas -->
-            <div class="col-md-6">
-              <app-card class="h-100">
-                <div class="card-body">
-                  <h2 class="h5 fw-semibold mb-3">Estadísticas</h2>
-                  
-                  <div class="row g-3">
-                    <div class="col-6">
-                      <div class="text-center">
-                        <div class="h4 fw-bold text-primary mb-1">{{ materia()!.total_tareas }}</div>
-                        <div class="small text-muted">Tareas totales</div>
-                      </div>
-                    </div>
-                    
-                    <div class="col-6">
-                      <div class="text-center">
-                        <div class="h4 fw-bold text-warning mb-1">{{ materia()!.tareas_pendientes }}</div>
-                        <div class="small text-muted">Tareas pendientes</div>
-                      </div>
-                    </div>
-                    
-                    <div class="col-6">
-                      <div class="text-center">
-                        <div class="h4 fw-bold text-success mb-1">{{ materia()!.total_tareas - materia()!.tareas_pendientes }}</div>
-                        <div class="small text-muted">Tareas completadas</div>
-                      </div>
-                    </div>
-                    
-                    <div class="col-6">
-                      <div class="text-center">
-                        <div class="h4 fw-bold text-info mb-1">{{ materia()!.total_documentos }}</div>
-                        <div class="small text-muted">Documentos</div>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <!-- Progreso -->
-                  @if (materia()!.total_tareas > 0) {
-                    <div class="mt-4">
-                      <div class="d-flex justify-content-between align-items-center mb-2">
-                        <span class="small text-muted">Progreso de tareas</span>
-                        <span class="small fw-medium">{{ progresoTareas() }}%</span>
-                      </div>
-                      <div class="progress" style="height: 6px;">
-                        <div 
-                          class="progress-bar"
-                          [style.width.%]="progresoTareas()"
-                          [style.background-color]="materia()!.color"
-                        ></div>
-                      </div>
-                    </div>
-                  }
-                </div>
-              </app-card>
-            </div>
-          </div>
-
-          <!-- Descripción -->
-          @if (materia()!.descripcion) {
-            <app-card class="mb-4">
-              <div class="card-body">
-                <h2 class="h5 fw-semibold mb-3">Descripción</h2>
-                <p class="mb-0">{{ materia()!.descripcion }}</p>
-              </div>
-            </app-card>
-          }
-
-          <!-- Acciones rápidas -->
-          <app-card>
-            <div class="card-body">
-              <h2 class="h5 fw-semibold mb-3">Acciones rápidas</h2>
-              <div class="row g-3">
-                <div class="col-md-4">
-                  <button 
-                    class="btn btn-outline-primary w-100"
-                    (click)="verTareas()"
+            <div class="dropdown">
+              <button
+                class="btn-icon"
+                type="button"
+                data-bs-toggle="dropdown"
+                aria-expanded="false"
+                aria-label="Opciones de la materia"
+              >
+                <i class="bi bi-three-dots-vertical" aria-hidden="true"></i>
+              </button>
+              <ul class="dropdown-menu dropdown-menu-end">
+                <li>
+                  <button
+                    class="dropdown-item"
+                    (click)="editarMateria()"
+                    [disabled]="!puedeModificar()"
+                    [title]="puedeModificar() ? '' : 'No puedes editar esta materia'"
                   >
-                    <i class="bi bi-list-check me-2"></i>
-                    Ver tareas
-                    @if (materia()!.total_tareas > 0) {
-                      <span class="badge bg-primary ms-2">{{ materia()!.total_tareas }}</span>
-                    }
+                    <i class="bi bi-pencil me-2" aria-hidden="true"></i>
+                    Editar
                   </button>
-                </div>
-                
-                <div class="col-md-4">
-                  <button 
-                    class="btn btn-outline-success w-100"
-                    (click)="verDocumentos()"
-                  >
-                    <i class="bi bi-file-earmark-text me-2"></i>
-                    Ver documentos
-                    @if (materia()!.total_documentos > 0) {
-                      <span class="badge bg-success ms-2">{{ materia()!.total_documentos }}</span>
-                    }
-                  </button>
-                </div>
-                
-                <div class="col-md-4">
-                  <button 
-                    class="btn btn-outline-warning w-100"
+                </li>
+                <li>
+                  <button
+                    class="dropdown-item mat-archive-item"
                     (click)="cambiarEstado()"
                     [disabled]="!puedeModificar()"
                   >
-                    <i class="bi bi-archive me-2"></i>
+                    <i class="bi bi-archive me-2" aria-hidden="true"></i>
                     {{ materia()!.estado === 'activo' ? 'Archivar' : 'Activar' }}
                   </button>
-                </div>
-              </div>
+                </li>
+              </ul>
             </div>
-          </app-card>
-        </div>
+          </div>
+        </header>
 
-        <!-- Sidebar -->
-        <div class="col-lg-4">
-          <!-- Avatar/Icono -->
-          <app-card class="mb-4">
-            <div class="card-body text-center">
-              <div 
-                class="materia-avatar mx-auto mb-3 rounded-circle d-flex align-items-center justify-content-center"
-                [style.background-color]="materia()!.color"
-                [style.color]="materia()!.color"
-                [style.width]="'100px'"
-                [style.height]="'100px'"
-              >
-                <div class="h2 fw-bold" [style.color]="materia()!.color">
-                  {{ obtenerIniciales() }}
-                </div>
-              </div>
-              
-              <h3 class="h5 fw-semibold mb-1">{{ materia()!.nombre }}</h3>
-              <p class="text-muted small mb-3">{{ materia()!.codigo }}</p>
-              
-              <div class="d-flex justify-content-center gap-2">
-                <span [class]="estadoBadgeClase()">
-                  {{ estadoTexto() }}
-                </span>
-                <span [class]="periodoBadgeClase()">
-                  {{ materia()!.periodo_academico }}
-                </span>
-              </div>
-            </div>
-          </app-card>
+        <!-- Información y estadísticas -->
+        <div class="row g-3 mb-4">
+          <div class="col-md-6">
+            <app-card class="h-100">
+              <div class="card-body">
+                <h2 class="h5 fw-bold mb-3">Información básica</h2>
 
-          <!-- Información adicional -->
-          <app-card class="mb-4">
-            <div class="card-body">
-              <h2 class="h5 fw-semibold mb-3">Información adicional</h2>
-              
-              <div class="mb-3">
-                <div class="small text-muted mb-1">Última actualización</div>
-                <div class="fw-medium">
-                  @if (materia() && materia()!.fecha_actualizacion) {
-                    {{ formatearFecha(materia()!.fecha_actualizacion!) }}
-                  } @else {
-                    Sin actualizaciones
-                  }
+                <div class="detail-field">
+                  <span class="detail-label">Código</span>
+                  <span class="detail-value">{{ materia()!.codigo }}</span>
+                </div>
+                <div class="detail-field">
+                  <span class="detail-label">Docente</span>
+                  <span class="detail-value">{{ materia()!.docente }}</span>
+                </div>
+                <div class="detail-field">
+                  <span class="detail-label">Periodo académico</span>
+                  <span class="detail-value">{{ descripcionPeriodo() }}</span>
+                </div>
+                <div class="detail-field mb-0">
+                  <span class="detail-label">Registrada el</span>
+                  <span class="detail-value">{{ formatearFecha(materia()!.fecha_creacion) }}</span>
                 </div>
               </div>
-              
-              <div class="mb-3">
-                <div class="small text-muted mb-1">Color identificador</div>
-                <div class="d-flex align-items-center gap-2">
-                  <span 
-                    class="badge rounded-pill"
-                    [style.background-color]="materia()!.color"
-                    [style.color]="materia()!.color"
-                  ></span>
-                  <span class="fw-medium">{{ materia()!.color }}</span>
-                </div>
-              </div>
-              
-              <div>
-                <div class="small text-muted mb-1">Propietario</div>
-                <div class="fw-medium">Tú</div>
-              </div>
-            </div>
-          </app-card>
+            </app-card>
+          </div>
 
-          <!-- Estado de contenido -->
-          <app-card>
-            <div class="card-body">
-              <h2 class="h5 fw-semibold mb-3">Estado del contenido</h2>
-              
-              @if (tieneContenido()) {
-                <div class="alert alert-success small" role="alert">
-                  <i class="bi bi-check-circle-fill me-2"></i>
-                  Esta materia tiene contenido registrado.
-                </div>
-                
-                <ul class="list-unstyled small">
-                  @if (materia()!.total_tareas > 0) {
-                    <li class="mb-2">
-                      <i class="bi bi-list-check text-primary me-2"></i>
-                      {{ materia()!.total_tareas }} tareas registradas
-                    </li>
-                  }
-                  @if (materia()!.total_documentos > 0) {
-                    <li class="mb-2">
-                      <i class="bi bi-file-earmark-text text-success me-2"></i>
-                      {{ materia()!.total_documentos }} documentos subidos
-                    </li>
-                  }
-                </ul>
-              } @else {
-                <div class="alert alert-info small" role="alert">
-                  <i class="bi bi-info-circle me-2"></i>
-                  Esta materia aún no tiene contenido registrado.
-                </div>
-                
-                <p class="small text-muted mb-3">
-                  Comienza agregando tareas y documentos para organizar mejor tu aprendizaje.
-                </p>
-              }
-            </div>
-          </app-card>
-        </div>
-      </div>
-    }
+          <div class="col-md-6">
+            <app-card class="h-100">
+              <div class="card-body">
+                <h2 class="h5 fw-bold mb-3">Estadísticas</h2>
 
-    <!-- Acciones -->
-    @if (materia() && !loading() && !error()) {
-      <footer class="mt-4 pt-4 border-top">
-        <div class="d-flex justify-content-between align-items-center">
-          <button 
-            class="btn btn-outline-secondary"
-            (click)="volverALista()"
-          >
-            <i class="bi bi-arrow-left me-1"></i>
-            Volver a la lista
-          </button>
-          
-          <div class="d-flex gap-2">
-            <button 
-              class="btn btn-outline-primary"
-              (click)="editarMateria()"
-              [disabled]="!puedeModificar()"
-            >
-              <i class="bi bi-pencil me-1"></i>
-              Editar materia
-            </button>
-            
-            <button 
-              class="btn btn-primary"
-              routerLink="/materias/nueva"
-            >
-              <i class="bi bi-plus-circle me-1"></i>
-              Nueva materia
-            </button>
+                <div class="detail-stats">
+                  <div class="detail-stat">
+                    <span class="detail-stat-value detail-stat-value--ai">{{ materia()!.total_tareas }}</span>
+                    <span class="detail-stat-label">Tareas totales</span>
+                  </div>
+                  <div class="detail-stat">
+                    <span class="detail-stat-value detail-stat-value--warning">{{ materia()!.tareas_pendientes }}</span>
+                    <span class="detail-stat-label">Pendientes</span>
+                  </div>
+                  <div class="detail-stat">
+                    <span class="detail-stat-value detail-stat-value--success">{{ materia()!.total_tareas - materia()!.tareas_pendientes }}</span>
+                    <span class="detail-stat-label">Completadas</span>
+                  </div>
+                  <div class="detail-stat">
+                    <span class="detail-stat-value detail-stat-value--primary">{{ materia()!.total_documentos }}</span>
+                    <span class="detail-stat-label">Documentos</span>
+                  </div>
+                </div>
+
+                @if (materia()!.total_tareas > 0) {
+                  <div class="mt-4">
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                      <span class="mat-progress-label">Progreso de tareas</span>
+                      <span class="mat-progress-value">{{ progresoTareas() }}%</span>
+                    </div>
+                    <div class="mat-progress" role="progressbar" [attr.aria-valuenow]="progresoTareas()" aria-valuemin="0" aria-valuemax="100">
+                      <span
+                        class="mat-progress-fill"
+                        [style.width.%]="progresoTareas()"
+                        [style.background]="materia()!.color"
+                        [style.box-shadow]="'0 0 10px ' + materia()!.color"
+                      ></span>
+                    </div>
+                  </div>
+                }
+              </div>
+            </app-card>
           </div>
         </div>
-      </footer>
-    }
-  </div>
+
+        <!-- Descripción -->
+        @if (materia()!.descripcion) {
+          <app-card class="mb-4">
+            <div class="card-body">
+              <h2 class="h5 fw-bold mb-3">Descripción</h2>
+              <p class="detail-text">{{ materia()!.descripcion }}</p>
+            </div>
+          </app-card>
+        }
+
+        <!-- Acciones rápidas -->
+        <app-card>
+          <div class="card-body">
+            <h2 class="h5 fw-bold mb-3">Acciones rápidas</h2>
+            <div class="row g-3">
+              <div class="col-md-4">
+                <button type="button" class="btn btn-outline-primary w-100" (click)="verTareas()">
+                  <i class="bi bi-list-check me-2" aria-hidden="true"></i>
+                  Ver tareas
+                  @if (materia()!.total_tareas > 0) {
+                    <span class="badge mat-badge mat-badge--primary ms-2">{{ materia()!.total_tareas }}</span>
+                  }
+                </button>
+              </div>
+              <div class="col-md-4">
+                <button type="button" class="btn btn-outline-success w-100" (click)="verDocumentos()">
+                  <i class="bi bi-file-earmark-text me-2" aria-hidden="true"></i>
+                  Ver documentos
+                  @if (materia()!.total_documentos > 0) {
+                    <span class="badge mat-badge mat-badge--success ms-2">{{ materia()!.total_documentos }}</span>
+                  }
+                </button>
+              </div>
+              <div class="col-md-4">
+                <button
+                  type="button"
+                  class="btn btn-outline-warning w-100"
+                  (click)="cambiarEstado()"
+                  [disabled]="!puedeModificar()"
+                >
+                  <i class="bi bi-archive me-2" aria-hidden="true"></i>
+                  {{ materia()!.estado === 'activo' ? 'Archivar' : 'Activar' }}
+                </button>
+              </div>
+            </div>
+          </div>
+        </app-card>
+      </div>
+
+      <!-- Sidebar -->
+      <div class="col-lg-4">
+        <app-card class="mb-4">
+          <div class="card-body text-center">
+            <div
+              class="detail-avatar mx-auto mb-3"
+              [style.background]="materia()!.color + '1f'"
+              [style.color]="materia()!.color"
+              [style.border-color]="materia()!.color + '66'"
+              [style.box-shadow]="'0 0 36px ' + materia()!.color + '44'"
+            >
+              {{ obtenerIniciales() }}
+            </div>
+            <h3 class="h5 fw-bold mb-1">{{ materia()!.nombre }}</h3>
+            <p class="detail-periodo mb-3">{{ materia()!.codigo }}</p>
+            <div class="d-flex justify-content-center gap-2">
+              <span
+                class="mat-badge"
+                [class.mat-badge--success]="materia()!.estado === 'activo'"
+                [class.mat-badge--muted]="materia()!.estado !== 'activo'"
+              >
+                <span class="mat-badge-dot" aria-hidden="true"></span>
+                {{ estadoTexto() }}
+              </span>
+              <span class="mat-badge mat-badge--info">{{ materia()!.periodo_academico }}</span>
+            </div>
+          </div>
+        </app-card>
+
+        <app-card class="mb-4">
+          <div class="card-body">
+            <h2 class="h5 fw-bold mb-3">Información adicional</h2>
+
+            <div class="detail-field">
+              <span class="detail-label">Última actualización</span>
+              <span class="detail-value">
+                @if (materia() && materia()!.fecha_actualizacion) {
+                  {{ formatearFecha(materia()!.fecha_actualizacion!) }}
+                } @else {
+                  Sin actualizaciones
+                }
+              </span>
+            </div>
+            <div class="detail-field">
+              <span class="detail-label">Color identificador</span>
+              <span class="d-flex align-items-center gap-2">
+                <span
+                  class="detail-color-dot"
+                  [style.background]="materia()!.color"
+                  aria-hidden="true"
+                ></span>
+                <span class="detail-value">{{ materia()!.color }}</span>
+              </span>
+            </div>
+            <div class="detail-field mb-0">
+              <span class="detail-label">Propietario</span>
+              <span class="detail-value">Tú</span>
+            </div>
+          </div>
+        </app-card>
+
+        <app-card>
+          <div class="card-body">
+            <h2 class="h5 fw-bold mb-3">Estado del contenido</h2>
+
+            @if (tieneContenido()) {
+              <div class="alert alert-success small" role="alert">
+                <i class="bi bi-check-circle-fill me-2" aria-hidden="true"></i>
+                Esta materia tiene contenido registrado.
+              </div>
+
+              <ul class="detail-checklist">
+                @if (materia()!.total_tareas > 0) {
+                  <li>
+                    <i class="bi bi-list-check detail-check-icon detail-check-icon--ai" aria-hidden="true"></i>
+                    {{ materia()!.total_tareas }} tareas registradas
+                  </li>
+                }
+                @if (materia()!.total_documentos > 0) {
+                  <li>
+                    <i class="bi bi-file-earmark-text detail-check-icon detail-check-icon--success" aria-hidden="true"></i>
+                    {{ materia()!.total_documentos }} documentos subidos
+                  </li>
+                }
+              </ul>
+            } @else {
+              <div class="alert alert-info small" role="alert">
+                <i class="bi bi-info-circle me-2" aria-hidden="true"></i>
+                Esta materia aún no tiene contenido registrado.
+              </div>
+
+              <p class="detail-text small mb-0">
+                Comienza agregando tareas y documentos para organizar mejor tu aprendizaje.
+              </p>
+            }
+          </div>
+        </app-card>
+      </div>
+    </div>
+  }
+
+  <!-- Acciones -->
+  @if (materia() && !loading() && !error()) {
+    <footer class="detail-foot">
+      <button type="button" class="btn btn-outline-secondary" (click)="volverALista()">
+        <i class="bi bi-arrow-left me-1" aria-hidden="true"></i>
+        Volver a la lista
+      </button>
+
+      <div class="d-flex gap-2">
+        <button
+          type="button"
+          class="btn btn-outline-primary"
+          (click)="editarMateria()"
+          [disabled]="!puedeModificar()"
+        >
+          <i class="bi bi-pencil me-1" aria-hidden="true"></i>
+          Editar materia
+        </button>
+        <button type="button" class="btn btn-primary" routerLink="/materias/nueva">
+          <i class="bi bi-plus-lg me-1" aria-hidden="true"></i>
+          Nueva materia
+        </button>
+      </div>
+    </footer>
+  }
 </div>

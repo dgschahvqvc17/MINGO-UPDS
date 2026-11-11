@@ -1,427 +1,464 @@
-<div class="tareas-page py-4 py-lg-5">
-  <div class="container">
-    <!-- Encabezado -->
-    <header class="mb-4">
-      <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-2">
-        <div>
-          <h1 class="h2 fw-bold mb-1">Tareas y actividades académicas</h1>
-          <p class="text-muted-soft mb-0">
-            Organiza tus entregas, prioridades y estados en un solo lugar
-          </p>
+<div class="tareas-page">
+  <!-- Encabezado -->
+  <header class="tareas-hero mb-4">
+    <div class="d-flex flex-wrap justify-content-between align-items-start gap-3">
+      <div class="hero-text">
+        <span class="page-eyebrow">Gestión académica</span>
+        <h1 class="page-title mt-1 mb-2">Mis tareas</h1>
+        <p class="page-subtitle">
+          Organiza entregas, prioridades y estados en un solo lugar.
+        </p>
+      </div>
+
+      <button type="button" class="btn-cta" routerLink="/tareas/nueva">
+        <span class="btn-cta-icon" aria-hidden="true"><i class="bi bi-plus-lg"></i></span>
+        <span class="btn-cta-copy">
+          <strong>Nueva tarea</strong>
+          <small>Registra una actividad</small>
+        </span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Estadísticas -->
+  <section class="row g-3 mb-4" aria-label="Resumen de tareas">
+    <div class="col-6 col-lg-3">
+      <div class="mat-stat mat-stat--primary h-100">
+        <span class="mat-stat-icon" aria-hidden="true"><i class="bi bi-check2-square"></i></span>
+        <div class="mat-stat-copy">
+          <span class="mat-stat-value">{{ estadisticas().total }}</span>
+          <span class="mat-stat-label">Total tareas</span>
         </div>
-
-        <a class="btn btn-primary" routerLink="/tareas/nueva">
-          <i class="bi bi-plus-circle me-1" aria-hidden="true"></i>
-          Nueva tarea
-        </a>
-      </div>
-    </header>
-
-    <!-- Estadísticas -->
-    <div class="row g-3 mb-4">
-      <div class="col-6 col-lg-3">
-        <app-card class="h-100">
-          <div class="card-body text-center py-3">
-            <div class="h4 fw-bold mb-1 text-primary">{{ estadisticas().total }}</div>
-            <div class="small text-muted">Total</div>
-          </div>
-        </app-card>
-      </div>
-
-      <div class="col-6 col-lg-3">
-        <app-card class="h-100">
-          <div class="card-body text-center py-3">
-            <div class="h4 fw-bold mb-1 text-warning-emphasis">{{ estadisticas().pendientes }}</div>
-            <div class="small text-muted">Pendientes</div>
-          </div>
-        </app-card>
-      </div>
-
-      <div class="col-6 col-lg-3">
-        <app-card class="h-100">
-          <div class="card-body text-center py-3">
-            <div class="h4 fw-bold mb-1 text-info-emphasis">{{ estadisticas().en_progreso }}</div>
-            <div class="small text-muted">En progreso</div>
-          </div>
-        </app-card>
-      </div>
-
-      <div class="col-6 col-lg-3">
-        <app-card class="h-100">
-          <div class="card-body text-center py-3">
-            <div class="h4 fw-bold mb-1 text-danger">{{ estadisticas().vencidas }}</div>
-            <div class="small text-muted">Vencidas</div>
-          </div>
-        </app-card>
       </div>
     </div>
+    <div class="col-6 col-lg-3">
+      <div class="mat-stat mat-stat--warning h-100">
+        <span class="mat-stat-icon" aria-hidden="true"><i class="bi bi-hourglass-split"></i></span>
+        <div class="mat-stat-copy">
+          <span class="mat-stat-value">{{ estadisticas().pendientes }}</span>
+          <span class="mat-stat-label">Pendientes</span>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-lg-3">
+      <div class="mat-stat mat-stat--ai h-100">
+        <span class="mat-stat-icon" aria-hidden="true"><i class="bi bi-play-circle"></i></span>
+        <div class="mat-stat-copy">
+          <span class="mat-stat-value">{{ estadisticas().en_progreso }}</span>
+          <span class="mat-stat-label">En progreso</span>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-lg-3">
+      <div class="mat-stat mat-stat--danger h-100">
+        <span class="mat-stat-icon" aria-hidden="true"><i class="bi bi-alarm"></i></span>
+        <div class="mat-stat-copy">
+          <span class="mat-stat-value">{{ estadisticas().vencidas }}</span>
+          <span class="mat-stat-label">Vencidas</span>
+        </div>
+      </div>
+    </div>
+  </section>
 
-    <!-- Próximas a vencer -->
-    <app-card class="mb-4">
-      <div class="card-body">
-        <div class="d-flex justify-content-between align-items-center mb-3">
-          <h2 class="h5 fw-semibold mb-0">
-            <i class="bi bi-alarm me-1 text-warning-emphasis" aria-hidden="true"></i>
-            Próximas a vencer ({{ diasProximas }} días)
-          </h2>
-          @if (loadingProximas()) {
-            <span class="spinner-border spinner-border-sm text-primary" role="status">
-              <span class="visually-hidden">Cargando próximas tareas...</span>
+  <!-- Próximas a vencer -->
+  <section class="task-panel mb-4" aria-labelledby="proximas-titulo">
+    <div class="task-panel-head">
+      <span class="task-panel-title" id="proximas-titulo">
+        <i class="bi bi-alarm-fill" aria-hidden="true"></i>
+        Próximas a vencer
+        <small>({{ diasProximas }} días)</small>
+      </span>
+      @if (loadingProximas()) {
+        <span class="spinner-border spinner-border-sm task-panel-spinner" role="status">
+          <span class="visually-hidden">Cargando próximas tareas...</span>
+        </span>
+      }
+    </div>
+
+    @if (!loadingProximas() && proximas().length === 0) {
+      <p class="task-panel-empty">No tienes entregas próximas en este rango de días.</p>
+    } @else if (proximas().length > 0) {
+      <ul class="task-upcoming-list">
+        @for (tarea of proximas(); track tarea.id) {
+          <li class="task-upcoming-item">
+            <div class="d-flex align-items-center gap-2 min-width-0">
+              <span class="mat-badge mat-badge--info">{{ tipoTexto(tarea) }}</span>
+              <span class="task-upcoming-title" [title]="tarea.titulo">{{ tarea.titulo }}</span>
+              @if (obtenerMateria(tarea); as materia) {
+                <span class="task-upcoming-subject">· {{ materia.nombre }}</span>
+              }
+            </div>
+            <span class="task-upcoming-date">
+              <i class="bi bi-calendar-event" aria-hidden="true"></i>
+              {{ formatearFecha(tarea.fecha_entrega) }}
             </span>
-          }
-        </div>
-
-        @if (!loadingProximas() && proximas().length === 0) {
-          <p class="text-muted mb-0">No tienes entregas próximas en este rango de días.</p>
-        } @else if (proximas().length > 0) {
-          <ul class="list-group list-group-flush">
-            @for (tarea of proximas(); track tarea.id) {
-              <li class="list-group-item px-0 d-flex flex-wrap justify-content-between align-items-center gap-2">
-                <div class="d-flex align-items-center gap-2">
-                  <span class="badge bg-light text-dark">{{ tipoTexto(tarea) }}</span>
-                  <span class="fw-medium">{{ tarea.titulo }}</span>
-                  @if (obtenerMateria(tarea); as materia) {
-                    <span class="small text-muted">· {{ materia.nombre }}</span>
-                  }
-                </div>
-                <span class="small text-danger-emphasis fw-medium">
-                  <i class="bi bi-calendar-event me-1" aria-hidden="true"></i>
-                  {{ formatearFecha(tarea.fecha_entrega) }}
-                </span>
-              </li>
-            }
-          </ul>
+          </li>
         }
-      </div>
-    </app-card>
-
-    <!-- Filtros -->
-    <app-card class="mb-4">
-      <div class="card-body">
-        <h2 class="h6 fw-semibold text-uppercase text-muted mb-3">Filtros</h2>
-
-        <div class="row g-3">
-          <div class="col-md-4">
-            <label class="visually-hidden" for="filtro-query">Buscar tarea</label>
-            <div class="input-group input-group-sm">
-              <span class="input-group-text">
-                <i class="bi bi-search" aria-hidden="true"></i>
-              </span>
-              <input
-                id="filtro-query"
-                type="text"
-                class="form-control"
-                placeholder="Buscar por título..."
-                [ngModel]="filtros().query ?? ''"
-                (ngModelChange)="cambiarQuery($event)"
-                (keyup.enter)="aplicarFiltros()"
-              />
-            </div>
-          </div>
-
-          <div class="col-md-3">
-            <label class="visually-hidden" for="filtro-materia">Materia</label>
-            <select
-              id="filtro-materia"
-              class="form-select form-select-sm"
-              [ngModel]="filtros().materia_id ?? ''"
-              (ngModelChange)="cambiarMateria($event)"
-            >
-              <option value="">Todas las materias</option>
-              @for (materia of materias(); track materia.id) {
-                <option [value]="materia.id">{{ materia.nombre }} ({{ materia.codigo }})</option>
-              }
-            </select>
-          </div>
-
-          <div class="col-6 col-md-2">
-            <label class="visually-hidden" for="filtro-prioridad">Prioridad</label>
-            <select
-              id="filtro-prioridad"
-              class="form-select form-select-sm"
-              [ngModel]="filtros().prioridad ?? ''"
-              (ngModelChange)="cambiarPrioridad($event)"
-            >
-              <option value="">Toda prioridad</option>
-              @for (prioridad of prioridades; track prioridad) {
-                <option [value]="prioridad">{{ prioridadTexto(prioridad) }}</option>
-              }
-            </select>
-          </div>
-
-          <div class="col-6 col-md-3">
-            <label class="visually-hidden" for="filtro-estado">Estado</label>
-            <select
-              id="filtro-estado"
-              class="form-select form-select-sm"
-              [ngModel]="filtros().estado ?? ''"
-              (ngModelChange)="cambiarEstado($event)"
-            >
-              <option value="">Todo estado</option>
-              @for (estado of estados; track estado) {
-                <option [value]="estado">{{ estadoTexto(estado) }}</option>
-              }
-            </select>
-          </div>
-
-          <div class="col-6 col-md-3">
-            <label class="visually-hidden" for="filtro-orden">Orden</label>
-            <select
-              id="filtro-orden"
-              class="form-select form-select-sm"
-              [ngModel]="(filtros().sort ?? 'fecha_entrega') + ':' + (filtros().order ?? 'asc')"
-              (ngModelChange)="cambiarOrden($event)"
-            >
-              <option value="fecha_entrega:asc">Entrega más próxima</option>
-              <option value="fecha_entrega:desc">Entrega más lejana</option>
-              <option value="fecha_creacion:desc">Más recientes</option>
-              <option value="titulo:asc">Título (A-Z)</option>
-            </select>
-          </div>
-
-          <div class="col-6 col-md-3 d-flex align-items-end">
-            <div class="form-check">
-              <input
-                id="filtro-vencidas"
-                type="checkbox"
-                class="form-check-input"
-                [ngModel]="filtros().vencidas ?? false"
-                (ngModelChange)="cambiarVencidas($event)"
-              />
-              <label class="form-check-label small" for="filtro-vencidas">
-                Solo vencidas
-              </label>
-            </div>
-          </div>
-
-          <div class="col-12 col-md-6 d-flex gap-2">
-            <button type="button" class="btn btn-sm btn-outline-primary px-3" (click)="aplicarFiltros()">
-              <i class="bi bi-funnel me-1" aria-hidden="true"></i>
-              Aplicar filtros
-            </button>
-
-            @if (filtrosActivos()) {
-              <button type="button" class="btn btn-sm btn-outline-secondary" (click)="limpiarFiltros()">
-                <i class="bi bi-x-lg me-1" aria-hidden="true"></i>
-                Limpiar
-              </button>
-            }
-          </div>
-        </div>
-      </div>
-    </app-card>
-
-    <!-- Mensajes -->
-    @if (mensajeExito()) {
-      <div class="alert alert-success d-flex align-items-center gap-2" role="status">
-        <i class="bi bi-check-circle-fill" aria-hidden="true"></i>
-        <div class="flex-fill">{{ mensajeExito() }}</div>
-        <button
-          type="button"
-          class="btn-close"
-          aria-label="Cerrar mensaje"
-          (click)="cerrarMensaje()"
-        ></button>
-      </div>
+      </ul>
     }
+  </section>
 
-    @if (mostrarCargando()) {
-      <div class="text-center py-5">
-        <div class="spinner-border text-primary" role="status">
-          <span class="visually-hidden">Cargando tareas...</span>
-        </div>
-        <p class="text-muted mt-3">Cargando tus tareas académicas...</p>
+  <!-- Filtros -->
+  <section class="mat-filters mb-4" aria-label="Filtros de tareas">
+    <div class="mat-filters-head">
+      <span class="mat-filters-title">
+        <i class="bi bi-funnel-fill" aria-hidden="true"></i>
+        Filtra tus tareas
+        @if (filtrosActivos()) {
+          <span class="mat-count-chip"><i class="bi bi-check2" aria-hidden="true"></i>Activos</span>
+        }
+      </span>
+      @if (filtrosActivos()) {
+        <button type="button" class="mat-clear-btn" (click)="limpiarFiltros()">
+          <i class="bi bi-x-circle" aria-hidden="true"></i>
+          Limpiar filtros
+        </button>
+      }
+    </div>
+
+    <div class="row g-3 align-items-end">
+      <div class="col-12 col-md-4">
+        <label class="mat-filter-label" for="filtro-query">
+          <i class="bi bi-search" aria-hidden="true"></i>
+          Buscar
+        </label>
+        <input
+          id="filtro-query"
+          type="text"
+          class="form-control"
+          placeholder="Título de la tarea..."
+          [ngModel]="filtros().query ?? ''"
+          (ngModelChange)="cambiarQuery($event)"
+          (keyup.enter)="aplicarFiltros()"
+        />
       </div>
-    }
 
-    @if (mostrarError()) {
-      <div class="alert alert-danger" role="alert">
-        <div class="d-flex align-items-center gap-2">
-          <i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i>
-          <div class="flex-fill">{{ error() }}</div>
-          <button type="button" class="btn btn-sm btn-outline-danger" (click)="cargarTareas()">
-            Reintentar
-          </button>
-        </div>
-      </div>
-    }
-
-    @if (mostrarListaVacia()) {
-      <div class="text-center py-5">
-        <i class="bi bi-check2-square fs-1 text-muted" aria-hidden="true"></i>
-        <h2 class="h4 fw-medium mt-3 mb-2">No hay tareas registradas</h2>
-        <p class="text-muted mb-4">
-          @if (filtrosActivos()) {
-            No se encontraron tareas con los filtros aplicados.
-          } @else {
-            Comienza registrando tu primera tarea o actividad académica.
+      <div class="col-6 col-md-4">
+        <label class="mat-filter-label" for="filtro-materia">
+          <i class="bi bi-journal-bookmark" aria-hidden="true"></i>
+          Materia
+        </label>
+        <select
+          id="filtro-materia"
+          class="form-select"
+          [ngModel]="filtros().materia_id ?? ''"
+          (ngModelChange)="cambiarMateria($event)"
+        >
+          <option value="">Todas las materias</option>
+          @for (materia of materias(); track materia.id) {
+            <option [value]="materia.id">{{ materia.nombre }} ({{ materia.codigo }})</option>
           }
-        </p>
-        <a class="btn btn-primary" routerLink="/tareas/nueva">
-          <i class="bi bi-plus-circle me-1" aria-hidden="true"></i>
-          Registrar primera tarea
-        </a>
+        </select>
       </div>
-    }
 
-    <!-- Listado -->
-    @if (tieneResultados() && !loading()) {
-      <div class="row g-4">
-        @for (tarea of tareas(); track tarea.id) {
-          <div class="col-md-6 col-xl-4">
-            <article
-              class="tarea-card h-100 rounded-3 shadow-sm"
-              [style.border-left]="'4px solid ' + (obtenerMateria(tarea)?.color ?? '#6c757d')"
-            >
-              <div class="p-4 d-flex flex-column h-100">
-                <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
-                  <div class="d-flex flex-wrap gap-2">
-                    <span [class]="prioridadBadgeClase(tarea.prioridad)">
-                      {{ prioridadTexto(tarea.prioridad) }}
-                    </span>
-                    <span class="badge bg-light text-dark">{{ tipoTexto(tarea) }}</span>
-                    @if (esVencida(tarea)) {
-                      <span class="badge bg-danger">
-                        <i class="bi bi-exclamation-circle me-1" aria-hidden="true"></i>
-                        Vencida
-                      </span>
-                    }
-                  </div>
+      <div class="col-6 col-md-4">
+        <label class="mat-filter-label" for="filtro-prioridad">
+          <i class="bi bi-flag" aria-hidden="true"></i>
+          Prioridad
+        </label>
+        <select
+          id="filtro-prioridad"
+          class="form-select"
+          [ngModel]="filtros().prioridad ?? ''"
+          (ngModelChange)="cambiarPrioridad($event)"
+        >
+          <option value="">Toda prioridad</option>
+          @for (prioridad of prioridades; track prioridad) {
+            <option [value]="prioridad">{{ prioridadTexto(prioridad) }}</option>
+          }
+        </select>
+      </div>
+
+      <div class="col-6 col-md-3">
+        <label class="mat-filter-label" for="filtro-estado">
+          <i class="bi bi-toggle-on" aria-hidden="true"></i>
+          Estado
+        </label>
+        <select
+          id="filtro-estado"
+          class="form-select"
+          [ngModel]="filtros().estado ?? ''"
+          (ngModelChange)="cambiarEstado($event)"
+        >
+          <option value="">Todo estado</option>
+          @for (estado of estados; track estado) {
+            <option [value]="estado">{{ estadoTexto(estado) }}</option>
+          }
+        </select>
+      </div>
+
+      <div class="col-6 col-md-3">
+        <label class="mat-filter-label" for="filtro-orden">
+          <i class="bi bi-arrow-down-up" aria-hidden="true"></i>
+          Ordenar
+        </label>
+        <select
+          id="filtro-orden"
+          class="form-select"
+          [ngModel]="(filtros().sort ?? 'fecha_entrega') + ':' + (filtros().order ?? 'asc')"
+          (ngModelChange)="cambiarOrden($event)"
+        >
+          <option value="fecha_entrega:asc">Entrega más próxima</option>
+          <option value="fecha_entrega:desc">Entrega más lejana</option>
+          <option value="fecha_creacion:desc">Más recientes</option>
+          <option value="titulo:asc">Título (A-Z)</option>
+        </select>
+      </div>
+
+      <div class="col-12 col-md-6 d-flex flex-wrap align-items-center justify-content-md-end gap-3">
+        <div class="form-check m-0">
+          <input
+            id="filtro-vencidas"
+            type="checkbox"
+            class="form-check-input"
+            [ngModel]="filtros().vencidas ?? false"
+            (ngModelChange)="cambiarVencidas($event)"
+          />
+          <label class="form-check-label" for="filtro-vencidas">Solo vencidas</label>
+        </div>
+        <button type="button" class="btn btn-primary" (click)="aplicarFiltros()">
+          <i class="bi bi-funnel me-1" aria-hidden="true"></i>
+          Filtrar
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Mensaje de éxito -->
+  @if (mensajeExito()) {
+    <div class="alert alert-success d-flex align-items-center gap-2" role="status">
+      <i class="bi bi-check-circle-fill" aria-hidden="true"></i>
+      <div class="flex-fill">{{ mensajeExito() }}</div>
+      <button
+        type="button"
+        class="btn-icon"
+        aria-label="Cerrar mensaje"
+        (click)="cerrarMensaje()"
+      >
+        <i class="bi bi-x-lg" aria-hidden="true"></i>
+      </button>
+    </div>
+  }
+
+  <!-- Estados -->
+  @if (mostrarCargando()) {
+    <div class="mat-state" role="status" aria-live="polite">
+      <span class="spinner-border" aria-hidden="true"></span>
+      <p>Cargando tus tareas académicas...</p>
+    </div>
+  }
+
+  @if (mostrarError()) {
+    <div class="alert alert-danger d-flex flex-wrap align-items-center gap-2" role="alert">
+      <i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i>
+      <span class="flex-grow-1">{{ error() }}</span>
+      <button type="button" class="btn btn-sm btn-outline-danger" (click)="cargarTareas()">
+        Reintentar
+      </button>
+    </div>
+  }
+
+  @if (mostrarListaVacia()) {
+    <div class="mat-state mat-state--empty" role="status">
+      <span class="mat-empty-icon" aria-hidden="true"><i class="bi bi-check2-square"></i></span>
+      <h3>No hay tareas registradas</h3>
+      <p class="text-muted-soft mb-0">
+        @if (filtrosActivos()) {
+          Ninguna tarea coincide con los filtros aplicados.
+        } @else {
+          Comienza registrando tu primera tarea académica.
+        }
+      </p>
+      <button type="button" class="btn btn-primary" routerLink="/tareas/nueva">
+        <i class="bi bi-plus-lg me-1" aria-hidden="true"></i>
+        Registrar primera tarea
+      </button>
+    </div>
+  }
+
+  <!-- Listado -->
+  @if (tieneResultados() && !loading()) {
+    <div class="row g-4">
+      @for (tarea of tareas(); track tarea.id) {
+        <div class="col-md-6 col-xl-4">
+          <article
+            class="mat-card h-100"
+            [style.border-color]="(obtenerMateria(tarea)?.color ?? '#475569') + '55'"
+          >
+            <span
+              class="mat-card-glow"
+              [style.background]="
+                'radial-gradient(120px circle at 85% 0%, ' +
+                (obtenerMateria(tarea)?.color ?? '#475569') +
+                '33, transparent 70%)'
+              "
+              aria-hidden="true"
+            ></span>
+            <span
+              class="mat-card-accent"
+              [style.background]="obtenerMateria(tarea)?.color ?? '#475569'"
+              aria-hidden="true"
+            ></span>
+
+            <div class="mat-card-body">
+              <div class="d-flex flex-wrap gap-2 mb-2">
+                <span [class]="prioridadBadgeClase(tarea.prioridad)">
+                  {{ prioridadTexto(tarea.prioridad) }}
+                </span>
+                <span class="mat-badge mat-badge--muted">{{ tipoTexto(tarea) }}</span>
+                @if (esVencida(tarea)) {
+                  <span class="mat-badge mat-badge--danger">
+                    <i class="bi bi-exclamation-circle" aria-hidden="true"></i>
+                    Vencida
+                  </span>
+                }
+              </div>
+
+              <h3 class="task-title" [title]="tarea.titulo">{{ tarea.titulo }}</h3>
+
+              @if (obtenerMateria(tarea); as materia) {
+                <p class="task-subject">
+                  <span
+                    class="task-subject-dot"
+                    [style.background]="materia.color"
+                    aria-hidden="true"
+                  ></span>
+                  {{ materia.nombre }}
+                  <span class="task-subject-code">({{ materia.codigo }})</span>
+                </p>
+              }
+
+              @if (tarea.descripcion) {
+                <p class="mat-card-desc">
+                  {{
+                    tarea.descripcion.length > 110
+                      ? tarea.descripcion.substring(0, 110) + '…'
+                      : tarea.descripcion
+                  }}
+                </p>
+              }
+
+              <dl class="task-meta">
+                <div class="task-meta-row">
+                  <dt>Asignada</dt>
+                  <dd>{{ formatearFecha(tarea.fecha_asignacion) }}</dd>
                 </div>
-
-                <h2 class="h5 fw-semibold mb-1">{{ tarea.titulo }}</h2>
-
-                @if (obtenerMateria(tarea); as materia) {
-                  <p class="small text-muted mb-2">
-                    <i class="bi bi-book me-1" aria-hidden="true"></i>
-                    {{ materia.nombre }} ({{ materia.codigo }})
-                  </p>
-                }
-
-                @if (tarea.descripcion) {
-                  <p class="small text-muted mb-3">
-                    {{ tarea.descripcion.length > 120 ? tarea.descripcion.substring(0, 120) + '...' : tarea.descripcion }}
-                  </p>
-                }
-
-                <dl class="row small mb-3 mt-auto gy-1">
-                  <dt class="col-5 fw-normal text-muted">Asignada</dt>
-                  <dd class="col-7 mb-0">{{ formatearFecha(tarea.fecha_asignacion) }}</dd>
-
-                  <dt class="col-5 fw-normal text-muted">Entrega</dt>
-                  <dd class="col-7 mb-0">
-                    <span [class.text-danger]="esVencida(tarea)" [class.fw-medium]="esVencida(tarea)">
+                <div class="task-meta-row">
+                  <dt>Entrega</dt>
+                  <dd>
+                    <span [class.task-overdue]="esVencida(tarea)">
                       {{ formatearFecha(tarea.fecha_entrega, 'Sin fecha límite') }}
                     </span>
                   </dd>
-
-                  <dt class="col-5 fw-normal text-muted">Estado</dt>
-                  <dd class="col-7 mb-0">
-                    <span [class]="estadoBadgeClase(tarea.estado)">
-                      {{ estadoTexto(tarea.estado) }}
-                    </span>
+                </div>
+                <div class="task-meta-row">
+                  <dt>Estado</dt>
+                  <dd>
+                    <span [class]="estadoBadgeClase(tarea.estado)">{{ estadoTexto(tarea.estado) }}</span>
                   </dd>
-                </dl>
+                </div>
+              </dl>
 
-                <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 pt-3 border-top">
-                  <div class="d-flex flex-wrap gap-1">
-                    @switch (tarea.estado) {
-                      @case ('pendiente') {
-                        <button
-                          type="button"
-                          class="btn btn-sm btn-outline-info"
-                          (click)="cambiarEstadoTarea(tarea, 'en_progreso')"
-                        >
-                          <i class="bi bi-play me-1" aria-hidden="true"></i>
-                          Iniciar
-                        </button>
-                      }
-                      @case ('en_progreso') {
-                        <button
-                          type="button"
-                          class="btn btn-sm btn-outline-secondary"
-                          (click)="cambiarEstadoTarea(tarea, 'pendiente')"
-                        >
-                          <i class="bi bi-pause me-1" aria-hidden="true"></i>
-                          Pausar
-                        </button>
-                      }
-                      @case ('completada') {
-                        <button
-                          type="button"
-                          class="btn btn-sm btn-outline-secondary"
-                          (click)="cambiarEstadoTarea(tarea, 'pendiente')"
-                        >
-                          <i class="bi bi-arrow-counterclockwise me-1" aria-hidden="true"></i>
-                          Reabrir
-                        </button>
-                      }
-                    }
-
-                    @if (tarea.estado !== 'completada') {
+              <div class="mat-card-foot">
+                <div class="d-flex flex-wrap gap-2">
+                  @switch (tarea.estado) {
+                    @case ('pendiente') {
                       <button
                         type="button"
-                        class="btn btn-sm btn-outline-success"
-                        (click)="cambiarEstadoTarea(tarea, 'completada')"
+                        class="btn btn-sm btn-outline-info"
+                        (click)="cambiarEstadoTarea(tarea, 'en_progreso')"
                       >
-                        <i class="bi bi-check2 me-1" aria-hidden="true"></i>
-                        Completar
+                        <i class="bi bi-play me-1" aria-hidden="true"></i>
+                        Iniciar
                       </button>
                     }
-                  </div>
+                    @case ('en_progreso') {
+                      <button
+                        type="button"
+                        class="btn btn-sm btn-outline-secondary"
+                        (click)="cambiarEstadoTarea(tarea, 'pendiente')"
+                      >
+                        <i class="bi bi-pause me-1" aria-hidden="true"></i>
+                        Pausar
+                      </button>
+                    }
+                    @case ('completada') {
+                      <button
+                        type="button"
+                        class="btn btn-sm btn-outline-secondary"
+                        (click)="cambiarEstadoTarea(tarea, 'pendiente')"
+                      >
+                        <i class="bi bi-arrow-counterclockwise me-1" aria-hidden="true"></i>
+                        Reabrir
+                      </button>
+                    }
+                  }
 
-                  <div class="d-flex gap-1">
-                    <a
-                      class="btn btn-sm btn-outline-primary"
-                      [routerLink]="['/tareas', tarea.id, 'editar']"
-                      [attr.aria-label]="'Editar tarea ' + tarea.titulo"
-                    >
-                      <i class="bi bi-pencil" aria-hidden="true"></i>
-                    </a>
+                  @if (tarea.estado !== 'completada') {
                     <button
                       type="button"
-                      class="btn btn-sm btn-outline-danger"
-                      [attr.aria-label]="'Eliminar tarea ' + tarea.titulo"
-                      (click)="eliminarTarea(tarea)"
+                      class="btn btn-sm btn-outline-success"
+                      (click)="cambiarEstadoTarea(tarea, 'completada')"
                     >
-                      <i class="bi bi-trash" aria-hidden="true"></i>
+                      <i class="bi bi-check2 me-1" aria-hidden="true"></i>
+                      Completar
                     </button>
-                  </div>
+                  }
+                </div>
+
+                <div class="d-flex gap-2">
+                  <a
+                    class="btn btn-sm btn-outline-primary"
+                    [routerLink]="['/tareas', tarea.id, 'editar']"
+                    [attr.aria-label]="'Editar tarea ' + tarea.titulo"
+                  >
+                    <i class="bi bi-pencil" aria-hidden="true"></i>
+                  </a>
+                  <button
+                    type="button"
+                    class="btn btn-sm btn-outline-danger"
+                    [attr.aria-label]="'Eliminar tarea ' + tarea.titulo"
+                    (click)="eliminarTarea(tarea)"
+                  >
+                    <i class="bi bi-trash" aria-hidden="true"></i>
+                  </button>
                 </div>
               </div>
-            </article>
-          </div>
-        }
-      </div>
-
-      <!-- Paginación -->
-      <div class="mt-4 pt-4 border-top d-flex flex-wrap justify-content-between align-items-center gap-3">
-        <div class="small text-muted">{{ rangoMostrado() }}</div>
-
-        <div class="d-flex align-items-center gap-2">
-          <button
-            type="button"
-            class="btn btn-sm btn-outline-secondary"
-            [disabled]="paginacion().offset === 0"
-            (click)="paginaAnterior()"
-          >
-            <i class="bi bi-chevron-left" aria-hidden="true"></i>
-            Anterior
-          </button>
-
-          <span class="small text-muted">Página {{ paginaActual() }} de {{ totalPaginas() }}</span>
-
-          <button
-            type="button"
-            class="btn btn-sm btn-outline-secondary"
-            [disabled]="paginacion().offset + paginacion().limit >= paginacion().total"
-            (click)="paginaSiguiente()"
-          >
-            Siguiente
-            <i class="bi bi-chevron-right" aria-hidden="true"></i>
-          </button>
+            </div>
+          </article>
         </div>
+      }
+    </div>
+
+    <!-- Paginación -->
+    <div class="mat-pagination mt-4">
+      <p class="mat-pagination-info mb-0">{{ rangoMostrado() }}</p>
+
+      <div class="d-flex align-items-center gap-2">
+        <button
+          type="button"
+          class="btn-icon"
+          (click)="paginaAnterior()"
+          [disabled]="paginacion().offset === 0"
+          aria-label="Página anterior"
+        >
+          <i class="bi bi-chevron-left" aria-hidden="true"></i>
+        </button>
+
+        <span class="task-page-indicator">
+          Página <strong>{{ paginaActual() }}</strong> de <strong>{{ totalPaginas() }}</strong>
+        </span>
+
+        <button
+          type="button"
+          class="btn-icon"
+          (click)="paginaSiguiente()"
+          [disabled]="paginacion().offset + paginacion().limit >= paginacion().total"
+          aria-label="Página siguiente"
+        >
+          <i class="bi bi-chevron-right" aria-hidden="true"></i>
+        </button>
       </div>
-    }
-  </div>
+    </div>
+  }
 </div>
