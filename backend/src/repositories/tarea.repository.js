@@ -260,6 +260,33 @@ class TareaRepository {
   }
 
   /**
+   * Obtiene los exámenes y parciales no completados con entrega dentro de un rango.
+   * El panel principal los muestra en una sección propia (HU06).
+   *
+   * @param {string} usuarioId UUID del usuario.
+   * @param {{ desde: Date, hasta: Date, limit: number }} rango Rango de fechas.
+   * @returns {Promise<object[]>}
+   */
+  async listarExamenesProximos(usuarioId, { desde, hasta, limit }) {
+    const { data, error } = await this.requireClient()
+      .from('tareas')
+      .select(TAREA_COLUMNS)
+      .eq('usuario_id', usuarioId)
+      .in('tipo', ['examen', 'parcial'])
+      .neq('estado', 'completada')
+      .gte('fecha_entrega', desde.toISOString())
+      .lte('fecha_entrega', hasta.toISOString())
+      .order('fecha_entrega', { ascending: true })
+      .limit(limit);
+
+    if (error) {
+      throw error;
+    }
+
+    return data ?? [];
+  }
+
+  /**
    * Obtiene estadísticas agregadas de las tareas del usuario.
    * Usa la función RPC de la migración de HU04; si no está disponible
    * calcula los contadores con consultas acotadas.

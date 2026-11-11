@@ -907,3 +907,76 @@ X-RateLimit-Remaining: 0
 - [ ] Códigos de error correctos.
 - [ ] Prueba con Supertest.
 - [ ] Documentado en este archivo.
+
+## 21. Panel principal académico (HU06)
+
+El panel entrega en una sola respuesta los datos que el estudiante necesita al iniciar sesión. Todas las consultas usan el cliente de Supabase del usuario autenticado, por lo que RLS y el filtro por `usuario_id` se aplican en el backend.
+
+| Método | Endpoint | Historia | Descripción |
+|---|---|---|---|
+| GET | `/api/dashboard` | HU06 | Resumen académico del usuario autenticado. |
+
+**Respuesta `GET /api/dashboard`**
+
+```json
+{
+  "success": true,
+  "data": {
+    "materias": { "total": 5, "activas": 4, "archivadas": 1 },
+    "tareas": {
+      "total": 20,
+      "pendientes": 6,
+      "en_progreso": 4,
+      "completadas": 10,
+      "vencidas": 2
+    },
+    "proximas_actividades": [
+      {
+        "id": "8f14e45f-ceea-467a-9c2f-7c1d2b0d1a11",
+        "titulo": "Taller de derivadas",
+        "tipo": "taller",
+        "prioridad": "alta",
+        "fecha_entrega": "2026-11-12T23:59:59.000Z",
+        "estado": "pendiente",
+        "materias": { "nombre": "Cálculo Diferencial", "codigo": "MAT101", "color": "#3B82F6" }
+      }
+    ],
+    "proximos_examenes": [],
+    "proximos_eventos": [
+      {
+        "id": "0d6a1f2e-4c3b-4a59-8f70-1b2c3d4e5f60",
+        "titulo": "Examen parcial",
+        "tipo_evento": "examen",
+        "fecha_inicio": "2026-11-20T14:00:00.000Z",
+        "materias": { "nombre": "Cálculo Diferencial", "codigo": "MAT101", "color": "#3B82F6" }
+      }
+    ],
+    "progreso": {
+      "tareas_totales": 20,
+      "tareas_completadas": 10,
+      "porcentaje_completado": 50,
+      "materias_activas": 4
+    },
+    "notificaciones": [],
+    "generado_en": "2026-11-10T15:00:00.000Z"
+  }
+}
+```
+
+**Ventanas y límites**
+
+| Sección | Ventana | Máximo de elementos |
+|---|---|---|
+| `proximas_actividades` | 7 días | 6 |
+| `proximos_examenes` | 30 días | 5 |
+| `proximos_eventos` | 14 días | 5 |
+
+**Reglas**
+
+- `proximas_actividades` y `proximos_examenes` solo incluyen tareas no completadas.
+- `proximos_examenes` filtra `tipo in ('examen', 'parcial')`.
+- `proximos_eventos` excluye los eventos automáticos `tipo_evento = 'entrega'` para no repetir las tareas.
+- `progreso.porcentaje_completado` se calcula como `tareas_completadas / tareas_totales`, redondeado a entero entre 0 y 100.
+- `notificaciones` devuelve `[]` hasta que se implemente HU18; el panel muestra un estado vacío explícito.
+- No acepta filtros ni identificadores de usuario: el alcance sale del JWT.
+- Los errores usan el sobre estándar; un fallo de Supabase responde `503`.

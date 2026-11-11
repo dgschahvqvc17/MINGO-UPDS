@@ -118,10 +118,18 @@ Reglas:
 
 | Caso | Resultado esperado |
 |---|---|
-| Usuario con datos | Contadores correctos. |
-| Usuario sin datos | Ceros y estado vacío, sin error. |
-| Datos de dos usuarios | Cada uno ve solo lo suyo. |
-| Cambios recientes | El dashboard refleja el cambio al recargar. |
+| Usuario con datos | `materias`, `tareas` y `progreso` con contadores correctos. |
+| Usuario sin datos | Ceros y listas vacías; el frontend muestra estados vacíos sin error. |
+| Datos de dos usuarios | Cada uno ve solo lo suyo; RLS y `usuario_id` se aplican. |
+| `GET /api/dashboard` sin token | 401 con el sobre de error estándar. |
+| Supabase no configurado | 503 con mensaje claro, sin filtrar detalles internos. |
+| Actividades próximas | Solo tareas no completadas con entrega en los próximos 7 días (máx. 6). |
+| Próximos exámenes | Solo `tipo` `examen` o `parcial`, no completadas, en 30 días (máx. 5). |
+| Próximos eventos | Excluye `tipo_evento = 'entrega'`; ventana de 14 días (máx. 5). |
+| `progreso` | `porcentaje_completado` entre 0 y 100 y coherente con los contadores. |
+| Notificaciones | `[]` hasta HU18; el frontend muestra el estado vacío explícito. |
+| Cambios recientes | Al pulsar "Actualizar" se reflejan los nuevos datos del usuario. |
+| Fallo de red o 5xx | Alerta con mensaje apto para el usuario y botón "Reintentar". |
 
 ### 4.7. Documentos (HU07–HU09)
 

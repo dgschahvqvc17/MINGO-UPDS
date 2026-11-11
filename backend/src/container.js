@@ -12,11 +12,13 @@ const UsuarioAdminService = require('./services/usuario-admin.service');
 const MateriaService = require('./services/materia.service');
 const TareaService = require('./services/tarea.service');
 const CalendarioService = require('./services/calendario.service');
+const DashboardService = require('./services/dashboard.service');
 const AuthController = require('./controllers/auth.controller');
 const UsuarioAdminController = require('./controllers/usuario-admin.controller');
 const MateriaController = require('./controllers/materia.controller');
 const TareaController = require('./controllers/tarea.controller');
 const CalendarioController = require('./controllers/calendario.controller');
+const DashboardController = require('./controllers/dashboard.controller');
 const {
   createSupabaseClient,
   createSupabaseServiceRoleClient,
@@ -107,6 +109,31 @@ function createCalendarioController(calendarioService) {
   return new CalendarioController({ calendarioService });
 }
 
+/**
+ * Crea el servicio del panel principal académico con el cliente del usuario.
+ * Reutiliza los repositorios de materias, tareas y calendario con RLS.
+ *
+ * @param {string} usuarioActualId - ID del usuario autenticado
+ * @param {string} accessToken - JWT del usuario autenticado
+ * @returns {DashboardService}
+ */
+function createDashboardService(usuarioActualId, accessToken) {
+  const supabaseClient = createSupabaseClient(accessToken);
+  const materiaRepository = new MateriaRepository({ supabase: supabaseClient });
+  const tareaRepository = new TareaRepository({ supabase: supabaseClient });
+  const calendarioRepository = new CalendarioRepository({ supabase: supabaseClient });
+  return new DashboardService({
+    materiaRepository,
+    tareaRepository,
+    calendarioRepository,
+    usuarioActualId,
+  });
+}
+
+function createDashboardController(dashboardService) {
+  return new DashboardController({ dashboardService });
+}
+
 const authController = new AuthController();
 
 module.exports = {
@@ -115,8 +142,10 @@ module.exports = {
   createMateriaService,
   createTareaService,
   createCalendarioService,
+  createDashboardService,
   createTareaController,
   createCalendarioController,
+  createDashboardController,
   authController,
   usuarioAdminController: new UsuarioAdminController(),
   materiaController: new MateriaController(),
