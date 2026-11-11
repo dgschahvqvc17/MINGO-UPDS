@@ -21,6 +21,8 @@ export class LoginPage {
   readonly errorMessage = computed(() => this.error() ?? this.authService.lastAuthError());
   readonly isConfigured = this.authService.isConfigured;
 
+  passwordType: 'password' | 'text' = 'password';
+
   readonly form = this.formBuilder.group({
     email: ['', [Validators.required, Validators.email]],
     password: ['', [Validators.required, Validators.minLength(8)]],
@@ -51,5 +53,9 @@ export class LoginPage {
     } finally {
       this.loading.set(false);
     }
+  }
+
+  togglePasswordVisibility(): void {
+    this.passwordType = this.passwordType === 'password' ? 'text' : 'password';
   }
 }

@@ -288,6 +288,29 @@
 
 .input-with-icon .form-control {
   padding-left: 2.75rem;
+  padding-right: 2.75rem;
+}
+
+.input-with-icon .btn-outline-secondary {
+  position: absolute;
+  top: 50%;
+  right: 0.25rem;
+  transform: translateY(-50%);
+  background: transparent;
+  border: none;
+  color: var(--mingo-text-muted);
+  padding: 0.25rem 0.5rem;
+  border-radius: var(--mingo-radius);
+  line-height: 1;
+}
+
+.input-with-icon .btn-outline-secondary:hover {
+  color: var(--mingo-text);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.input-with-icon .btn-outline-secondary i {
+  font-size: 1.1rem;
 }
 
 .btn-primary {

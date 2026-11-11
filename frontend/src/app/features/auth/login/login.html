@@ -46,7 +46,7 @@
 
       <div class="login-status">
         <span class="status-dot"></span>
-        Acceso seguro con Supabase Auth
+        Acceso seguro con Supabase Auth - UPDS (Universidad Privada Domingo Savio)
       </div>
     </section>
 
@@ -62,7 +62,7 @@
           <span class="page-eyebrow">Bienvenido de nuevo</span>
           <h1 id="login-title" class="h3 fw-bold mt-2 mb-1">Inicia sesion</h1>
           <p class="text-muted-soft mb-0">
-            Accede a tu panel academico con tu correo institucional.
+            Accede a tu panel académico en la Universidad Privada Domingo Savio (UPDS) con tu correo institucional.
           </p>
         </div>
 
@@ -95,7 +95,7 @@
                 class="form-control"
                 formControlName="email"
                 autocomplete="email"
-                placeholder="estudiante@universidad.edu"
+                placeholder="estudiante@upds.edu.co"
                 [class.is-invalid]="form.controls.email.touched && form.controls.email.invalid"
                 aria-describedby="email-error"
               />
@@ -113,11 +113,11 @@
 
           <div class="mb-4">
             <label class="form-label" for="password">Contrasena</label>
-            <div class="input-with-icon">
+            <div class="input-with-icon position-relative">
               <i class="bi bi-lock" aria-hidden="true"></i>
               <input
                 id="password"
-                type="password"
+                type="{{ passwordType }}"
                 class="form-control"
                 formControlName="password"
                 autocomplete="current-password"
@@ -127,6 +127,14 @@
                 "
                 aria-describedby="password-error"
               />
+              <button
+                type="button"
+                class="btn btn-outline-secondary btn-sm position-absolute top-0 right-0"
+                (click)="togglePasswordVisibility()"
+                [attr.aria-label]="passwordType === 'password' ? 'Mostrar contrasena' : 'Ocultar contrasena'"
+              >
+                <i class="bi" [class.bi-eye-slash]="passwordType === 'text'" [class.bi-eye]="passwordType === 'password'" aria-hidden="true"></i>
+              </button>
             </div>
             @if (form.controls.password.touched && form.controls.password.invalid) {
               <div id="password-error" class="invalid-feedback d-block">
