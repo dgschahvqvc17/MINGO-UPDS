@@ -30,3 +30,6 @@ Thumbs.db
 # AWS / Supabase
 .aws/
 supabase/.temp/
+
+# Credenciales y datos de prueba (nunca subir)
+CREDENTIALS.md
