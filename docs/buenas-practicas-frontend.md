@@ -82,7 +82,7 @@ features/tareas/
 | Selectores | prefijo `app-` | `app-tarea-card` |
 
 - Un identificador no mezcla idiomas (`getTareaById` está prohibido).
-- Nombres de modelos alineados con la API: `usuario_id` es UUID; los IDs de dominio son enteros.
+- Nombres de modelos alineados con la API: `usuario_id`, `materias.id`, `tareas.id` y `eventos_calendario.id` son UUID; el cliente los trata como cadenas opacas, sin asumir formato numérico.
 - No usar `any`. Si el tipo es desconocido, usar `unknown` y estrechar.
 - Sin `console.log` en código de producción.
 - Sin estilos inline; usar clases de Bootstrap o el CSS del componente.

@@ -381,7 +381,7 @@ Una tarea cuenta como vencida cuando tiene `fecha_entrega` anterior a ahora y su
 - Una tarea de otro usuario responde `404`, nunca `403`.
 - `PUT /api/tareas/:id` acepta actualización parcial: al menos un campo, y los campos no enviados conservan su valor.
 - `DELETE /api/tareas/:id` responde `200` con `{ "id": "<uuid>" }`.
-- Al crear una tarea con `fecha_entrega`, HU05 podrá generar automáticamente un evento de calendario.
+- Al crear o actualizar una tarea con `fecha_entrega`, HU05 genera o sincroniza automáticamente un evento de calendario tipo `entrega` (ver §9).
 
 ## 9. Calendario
 
@@ -389,22 +389,70 @@ Una tarea cuenta como vencida cuando tiene `fecha_entrega` anterior a ahora y su
 |---|---|---|---|
 | GET | `/api/calendario` | HU05 | Eventos en un rango de fechas. |
 | POST | `/api/calendario` | HU05 | Crea un evento. |
-| GET | `/api/calendario/:id` | HU05 | Detalle. |
-| PUT | `/api/calendario/:id` | HU05 | Actualiza. |
-| DELETE | `/api/calendario/:id` | HU05 | Elimina. |
 | GET | `/api/calendario/proximos` | HU05, HU06 | Próximos eventos. |
+| GET | `/api/calendario/:id` | HU05 | Detalle. |
+| PUT | `/api/calendario/:id` | HU05 | Actualiza total o parcialmente. |
+| DELETE | `/api/calendario/:id` | HU05 | Elimina. |
 
-**Parámetros obligatorios de `GET /api/calendario`**
+**Objeto `evento`**
 
-```text
-?desde=2026-11-01T00:00:00.000Z&hasta=2026-11-30T23:59:59.999Z
+```json
+{
+  "id": "0b7f9c1e-2d3a-4f5b-8c6d-7e8f9a0b1c2d",
+  "usuario_id": "3f2b7e5c-1a4d-4c8e-9f10-2b6d8a7c9e01",
+  "materia_id": "5c9f2a10-4b7e-4d1a-9f3e-1a2b3c4d5e6f",
+  "tarea_id": null,
+  "titulo": "Examen parcial",
+  "descripcion": "Unidades 1 a 3.",
+  "tipo_evento": "examen",
+  "fecha_inicio": "2026-11-20T14:00:00.000Z",
+  "fecha_fin": "2026-11-20T16:00:00.000Z",
+  "recordatorio": 60,
+  "fecha_creacion": "2026-11-10T15:00:00.000Z",
+  "fecha_actualizacion": null,
+  "materias": { "nombre": "Cálculo Diferencial", "codigo": "MAT101", "color": "#3B82F6" }
+}
+```
+
+- `id`, `usuario_id`, `materia_id` y `tarea_id` son UUID.
+- `materia_id` y `tarea_id` son opcionales: `null` cuando el evento no está asociado a una materia o a una tarea.
+- `materias` es el resumen embebido de la materia (puede llegar como objeto o como arreglo de un elemento).
+- `fecha_inicio` es obligatorio; `fecha_fin` es opcional y `null` significa que el evento no tiene duración definida.
+- `recordatorio` se expresa en minutos antes del evento, entero entre 1 y 10080 (7 días); `null` significa sin recordatorio.
+- `tipo_evento`: `examen`, `entrega`, `clase`, `estudio`, `personal` u `otro`. Por defecto `otro`.
+- `fecha_actualizacion` la mantiene un trigger de la base de datos.
+
+**Filtros de `GET /api/calendario`**
+
+| Parámetro | Tipo | Ejemplo |
+|---|---|---|
+| `desde` | ISO 8601 (obligatorio) | `?desde=2026-11-01T00:00:00.000Z` |
+| `hasta` | ISO 8601 (obligatorio) | `?hasta=2026-11-30T23:59:59.999Z` |
+| `materia_id` | UUID | `?materia_id=5c9f2a10-...` |
+| `tipo_evento` | `examen` \| `entrega` \| `clase` \| `estudio` \| `personal` \| `otro` | `?tipo_evento=examen` |
+| `query` | texto (máx. 200) | `?query=parcial` |
+| `sort` | `fecha_inicio` \| `fecha_creacion` \| `titulo` | `?sort=fecha_inicio` |
+| `order` | `asc` \| `desc` | `?order=asc` |
+| `limit` | entero 1–100 (por defecto 50) | `?limit=50` |
+| `offset` | entero ≥ 0 (por defecto 0) | `?offset=50` |
+
+El rango se aplica sobre `fecha_inicio`. La respuesta incluye `meta.paginacion`:
+
+```json
+{
+  "success": true,
+  "data": [],
+  "meta": {
+    "paginacion": { "limit": 50, "offset": 0, "total": 0 }
+  }
+}
 ```
 
 **Body `POST /api/calendario`**
 
 ```json
 {
-  "materia_id": 1,
+  "materia_id": "5c9f2a10-4b7e-4d1a-9f3e-1a2b3c4d5e6f",
   "tarea_id": null,
   "titulo": "Examen parcial",
   "descripcion": "Unidades 1 a 3.",
@@ -415,8 +463,44 @@ Una tarea cuenta como vencida cuando tiene `fecha_entrega` anterior a ahora y su
 }
 ```
 
-- `recordatorio` se expresa en minutos antes del evento; `null` significa sin recordatorio.
-- `tipo_evento`: `examen`, `entrega`, `clase`, `estudio`, `personal`, `otro`.
+- `titulo`: obligatorio, 3–200 caracteres.
+- `descripcion`: opcional, máximo 2000 caracteres.
+- `materia_id` y `tarea_id`: opcionales; si se envían deben existir y pertenecer al usuario.
+- `fecha_inicio`: obligatoria.
+- `fecha_fin`: opcional y no puede ser anterior a `fecha_inicio`.
+- `recordatorio`: opcional, entero entre 1 y 10080.
+- `POST` responde `201` con el evento creado.
+
+**`GET /api/calendario/proximos`**
+
+Parámetros `dias` (1–30, por defecto 7) y `limit` (1–50, por defecto 10). Devuelve los eventos del usuario con `fecha_inicio` entre ahora y `ahora + dias`, ordenados por inicio ascendente:
+
+```json
+{
+  "success": true,
+  "data": [],
+  "meta": {
+    "total": 0,
+    "rango": {
+      "dias": 7,
+      "desde": "2026-11-10T15:00:00.000Z",
+      "hasta": "2026-11-17T15:00:00.000Z"
+    }
+  }
+}
+```
+
+> Esta ruta se declara antes de `/:id` para que `proximos` no se interprete como un identificador. Cuando la función RPC no está disponible, el repositorio usa una consulta directa equivalente y los elementos incluyen el resumen embebido `materias`; con la RPC los datos de la materia llegan aplanados (`materia_nombre`, `materia_codigo`, `materia_color`).
+
+**Reglas**
+
+- `desde` y `hasta` son obligatorios y `desde` no puede ser posterior a `hasta`.
+- `fecha_fin` no puede ser anterior a `fecha_inicio`; al actualizar solo una de las dos fechas, el servicio combina la fecha nueva con la almacenada antes de validar.
+- `materia_id` y `tarea_id` deben existir y pertenecer al usuario; en caso contrario responde `404`.
+- Un evento de otro usuario responde `404`, nunca `403`.
+- `PUT /api/calendario/:id` acepta actualización parcial: al menos un campo, y los campos no enviados conservan su valor.
+- `DELETE /api/calendario/:id` responde `200` con `{ "id": "<uuid>" }`.
+- **Evento automático desde tareas:** al crear o actualizar una tarea con `fecha_entrega`, el backend invoca la función `crear_evento_desde_tarea`, idempotente, que crea o sincroniza un evento tipo `entrega` vinculado a la tarea (`titulo = "Entrega: <título>"`, `fecha_inicio = fecha_entrega`, `fecha_fin = fecha_entrega + 1 h`). Si la tarea se actualiza sin `fecha_entrega` (`null`), se elimina el evento automático asociado. Si la sincronización falla, la tarea ya quedó guardada y el error solo se registra fuera de producción.
 
 ## 10. Documentos y biblioteca
 
@@ -762,7 +846,7 @@ No requiere autenticación.
 
 - `page`: entero ≥ 1, por defecto 1 (módulos con paginación por páginas).
 - `limit`: entero entre 1 y 50, por defecto 20.
-- `offset`: entero ≥ 0, por defecto 0 (HU03 y HU04 paginan con `limit` + `offset` y devuelven `meta.paginacion`).
+- `offset`: entero ≥ 0, por defecto 0 (HU03, HU04 y HU05 paginan con `limit` + `offset` y devuelven `meta.paginacion`).
 - `sort`: campo permitido por módulo, por defecto `fecha_creacion`.
 - `order`: `asc` \| `desc`, por defecto `desc`.
 - Los campos de ordenamiento se validan contra una lista blanca; nunca se interpolan en SQL.

@@ -6,14 +6,17 @@ const UsuarioRepository = require('./repositories/usuario.repository');
 const UsuarioAdminRepository = require('./repositories/usuario-admin.repository');
 const MateriaRepository = require('./repositories/materia.repository');
 const TareaRepository = require('./repositories/tarea.repository');
+const CalendarioRepository = require('./repositories/calendario.repository');
 const AuthService = require('./services/auth.service');
 const UsuarioAdminService = require('./services/usuario-admin.service');
 const MateriaService = require('./services/materia.service');
 const TareaService = require('./services/tarea.service');
+const CalendarioService = require('./services/calendario.service');
 const AuthController = require('./controllers/auth.controller');
 const UsuarioAdminController = require('./controllers/usuario-admin.controller');
 const MateriaController = require('./controllers/materia.controller');
 const TareaController = require('./controllers/tarea.controller');
+const CalendarioController = require('./controllers/calendario.controller');
 const {
   createSupabaseClient,
   createSupabaseServiceRoleClient,
@@ -61,6 +64,7 @@ function createMateriaService(usuarioActualId, accessToken) {
 /**
  * Crea el servicio de gestión de tareas con el cliente del usuario.
  * Valida la pertenencia de la materia y de la tarea con RLS y en el servicio.
+ * Incluye CalendarioService para crear eventos automáticos al crear/actualizar tareas con fecha_entrega.
  *
  * @param {string} usuarioActualId - ID del usuario que realiza la operación
  * @param {string} accessToken - JWT del usuario autenticado
@@ -70,11 +74,37 @@ function createTareaService(usuarioActualId, accessToken) {
   const supabaseClient = createSupabaseClient(accessToken);
   const tareaRepository = new TareaRepository({ supabase: supabaseClient });
   const materiaRepository = new MateriaRepository({ supabase: supabaseClient });
-  return new TareaService({ tareaRepository, materiaRepository, usuarioActualId });
+  const calendarioService = createCalendarioService(usuarioActualId, accessToken);
+  return new TareaService({ tareaRepository, materiaRepository, calendarioService, usuarioActualId });
 }
 
 function createTareaController(tareaService) {
   return new TareaController({ tareaService });
+}
+
+/**
+ * Crea el servicio de gestión de calendario con el cliente del usuario.
+ * RLS se aplica a todas las consultas de eventos.
+ *
+ * @param {string} usuarioActualId - ID del usuario que realiza la operación
+ * @param {string} accessToken - JWT del usuario autenticado
+ * @returns {CalendarioService}
+ */
+function createCalendarioService(usuarioActualId, accessToken) {
+  const supabaseClient = createSupabaseClient(accessToken);
+  const calendarioRepository = new CalendarioRepository({ supabase: supabaseClient });
+  const materiaRepository = new MateriaRepository({ supabase: supabaseClient });
+  const tareaRepository = new TareaRepository({ supabase: supabaseClient });
+  return new CalendarioService({
+    calendarioRepository,
+    materiaRepository,
+    tareaRepository,
+    usuarioActualId,
+  });
+}
+
+function createCalendarioController(calendarioService) {
+  return new CalendarioController({ calendarioService });
 }
 
 const authController = new AuthController();
@@ -84,7 +114,9 @@ module.exports = {
   createUsuarioAdminService,
   createMateriaService,
   createTareaService,
+  createCalendarioService,
   createTareaController,
+  createCalendarioController,
   authController,
   usuarioAdminController: new UsuarioAdminController(),
   materiaController: new MateriaController(),

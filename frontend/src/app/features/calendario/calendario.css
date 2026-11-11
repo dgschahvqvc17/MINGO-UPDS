@@ -1,0 +1,25 @@
+.calendario-page {
+  min-height: 100%;
+}
+
+.calendario-card {
+  overflow: hidden;
+}
+
+.calendario-card .card-body {
+  min-height: 520px;
+}
+
+.leyenda-punto {
+  display: inline-block;
+  width: 0.7rem;
+  height: 0.7rem;
+  border-radius: 50%;
+}
+
+@media (max-width: 767.98px) {
+  .calendario-card .card-body {
+    min-height: 420px;
+    padding: 0.75rem;
+  }
+}

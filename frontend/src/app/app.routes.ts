@@ -99,6 +99,22 @@ export const routes: Routes = [
         loadComponent: () =>
           import('./features/calendario/calendario').then((m) => m.CalendarioPage),
       },
+      {
+        path: 'calendario/nuevo',
+        title: 'Nuevo evento | MINGO',
+        loadComponent: () =>
+          import('./features/calendario/calendario-form/calendario-form').then(
+            (m) => m.CalendarioFormPage,
+          ),
+      },
+      {
+        path: 'calendario/:id/editar',
+        title: 'Editar evento | MINGO',
+        loadComponent: () =>
+          import('./features/calendario/calendario-form/calendario-form').then(
+            (m) => m.CalendarioFormPage,
+          ),
+      },
 
       {
         path: 'biblioteca',

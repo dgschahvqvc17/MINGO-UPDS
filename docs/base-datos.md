@@ -29,19 +29,19 @@ La base de datos se organiza en ocho grupos:
 | Tipo de tabla | Clave primaria | Motivo |
 |---|---|---|
 | `perfiles` | `UUID` | Es el mismo identificador de `auth.users.id` de Supabase Auth. |
-| Tablas de dominio implementadas (`materias`, `tareas`) | `UUID` | Implementación real en `backend/sql/materias.sql` y `supabase/migrations/0002_hu04_tareas.sql`. |
+| Tablas de dominio implementadas (`materias`, `tareas`, `eventos_calendario`) | `UUID` | Implementación real en `backend/sql/materias.sql`, `supabase/migrations/0002_hu04_tareas.sql` y `supabase/migrations/0003_hu05_calendario.sql`. |
 | Tablas de dominio pendientes | `SERIAL` (entero autoincremental) | Modelo del diagrama para las entidades aún no implementadas. |
 
 Regla de integración:
 
 - `perfiles.id` = `auth.users.id` (UUID).
 - Todas las columnas `usuario_id` son `UUID` y referencian `perfiles.id`.
-- `materias.id` y `tareas.id` son `UUID` y todas sus claves foráneas son `UUID`.
+- `materias.id`, `tareas.id` y `eventos_calendario.id` son `UUID` y todas sus claves foráneas son `UUID`.
 - Las tablas de dominio que aún no tienen historia implementada conservarán `SERIAL` hasta su migración.
 - El cliente trata cualquier ID como cadena opaca, sin asumir formato numérico.
 
-> **Estado de implementación (2026-11-07):** HU03 y HU04 se implementaron con `UUID` y campos
-> adicionales respecto del diagrama original. Las secciones 3.5 y 3.6 describen la
+> **Estado de implementación (2026-11-10):** HU03, HU04 y HU05 se implementaron con `UUID` y campos
+> adicionales respecto del diagrama original. Las secciones 3.5, 3.6 y 3.7 describen la
 > implementación real; el DDL de la sección 6 incluye esas diferencias.
 
 ## 2. Diagrama entidad-relación
@@ -141,7 +141,7 @@ erDiagram
     }
 
     eventos_calendario {
-        serial id PK
+        uuid id PK
         uuid usuario_id FK
         uuid materia_id FK
         uuid tarea_id FK
@@ -150,6 +150,9 @@ erDiagram
         varchar tipo_evento
         timestamp fecha_inicio
         timestamp fecha_fin
+        int recordatorio
+        timestamp fecha_creacion
+        timestamp fecha_actualizacion
     }
 
     documentos {
@@ -336,25 +339,34 @@ Reglas:
 
 ### 3.7. `eventos_calendario`
 
-Eventos del calendario académico.
+Eventos del calendario académico (HU05).
 
 | Campo | Tipo | Nulo | Clave | Descripción |
 |---|---|---|:---:|---|
-| `id` | `SERIAL` | No | PK | Identificador del evento. |
+| `id` | `UUID` | No | PK | Identificador del evento. |
 | `usuario_id` | `UUID` | No | FK → `perfiles.id` | Propietario del evento. |
-| `materia_id` | `UUID` | No | FK → `materias.id` | Materia asociada. |
-| `tarea_id` | `UUID` | No | FK → `tareas.id` | Tarea que origina el evento. |
-| `titulo` | `VARCHAR` | No | | Título del evento. |
+| `materia_id` | `UUID` | Sí | FK → `materias.id` | Materia asociada (opcional). |
+| `tarea_id` | `UUID` | Sí | FK → `tareas.id` | Tarea que origina el evento (opcional). |
+| `titulo` | `VARCHAR(200)` | No | | Título del evento. |
 | `descripcion` | `TEXT` | Sí | | Descripción. |
-| `tipo_evento` | `VARCHAR` | No | | `examen`, `entrega`, `clase`, `estudio`, `personal` u `otro`. |
-| `fecha_inicio` | `TIMESTAMP` | No | | Inicio del evento. |
-| `fecha_fin` | `TIMESTAMP` | Sí | | Fin del evento. |
+| `tipo_evento` | `VARCHAR(20)` | No | | `examen`, `entrega`, `clase`, `estudio`, `personal` u `otro`. Por defecto `otro`. |
+| `fecha_inicio` | `TIMESTAMPTZ` | No | | Inicio del evento. |
+| `fecha_fin` | `TIMESTAMPTZ` | Sí | | Fin del evento; `NULL` si no tiene duración definida. |
+| `recordatorio` | `INTEGER` | Sí | | Minutos de anticipación (1–10080); `NULL` si no tiene recordatorio. |
+| `fecha_creacion` | `TIMESTAMPTZ` | No | | Fecha de registro. |
+| `fecha_actualizacion` | `TIMESTAMPTZ` | Sí | | La mantiene un trigger en cada actualización. |
 
 Reglas:
 
-- `fecha_fin` no puede ser anterior a `fecha_inicio`.
-- La materia y la tarea deben pertenecer al usuario.
-- Si se elimina la tarea, el evento puede conservarse con `tarea_id = NULL` (ver sección 10).
+- `tipo_evento` usa `CHECK` con lista cerrada y nombre de restricción estable.
+- `CHECK`: `fecha_fin IS NULL OR fecha_fin >= fecha_inicio`.
+- `CHECK`: `recordatorio IS NULL OR recordatorio > 0`.
+- `materia_id` y `tarea_id` son opcionales y se validan en el servicio para que pertenezcan al usuario.
+- `ON DELETE SET NULL` en `materia_id` y `tarea_id`: si se elimina la materia o la tarea, el evento se conserva sin asociación.
+- `ON DELETE CASCADE` en `usuario_id`: al eliminar la cuenta se eliminan sus eventos.
+- Una tarea con `fecha_entrega` genera o sincroniza un evento tipo `entrega` mediante `crear_evento_desde_tarea`; si la tarea pierde su `fecha_entrega`, la función elimina el evento automático.
+- RLS activo con cuatro políticas (`select`, `insert`, `update`, `delete`) sobre `auth.uid() = usuario_id`.
+- DDL: `supabase/migrations/0003_hu05_calendario.sql` (idempotente).
 
 ### 3.8. `documentos`
 
@@ -602,8 +614,9 @@ create table public.tareas (
   check (fecha_entrega is null or fecha_entrega >= fecha_asignacion)
 );
 
+-- Implementación real de HU05: supabase/migrations/0003_hu05_calendario.sql
 create table public.eventos_calendario (
-  id serial primary key,
+  id uuid primary key default gen_random_uuid(),
   usuario_id uuid not null references public.perfiles(id) on delete cascade,
   materia_id uuid references public.materias(id) on delete set null,
   tarea_id uuid references public.tareas(id) on delete set null,
@@ -613,6 +626,9 @@ create table public.eventos_calendario (
     check (tipo_evento in ('examen', 'entrega', 'clase', 'estudio', 'personal', 'otro')),
   fecha_inicio timestamptz not null,
   fecha_fin timestamptz,
+  recordatorio integer check (recordatorio is null or recordatorio > 0),
+  fecha_creacion timestamptz not null default now(),
+  fecha_actualizacion timestamptz,
   check (fecha_fin is null or fecha_fin >= fecha_inicio)
 );
 
@@ -708,9 +724,13 @@ create index tareas_estado_idx on public.tareas (estado);
 create index tareas_prioridad_idx on public.tareas (prioridad);
 create index tareas_fecha_entrega_idx on public.tareas (fecha_entrega);
 
-create index eventos_usuario_fecha_idx on public.eventos_calendario (usuario_id, fecha_inicio);
-create index eventos_materia_idx on public.eventos_calendario (materia_id);
-create index eventos_tarea_idx on public.eventos_calendario (tarea_id);
+-- HU05 (supabase/migrations/0003_hu05_calendario.sql)
+create index idx_eventos_calendario_usuario_id on public.eventos_calendario (usuario_id);
+create index idx_eventos_calendario_materia_id on public.eventos_calendario (materia_id);
+create index idx_eventos_calendario_tarea_id on public.eventos_calendario (tarea_id);
+create index idx_eventos_calendario_tipo_evento on public.eventos_calendario (tipo_evento);
+create index idx_eventos_calendario_fecha_inicio on public.eventos_calendario (fecha_inicio);
+create index idx_eventos_calendario_usuario_fecha_inicio on public.eventos_calendario (usuario_id, fecha_inicio);
 
 create index documentos_usuario_idx on public.documentos (usuario_id);
 create index documentos_materia_idx on public.documentos (materia_id);
@@ -967,7 +987,6 @@ El diagrama actual cubre el núcleo académico, documental, de IA y de evaluaci�
 | `cuestionarios.cantidad_preguntas` y `descripcion` | HU13 | Configuración del cuestionario. |
 | `documentos.nombre_archivo`, `tipo_archivo` | HU07, HU08 | Metadatos del archivo. |
 | `tareas.tipo`, `fecha_asignacion`, `fecha_actualizacion` | HU04 | Implementado en `0002_hu04_tareas.sql`. |
-| `eventos_calendario.recordatorio` | HU05, HU18 | Anticipación del recordatorio. |
 | `mensajes.modelo_utilizado` | HU12 | Modelo usado en la respuesta. |
 | `conversaciones.tipo_conversacion`, `fecha_actualizacion` | HU12 | Clasificación y última actividad. |
 | `perfiles.foto_perfil`, `universidad`, `semestre`, `estado` | HU01, HU02 | Perfil completo. |
@@ -985,6 +1004,7 @@ El diagrama actual cubre el núcleo académico, documental, de IA y de evaluaci�
 | `supabase/migrations/0001_hu01_auth.sql` | Perfiles, roles y `usuario_roles` (HU01/HU02). |
 | `backend/sql/materias.sql` | Tabla `materias`, índices, RLS y funciones de HU03 (idempotente). |
 | `supabase/migrations/0002_hu04_tareas.sql` | Tabla `tareas`, índices, trigger de actualización, RLS y RPC `obtener_estadisticas_tareas` (HU04, idempotente). |
+| `supabase/migrations/0003_hu05_calendario.sql` | Tabla `eventos_calendario`, índices, trigger de actualización, RLS y RPC `obtener_eventos_proximos` y `crear_evento_desde_tarea` (HU05, idempotente). |
 
 - Flujo:
 
@@ -1015,15 +1035,15 @@ on conflict (nombre) do nothing;
 
 | Documento | Ajuste realizado |
 |---|---|
-| `docs/api.md` | Los IDs de `materias` y `tareas` son UUID; el ID de usuario también es UUID. |
+| `docs/api.md` | Los IDs de `materias`, `tareas` y `eventos_calendario` son UUID; el ID de usuario también es UUID. |
 | `docs/convenciones.md` | Se actualizó la convención de claves primarias y validación de IDs. |
-| `docs/seguridad.md` | Se aclaró que los UUID se validan en campos de usuario y en los IDs de `materias` y `tareas`. |
+| `docs/seguridad.md` | Se aclaró que los UUID se validan en campos de usuario y en los IDs de `materias`, `tareas` y `eventos_calendario`. |
 | `tecnologias.md` | La sección 5.2 describe el diseño inicial con más campos y tablas; este documento refleja el diagrama actual del equipo y deja lo faltante en la sección 11. |
 
 ## 14. Checklist antes de crear una tabla
 
 - [ ] ¿La tabla está en el diagrama o en la sección de pendientes?
-- [ ] ¿Tiene clave primaria (`UUID` en `perfiles`, `materias` y `tareas`; `SERIAL` en las pendientes de migrar)?
+- [ ] ¿Tiene clave primaria (`UUID` en `perfiles`, `materias`, `tareas` y `eventos_calendario`; `SERIAL` en las pendientes de migrar)?
 - [ ] ¿Tiene `usuario_id` cuando corresponde?
 - [ ] ¿Todas las claves foráneas tienen índice?
 - [ ] ¿Tiene RLS activado y políticas?
@@ -1038,6 +1058,7 @@ on conflict (nombre) do nothing;
 
 | Fecha | Cambio |
 |---|---|
+| 2026-11-10 | HU05: `eventos_calendario` implementada con UUID, `materia_id`/`tarea_id` opcionales, `recordatorio`, `fecha_creacion`/`fecha_actualizacion`, RLS y RPC `obtener_eventos_proximos` y `crear_evento_desde_tarea`. `eventos_calendario.recordatorio` deja de estar pendiente. |
 | 2026-11-07 | HU04: `tareas` implementada con UUID, `tipo`, `fecha_asignacion`, `fecha_actualizacion`, RLS y RPC de estadísticas. `materias` documentada según la implementación real de HU03. |
 | 2026-11-07 | Versión 2.0: modelo reemplazado por el diagrama PlantUML del equipo (15 tablas, PK UUID en `perfiles` y `SERIAL` en dominio). |
 | 2026-11-07 | Versión 1.0: propuesta inicial basada en `tecnologias.md`. |
