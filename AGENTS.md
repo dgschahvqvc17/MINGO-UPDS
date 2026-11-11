@@ -98,6 +98,35 @@ El agente **nunca** debe:
 
 Solo puede proponer el cambio, explicar el costo y esperar la confirmación del usuario.
 
+### Ejecución de infraestructura por el agente (decisión 2026-11-11)
+
+Por decisión explícita del dueño del proyecto (2026-11-11), y **solo** bajo estas
+condiciones, el agente puede ejecutar comandos `aws`/`sam` de creación o despliegue
+de recursos incluidos en la lista blanca:
+
+1. **Solo servicios serverless de la lista blanca** (punto 5). Nada que esté
+   encendido siempre: sin máquinas virtuales, sin contenedores permanentes, sin
+   capacidad provisionada (puntos 2–4).
+2. **Solo servicios activos en la capa gratuita**, o con costo verificado de **$0**
+   para el caso de uso concreto.
+3. El agente **explica antes de implementar** qué recurso creará, para qué, con qué
+   límites y qué costo estimado, y espera la aprobación explícita del usuario para
+   ese cambio concreto, en el momento de ejecutarlo.
+4. Los Budgets `mingo-alerta-baja` ($1) y `mingo-alerta-media` ($5) deben estar
+   verificados activos antes del despliegue.
+5. Las credenciales son únicamente locales del usuario (SSO, perfil CLI o variables
+   en su `.env` local ignorado por git) o OIDC desde el CI. Jamás credenciales en el
+   chat, en git ni en el frontend.
+6. Antes de desplegar, verificación de solo lectura de cuenta, región, presupuestos
+   y free tier. Si algo no cuadra, el agente se detiene y avisa.
+7. Tras desplegar, el agente informa qué se creó, los límites aplicados y el costo
+   estimado por mes.
+
+Sigue prohibido para el agente: crear usuarios, roles, claves de acceso o secretos;
+cambiar la facturación, los presupuestos o la región; aprobar excepciones a la lista
+blanca; y crear recursos fuera de la lista blanca (siguen requiriendo justificación
+escrita, aprobación del usuario y fecha de revisión).
+
 ---
 
 ## 4. Reglas de código (resumen obligatorio)

@@ -216,9 +216,9 @@ Activar también **Free Tier usage alerts** y revisar **Cost Explorer** semanalm
 
 El agente **no debe**:
 
-- Ejecutar `aws` con comandos de creación, actualización o eliminación de infraestructura.
-- Ejecutar `sam deploy`, `aws cloudformation deploy` ni equivalentes sin autorización explícita.
-- Crear buckets, colas, topics, funciones, roles, usuarios o claves.
+- Ejecutar `aws` con comandos de creación, actualización o eliminación de infraestructura sin aprobación explícita del usuario sobre la plantilla exacta y su costo (ver «Ejecución de infraestructura por el agente» en AGENTS.md).
+- Ejecutar `sam deploy`, `aws cloudformation deploy` ni equivalentes sin autorización explícita del usuario, en el momento, sobre el cambio concreto.
+- Crear buckets, colas, topics, funciones u otros recursos sin la aprobación explícita del usuario sobre la plantilla exacta y su costo (ver AGENTS.md). Roles, usuarios y claves siguen prohibidos en todo caso.
 - Modificar presupuestos, alertas, regiones o cuentas.
 - Crear archivos de credenciales (`.aws/credentials`, access keys).
 - Aprobar excepciones por su cuenta.
