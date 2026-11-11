@@ -110,6 +110,9 @@ Reglas:
 | `fecha_inicio` mayor que `fecha_fin` | 400. |
 | Recordatorio negativo | 400. |
 | Crear evento asociado a tarea | Se relaciona correctamente. |
+| Tarea con `fecha_entrega` | Genera o sincroniza un evento tipo `entrega` (idempotente). |
+| Actualizar solo `fecha_inicio` a un valor posterior a `fecha_fin` | 400 al combinar con la fecha almacenada. |
+| `GET /api/calendario/proximos` | No se interpreta como `/:id` y devuelve el rango. |
 
 ### 4.6. Dashboard (HU06)
 

@@ -1,0 +1,186 @@
+<div class="calendario-form-page py-4 py-lg-5">
+  <div class="container">
+    <nav aria-label="Navegación de migas" class="mb-3">
+      <ol class="breadcrumb mb-0">
+        <li class="breadcrumb-item"><a routerLink="/calendario">Calendario</a></li>
+        <li class="breadcrumb-item active" aria-current="page">
+          {{ esEdicion() ? 'Editar evento' : 'Nuevo evento' }}
+        </li>
+      </ol>
+    </nav>
+
+    <div class="row justify-content-center">
+      <div class="col-12 col-lg-8 col-xl-7">
+        <div class="card">
+          <div class="card-body p-4">
+            <header class="mb-4">
+              <h1 class="h3 fw-bold mb-1">
+                {{ esEdicion() ? 'Editar evento' : 'Nuevo evento' }}
+              </h1>
+              <p class="text-muted mb-0">
+                Registra exámenes, entregas, clases o actividades personales en tu calendario.
+              </p>
+            </header>
+
+            @if (error()) {
+              <div class="alert alert-danger" role="alert">{{ error() }}</div>
+            }
+
+            @if (cargandoEvento()) {
+              <div class="text-center py-5" role="status" aria-live="polite">
+                <span class="spinner-border text-primary" aria-hidden="true"></span>
+                <p class="mt-2 text-muted mb-0">Cargando evento...</p>
+              </div>
+            } @else {
+              <form [formGroup]="form" (ngSubmit)="guardar()" novalidate>
+                <div class="mb-3">
+                  <label for="titulo" class="form-label">Título <span class="text-danger">*</span></label>
+                  <input
+                    id="titulo"
+                    type="text"
+                    class="form-control"
+                    formControlName="titulo"
+                    maxlength="200"
+                    [class.is-invalid]="tituloControl.invalid && tituloControl.touched"
+                    aria-describedby="titulo-ayuda titulo-error"
+                  />
+                  <div id="titulo-ayuda" class="form-text">Entre 3 y 200 caracteres.</div>
+                  @if (tituloControl.invalid && tituloControl.touched) {
+                    <div id="titulo-error" class="invalid-feedback d-block" role="alert">
+                      El título es obligatorio y debe tener entre 3 y 200 caracteres.
+                    </div>
+                  }
+                </div>
+
+                <div class="row g-3 mb-3">
+                  <div class="col-12 col-md-6">
+                    <label for="tipo-evento" class="form-label">Tipo de evento <span class="text-danger">*</span></label>
+                    <select id="tipo-evento" class="form-select" formControlName="tipo_evento">
+                      @for (tipo of tiposEvento; track tipo.valor) {
+                        <option [value]="tipo.valor">{{ tipo.etiqueta }}</option>
+                      }
+                    </select>
+                  </div>
+
+                  <div class="col-12 col-md-6">
+                    <label for="recordatorio" class="form-label">Recordatorio</label>
+                    <select id="recordatorio" class="form-select" formControlName="recordatorio">
+                      @for (opcion of opcionesRecordatorio; track opcion.valor) {
+                        <option [value]="opcion.valor">{{ opcion.etiqueta }}</option>
+                      }
+                    </select>
+                  </div>
+                </div>
+
+                <div class="row g-3 mb-3">
+                  <div class="col-12 col-md-6">
+                    <label for="fecha-inicio" class="form-label">
+                      Fecha y hora de inicio <span class="text-danger">*</span>
+                    </label>
+                    <input
+                      id="fecha-inicio"
+                      type="datetime-local"
+                      class="form-control"
+                      formControlName="fecha_inicio"
+                      [class.is-invalid]="fechaInicioControl.invalid && fechaInicioControl.touched"
+                    />
+                    @if (fechaInicioControl.invalid && fechaInicioControl.touched) {
+                      <div class="invalid-feedback d-block" role="alert">
+                        La fecha de inicio es obligatoria.
+                      </div>
+                    }
+                  </div>
+
+                  <div class="col-12 col-md-6">
+                    <label for="fecha-fin" class="form-label">Fecha y hora de fin</label>
+                    <input
+                      id="fecha-fin"
+                      type="datetime-local"
+                      class="form-control"
+                      formControlName="fecha_fin"
+                      [class.is-invalid]="
+                        form.hasError('rangoInvalido') && fechaFinControl.touched
+                      "
+                    />
+                    @if (form.hasError('rangoInvalido') && fechaFinControl.touched) {
+                      <div class="invalid-feedback d-block" role="alert">
+                        La fecha de fin no puede ser anterior a la fecha de inicio.
+                      </div>
+                    }
+                  </div>
+                </div>
+
+                <div class="row g-3 mb-3">
+                  <div class="col-12 col-md-6">
+                    <label for="materia" class="form-label">Materia</label>
+                    <select id="materia" class="form-select" formControlName="materia_id">
+                      <option value="">Sin materia</option>
+                      @for (materia of materias(); track materia.id) {
+                        <option [value]="materia.id">
+                          {{ materia.nombre }} ({{ materia.codigo }})
+                        </option>
+                      }
+                    </select>
+                  </div>
+
+                  <div class="col-12 col-md-6">
+                    <label for="tarea" class="form-label">Tarea relacionada</label>
+                    <select id="tarea" class="form-select" formControlName="tarea_id">
+                      <option value="">Sin tarea</option>
+                      @for (tarea of tareas(); track tarea.id) {
+                        <option [value]="tarea.id">{{ tarea.titulo }}</option>
+                      }
+                    </select>
+                    <div class="form-text">Opcional. Permite vincular el evento con una tarea.</div>
+                  </div>
+                </div>
+
+                <div class="mb-4">
+                  <label for="descripcion" class="form-label">Descripción</label>
+                  <textarea
+                    id="descripcion"
+                    class="form-control"
+                    rows="4"
+                    formControlName="descripcion"
+                    [attr.maxlength]="largoMaximoDescripcion"
+                    [class.is-invalid]="descripcionControl.invalid && descripcionControl.touched"
+                    aria-describedby="descripcion-ayuda"
+                  ></textarea>
+                  <div id="descripcion-ayuda" class="form-text">
+                    Máximo {{ largoMaximoDescripcion }} caracteres.
+                  </div>
+                </div>
+
+                <div class="d-flex flex-wrap justify-content-between gap-2">
+                  <div class="d-flex flex-wrap gap-2">
+                    <button type="submit" class="btn btn-primary" [disabled]="guardando()">
+                      @if (guardando()) {
+                        <span class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span>
+                      }
+                      {{ esEdicion() ? 'Guardar cambios' : 'Crear evento' }}
+                    </button>
+                    <a class="btn btn-outline-secondary" routerLink="/calendario">Cancelar</a>
+                  </div>
+
+                  @if (esEdicion()) {
+                    <button
+                      type="button"
+                      class="btn btn-outline-danger"
+                      [disabled]="eliminando() || guardando()"
+                      (click)="eliminar()"
+                    >
+                      @if (eliminando()) {
+                        <span class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span>
+                      }
+                      Eliminar evento
+                    </button>
+                  }
+                </div>
+              </form>
+            }
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

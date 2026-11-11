@@ -1,0 +1,222 @@
+<div class="calendario-page py-4 py-lg-5">
+  <div class="container">
+    <header class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
+      <div>
+        <h1 class="h2 fw-bold mb-1">Calendario académico</h1>
+        <p class="text-muted mb-0">
+          Visualiza tus clases, entregas, exámenes y eventos personales en un solo lugar.
+        </p>
+      </div>
+
+      <button type="button" class="btn btn-primary" (click)="irANuevoEvento()">
+        <i class="bi bi-plus-lg me-1" aria-hidden="true"></i>
+        Nuevo evento
+      </button>
+    </header>
+
+    <section class="card mb-4" aria-label="Filtros del calendario">
+      <div class="card-body">
+        <div class="row g-3 align-items-end">
+          <div class="col-12 col-md-4">
+            <label for="filtro-tipo" class="form-label small fw-semibold">Tipo de evento</label>
+            <select
+              id="filtro-tipo"
+              class="form-select"
+              [value]="filtroTipo()"
+              (change)="alCambiarTipo($event)"
+            >
+              <option value="">Todos los tipos</option>
+              @for (tipo of tiposEvento; track tipo.valor) {
+                <option [value]="tipo.valor">{{ tipo.etiqueta }}</option>
+              }
+            </select>
+          </div>
+
+          <div class="col-12 col-md-4">
+            <label for="filtro-materia" class="form-label small fw-semibold">Materia</label>
+            <select
+              id="filtro-materia"
+              class="form-select"
+              [value]="filtroMateria()"
+              (change)="alCambiarMateria($event)"
+            >
+              <option value="">Todas las materias</option>
+              @for (materia of materias(); track materia.id) {
+                <option [value]="materia.id">{{ materia.nombre }} ({{ materia.codigo }})</option>
+              }
+            </select>
+          </div>
+
+          <div class="col-12 col-md-4 d-flex gap-2">
+            <button type="button" class="btn btn-primary flex-grow-1" (click)="aplicarFiltros()">
+              <i class="bi bi-funnel me-1" aria-hidden="true"></i>
+              Aplicar filtros
+              @if (filtrosActivos()) {
+                <span class="badge text-bg-light ms-1">{{ totalFiltrosActivos() }}</span>
+              }
+            </button>
+            @if (filtrosActivos()) {
+              <button type="button" class="btn btn-outline-secondary" (click)="limpiarFiltros()">
+                Limpiar
+              </button>
+            }
+          </div>
+        </div>
+      </div>
+    </section>
+
+    @if (error()) {
+      <div class="alert alert-danger d-flex flex-wrap align-items-center gap-2" role="alert">
+        <i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i>
+        <span class="flex-grow-1">{{ error() }}</span>
+        <button type="button" class="btn btn-sm btn-outline-danger" (click)="aplicarFiltros()">
+          Reintentar
+        </button>
+      </div>
+    }
+
+    <div class="row g-4">
+      <div class="col-12 col-xl-8">
+        <section class="card calendario-card" aria-label="Calendario de eventos">
+          <div class="card-body">
+            @if (cargando()) {
+              <p class="text-muted small mb-2" role="status" aria-live="polite">
+                <span class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span>
+                Cargando eventos...
+              </p>
+            }
+
+            <full-calendar [options]="calendarOptions" [events]="eventosFullCalendar()" />
+
+            @if (!cargando() && !error() && eventos().length === 0) {
+              <p class="text-muted text-center mt-3 mb-0" role="status">
+                No hay eventos en este período. Puedes crear uno nuevo o cambiar los filtros.
+              </p>
+            }
+          </div>
+        </section>
+
+        <section class="mt-3" aria-label="Leyenda de tipos de evento">
+          <div class="d-flex flex-wrap gap-3 small">
+            @for (tipo of tiposEvento; track tipo.valor) {
+              <span class="d-inline-flex align-items-center gap-1">
+                <span
+                  class="leyenda-punto"
+                  [style.background-color]="tipo.color"
+                  aria-hidden="true"
+                ></span>
+                {{ tipo.etiqueta }}
+              </span>
+            }
+          </div>
+        </section>
+      </div>
+
+      <div class="col-12 col-xl-4">
+        @if (eventoSeleccionado(); as evento) {
+          <section class="card mb-4" aria-label="Detalle del evento">
+            <div class="card-header d-flex justify-content-between align-items-center">
+              <h2 class="h6 mb-0">Detalle del evento</h2>
+              <button
+                type="button"
+                class="btn btn-sm btn-outline-secondary"
+                aria-label="Cerrar detalle"
+                (click)="cerrarDetalle()"
+              >
+                <i class="bi bi-x-lg" aria-hidden="true"></i>
+              </button>
+            </div>
+            <div class="card-body">
+              <span [class]="obtenerTipoBadgeClase(evento.tipo_evento)">
+                {{ obtenerTipoTexto(evento.tipo_evento) }}
+              </span>
+              <h3 class="h5">{{ evento.titulo }}</h3>
+
+              <dl class="row small mb-3">
+                <dt class="col-5">Inicio</dt>
+                <dd class="col-7">{{ formatearFechaHora(evento.fecha_inicio) }}</dd>
+
+                <dt class="col-5">Fin</dt>
+                <dd class="col-7">{{ formatearFechaHora(evento.fecha_fin) }}</dd>
+
+                @if (obtenerMateria(evento); as materia) {
+                  <dt class="col-5">Materia</dt>
+                  <dd class="col-7">{{ materia.nombre }} ({{ materia.codigo }})</dd>
+                }
+
+                <dt class="col-5">Recordatorio</dt>
+                <dd class="col-7">
+                  {{ evento.recordatorio ? evento.recordatorio + ' min antes' : 'Sin recordatorio' }}
+                </dd>
+              </dl>
+
+              @if (evento.descripcion) {
+                <p class="mb-3">{{ evento.descripcion }}</p>
+              }
+
+              <div class="d-flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  class="btn btn-sm btn-primary"
+                  (click)="editarEvento(evento)"
+                >
+                  <i class="bi bi-pencil me-1" aria-hidden="true"></i>
+                  Editar
+                </button>
+                <button
+                  type="button"
+                  class="btn btn-sm btn-outline-danger"
+                  [disabled]="eliminando()"
+                  (click)="eliminarEvento(evento)"
+                >
+                  <i class="bi bi-trash me-1" aria-hidden="true"></i>
+                  Eliminar
+                </button>
+              </div>
+            </div>
+          </section>
+        }
+
+        <section class="card" aria-label="Próximas actividades">
+          <div class="card-header">
+            <h2 class="h6 mb-0">Próximos {{ diasProximos }} días</h2>
+          </div>
+
+          @if (cargandoProximos()) {
+            <div class="card-body text-muted small" role="status" aria-live="polite">
+              <span class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span>
+              Cargando próximas actividades...
+            </div>
+          } @else if (errorProximos()) {
+            <div class="card-body">
+              <p class="text-danger small mb-2" role="alert">{{ errorProximos() }}</p>
+              <button type="button" class="btn btn-sm btn-outline-secondary" (click)="cargarProximos()">
+                Reintentar
+              </button>
+            </div>
+          } @else if (proximos().length === 0) {
+            <div class="card-body text-muted small" role="status">
+              No tienes actividades próximas.
+            </div>
+          } @else {
+            <ul class="list-group list-group-flush">
+              @for (evento of proximos(); track evento.id) {
+                <li class="list-group-item">
+                  <div class="d-flex justify-content-between align-items-start gap-2">
+                    <div>
+                      <div class="fw-semibold">{{ evento.titulo }}</div>
+                      <div class="small text-muted">{{ formatearFechaHora(evento.fecha_inicio) }}</div>
+                    </div>
+                    <span [class]="obtenerTipoBadgeClase(evento.tipo_evento)">
+                      {{ obtenerTipoTexto(evento.tipo_evento) }}
+                    </span>
+                  </div>
+                </li>
+              }
+            </ul>
+          }
+        </section>
+      </div>
+    </div>
+  </div>
+</div>

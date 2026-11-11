@@ -4,6 +4,7 @@
  * No conoce req ni res: recibe datos ya validados por la capa HTTP.
  */
 const ApiError = require('../utils/ApiError');
+const config = require('../config/environment');
 const {
   tareaCrearSchema,
   tareaActualizarSchema,
@@ -20,12 +21,14 @@ class TareaService {
    * @param {{
    *   tareaRepository: import('../repositories/tarea.repository'),
    *   materiaRepository: import('../repositories/materia.repository'),
+   *   calendarioService: import('../services/calendario.service') | null,
    *   usuarioActualId: string
    * }} dependencies
    */
-  constructor({ tareaRepository, materiaRepository, usuarioActualId }) {
+  constructor({ tareaRepository, materiaRepository, calendarioService = null, usuarioActualId }) {
     this.tareaRepository = tareaRepository;
     this.materiaRepository = materiaRepository;
+    this.calendarioService = calendarioService;
     this.usuarioActualId = usuarioActualId;
   }
 
@@ -112,11 +115,18 @@ class TareaService {
 
     this.validarRangoFechas(fechaAsignacion, fechaEntrega);
 
-    return this.tareaRepository.crearTarea(this.usuarioActualId, {
+    const tarea = await this.tareaRepository.crearTarea(this.usuarioActualId, {
       ...datosValidados,
       fecha_asignacion: fechaAsignacion,
       fecha_entrega: fechaEntrega,
     });
+
+    // Crear evento de calendario automáticamente si la tarea tiene fecha_entrega
+    if (fechaEntrega) {
+      await this.crearEventoCalendario(tarea.id);
+    }
+
+    return tarea;
   }
 
   /**
@@ -152,6 +162,10 @@ class TareaService {
     if (!tarea) {
       throw ApiError.notFound('Tarea no encontrada.');
     }
+
+    // Sincroniza el evento de calendario. Si la tarea perdió su fecha_entrega,
+    // la función RPC elimina el evento automático asociado.
+    await this.crearEventoCalendario(tareaId);
 
     return tarea;
   }
@@ -244,6 +258,29 @@ class TareaService {
     }
 
     return valor instanceof Date ? valor : new Date(valor);
+  }
+
+  /**
+   * Sincroniza el evento de calendario asociado a la tarea.
+   * Es una operación secundaria: si falla, la tarea ya quedó guardada y no
+   * se revierte. El error solo se registra fuera de producción.
+   *
+   * @param {string} tareaId UUID de la tarea.
+   * @returns {Promise<void>}
+   */
+  async crearEventoCalendario(tareaId) {
+    if (!this.calendarioService) {
+      return;
+    }
+
+    try {
+      await this.calendarioService.crearEventoDesdeTarea(tareaId);
+    } catch (error) {
+      if (!config.isProd) {
+        // eslint-disable-next-line no-console
+        console.warn('No se pudo sincronizar el evento de calendario:', error.message);
+      }
+    }
   }
 
   /**

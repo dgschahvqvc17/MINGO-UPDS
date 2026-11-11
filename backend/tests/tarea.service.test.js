@@ -162,6 +162,74 @@ describe('TareaService', () => {
     });
   });
 
+  describe('sincronización con el calendario', () => {
+    let calendarioService;
+    let servicioConCalendario;
+
+    beforeEach(() => {
+      calendarioService = { crearEventoDesdeTarea: j.fn().mockResolvedValue(TAREA_ID) };
+      servicioConCalendario = new TareaService({
+        tareaRepository,
+        materiaRepository,
+        calendarioService,
+        usuarioActualId: USUARIO_ID,
+      });
+    });
+
+    it('crea el evento cuando la tarea se crea con fecha de entrega', async () => {
+      materiaRepository.existeMateria.mockResolvedValue(true);
+      tareaRepository.crearTarea.mockResolvedValue({ id: TAREA_ID });
+
+      await servicioConCalendario.crearTarea({
+        materia_id: MATERIA_ID,
+        titulo: 'Parcial de cálculo',
+        fecha_entrega: '2026-11-20T23:59:00.000Z',
+      });
+
+      expect(calendarioService.crearEventoDesdeTarea).toHaveBeenCalledWith(TAREA_ID);
+    });
+
+    it('no llama al calendario cuando la tarea se crea sin fecha de entrega', async () => {
+      materiaRepository.existeMateria.mockResolvedValue(true);
+      tareaRepository.crearTarea.mockResolvedValue({ id: TAREA_ID });
+
+      await servicioConCalendario.crearTarea({
+        materia_id: MATERIA_ID,
+        titulo: 'Parcial de cálculo',
+      });
+
+      expect(calendarioService.crearEventoDesdeTarea).not.toHaveBeenCalled();
+    });
+
+    it('sincroniza al actualizar aunque la fecha de entrega se elimine', async () => {
+      tareaRepository.obtenerTareaPorId.mockResolvedValue({
+        id: TAREA_ID,
+        materia_id: MATERIA_ID,
+        fecha_asignacion: '2026-11-10T10:00:00.000Z',
+        fecha_entrega: '2026-11-12T10:00:00.000Z',
+      });
+      tareaRepository.actualizarTarea.mockResolvedValue({ id: TAREA_ID });
+
+      await servicioConCalendario.actualizarTarea(TAREA_ID, { fecha_entrega: null });
+
+      expect(calendarioService.crearEventoDesdeTarea).toHaveBeenCalledWith(TAREA_ID);
+    });
+
+    it('devuelve la tarea aunque falle la sincronización con el calendario', async () => {
+      materiaRepository.existeMateria.mockResolvedValue(true);
+      tareaRepository.crearTarea.mockResolvedValue({ id: TAREA_ID });
+      calendarioService.crearEventoDesdeTarea.mockRejectedValue(new Error('RPC no disponible'));
+
+      const tarea = await servicioConCalendario.crearTarea({
+        materia_id: MATERIA_ID,
+        titulo: 'Parcial de cálculo',
+        fecha_entrega: '2026-11-20T23:59:00.000Z',
+      });
+
+      expect(tarea.id).toBe(TAREA_ID);
+    });
+  });
+
   describe('cambiarEstadoTarea', () => {
     it('lanza 404 cuando el repositorio no encuentra la tarea', async () => {
       tareaRepository.cambiarEstadoTarea.mockResolvedValue(null);
