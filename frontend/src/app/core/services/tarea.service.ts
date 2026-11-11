@@ -129,15 +129,15 @@ const ETIQUETAS_PRIORIDAD: Record<PrioridadTarea, string> = {
 };
 
 const CLASES_ESTADO: Record<EstadoTarea, string> = {
-  pendiente: 'badge bg-warning-subtle text-warning-emphasis',
-  en_progreso: 'badge bg-info-subtle text-info-emphasis',
-  completada: 'badge bg-success-subtle text-success-emphasis',
+  pendiente: 'mat-badge mat-badge--warning',
+  en_progreso: 'mat-badge mat-badge--info',
+  completada: 'mat-badge mat-badge--success',
 };
 
 const CLASES_PRIORIDAD: Record<PrioridadTarea, string> = {
-  baja: 'badge bg-secondary-subtle text-secondary-emphasis',
-  media: 'badge bg-primary-subtle text-primary-emphasis',
-  alta: 'badge bg-danger-subtle text-danger-emphasis',
+  baja: 'mat-badge mat-badge--muted',
+  media: 'mat-badge mat-badge--primary',
+  alta: 'mat-badge mat-badge--danger',
 };
 
 @Injectable({ providedIn: 'root' })

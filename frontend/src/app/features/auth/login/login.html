@@ -44,10 +44,6 @@
         </li>
       </ul>
 
-      <div class="login-status">
-        <span class="status-dot"></span>
-        Acceso seguro con Supabase Auth - UPDS (Universidad Privada Domingo Savio)
-      </div>
     </section>
 
     <section class="app-card login-card" aria-labelledby="login-title">
@@ -67,8 +63,8 @@
         </div>
 
         @if (!isConfigured) {
-          <div class="alert alert-warning small d-flex gap-2" role="alert">
-            <i class="bi bi-exclamation-triangle-fill mt-1" aria-hidden="true"></i>
+          <div class="alert alert-warning small d-flex align-items-center gap-2" role="alert">
+            <i class="bi bi-exclamation-triangle-fill flex-shrink-0" aria-hidden="true"></i>
             <span>
               Supabase no esta configurado. Agrega <code>SUPABASE_URL</code> y
               <code>SUPABASE_ANON_KEY</code> en <code>frontend/.env</code> y ejecuta
@@ -78,8 +74,8 @@
         }
 
         @if (errorMessage()) {
-          <div class="alert alert-danger small d-flex gap-2" role="alert">
-            <i class="bi bi-shield-exclamation mt-1" aria-hidden="true"></i>
+          <div class="alert alert-danger small d-flex align-items-center gap-2" role="alert">
+            <i class="bi bi-shield-exclamation flex-shrink-0" aria-hidden="true"></i>
             <span>{{ errorMessage() }}</span>
           </div>
         }
@@ -87,15 +83,15 @@
         <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
           <div class="mb-3">
             <label class="form-label" for="email">Correo electronico</label>
-            <div class="input-with-icon">
-              <i class="bi bi-envelope" aria-hidden="true"></i>
+            <div class="input-wrap">
+              <i class="bi bi-envelope input-wrap-icon" aria-hidden="true"></i>
               <input
                 id="email"
                 type="email"
-                class="form-control"
+                class="form-control input-wrap-field"
                 formControlName="email"
                 autocomplete="email"
-                placeholder="estudiante@upds.edu.co"
+                placeholder="estudiante@mingoacademico.com"
                 [class.is-invalid]="form.controls.email.touched && form.controls.email.invalid"
                 aria-describedby="email-error"
               />
@@ -113,12 +109,12 @@
 
           <div class="mb-4">
             <label class="form-label" for="password">Contrasena</label>
-            <div class="input-with-icon position-relative">
-              <i class="bi bi-lock" aria-hidden="true"></i>
+            <div class="input-wrap">
+              <i class="bi bi-lock input-wrap-icon" aria-hidden="true"></i>
               <input
                 id="password"
                 type="{{ passwordType }}"
-                class="form-control"
+                class="form-control input-wrap-field"
                 formControlName="password"
                 autocomplete="current-password"
                 placeholder="********"
@@ -129,7 +125,7 @@
               />
               <button
                 type="button"
-                class="btn btn-outline-secondary btn-sm position-absolute top-0 right-0"
+                class="input-wrap-toggle"
                 (click)="togglePasswordVisibility()"
                 [attr.aria-label]="passwordType === 'password' ? 'Mostrar contrasena' : 'Ocultar contrasena'"
               >

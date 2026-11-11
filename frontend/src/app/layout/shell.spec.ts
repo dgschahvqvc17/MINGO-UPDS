@@ -58,4 +58,14 @@ describe('ShellComponent', () => {
 
     expect(shell.initials()).toBe('MI');
   });
+
+  it('alterna la barra lateral entre contraida y expandida', () => {
+    const shell = createShell('estudiante');
+
+    expect(shell.collapsed()).toBe(false);
+    shell.toggleCollapsed();
+    expect(shell.collapsed()).toBe(true);
+    shell.toggleCollapsed();
+    expect(shell.collapsed()).toBe(false);
+  });
 });

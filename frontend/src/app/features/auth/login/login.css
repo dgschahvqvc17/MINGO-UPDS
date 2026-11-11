@@ -11,8 +11,6 @@
     radial-gradient(800px 520px at 92% 12%, rgba(56, 189, 248, 0.12), transparent 50%),
     radial-gradient(600px 400px at 30% 80%, rgba(16, 185, 129, 0.08), transparent 40%),
     var(--mingo-bg);
-  background-color: var(--mingo-bg);
-  background-image: var(--mingo-bg-gradient);
 }
 
 .login-page::before {
@@ -25,16 +23,6 @@
   background-size: 48px 48px;
   mask-image: radial-gradient(circle at 50% 40%, black, transparent 75%);
   -webkit-mask-image: radial-gradient(circle at 50% 40%, black, transparent 75%);
-  pointer-events: none;
-}
-
-.login-page::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background:
-    radial-gradient(800px circle at 20% 30%, rgba(56, 189, 248, 0.08), transparent 70%),
-    radial-gradient(600px circle at 80% 60%, rgba(37, 99, 235, 0.05), transparent 60%);
   pointer-events: none;
 }
 
@@ -174,27 +162,6 @@
   line-height: 1.5;
 }
 
-.login-status {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 0.75rem;
-  border-radius: var(--mingo-radius-full);
-  background: var(--mingo-success-soft);
-  border: 1px solid rgba(16, 185, 129, 0.3);
-  color: var(--mingo-success);
-  font-size: 0.75rem;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-
-.login-status .status-dot {
-  width: 8px;
-  height: 8px;
-  animation: pulse-active 1.5s infinite;
-}
-
 .login-card {
   width: 100%;
   max-width: 480px;
@@ -248,35 +215,17 @@
   color: var(--mingo-ai);
 }
 
-.form-control {
-  background: rgba(6, 11, 24, 0.5);
-  border: 1px solid var(--mingo-border);
-  border-radius: var(--mingo-radius);
-  color: var(--mingo-text);
-  padding: 0.75rem 1rem;
-  transition: all var(--mingo-transition-fast);
-}
+/* --------------------------------------------------------------------------
+   Campo con icono y alternador de visibilidad de contraseña
+   -------------------------------------------------------------------------- */
 
-.form-control:focus {
-  background: rgba(6, 11, 24, 0.7);
-  border-color: var(--mingo-primary);
-  box-shadow: 0 0 0 0.25rem rgba(37, 99, 235, 0.25);
-  color: var(--mingo-text);
-}
-
-.form-control.is-invalid {
-  border-color: var(--mingo-danger);
-}
-
-.form-control.is-invalid:focus {
-  box-shadow: 0 0 0 0.25rem rgba(248, 113, 113, 0.25);
-}
-
-.input-with-icon {
+.input-wrap {
   position: relative;
+  display: flex;
+  align-items: center;
 }
 
-.input-with-icon > i {
+.input-wrap-icon {
   position: absolute;
   top: 50%;
   left: 1rem;
@@ -284,32 +233,41 @@
   color: var(--mingo-text-muted);
   font-size: 1rem;
   pointer-events: none;
+  z-index: 2;
 }
 
-.input-with-icon .form-control {
+.input-wrap-field {
   padding-left: 2.75rem;
   padding-right: 2.75rem;
 }
 
-.input-with-icon .btn-outline-secondary {
+.input-wrap-toggle {
   position: absolute;
   top: 50%;
-  right: 0.25rem;
+  right: 0.5rem;
   transform: translateY(-50%);
+  width: 2rem;
+  height: 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
   background: transparent;
   border: none;
-  color: var(--mingo-text-muted);
-  padding: 0.25rem 0.5rem;
   border-radius: var(--mingo-radius);
-  line-height: 1;
+  color: var(--mingo-text-muted);
+  cursor: pointer;
+  transition: color 0.15s ease, background-color 0.15s ease;
 }
 
-.input-with-icon .btn-outline-secondary:hover {
+.input-wrap-toggle:hover,
+.input-wrap-toggle:focus-visible {
   color: var(--mingo-text);
   background: rgba(255, 255, 255, 0.08);
+  outline: none;
 }
 
-.input-with-icon .btn-outline-secondary i {
+.input-wrap-toggle i {
   font-size: 1.1rem;
 }
 
@@ -334,21 +292,7 @@
 }
 
 .alert {
-  border-radius: var(--mingo-radius);
-  border-width: 1px;
   padding: 0.75rem 1rem;
-}
-
-.alert-danger {
-  background: var(--mingo-danger-soft);
-  border-color: rgba(248, 113, 113, 0.35);
-  color: #fecaca;
-}
-
-.alert-warning {
-  background: rgba(251, 191, 36, 0.1);
-  border-color: rgba(251, 191, 36, 0.35);
-  color: #fde68a;
 }
 
 .alert i {
@@ -359,16 +303,6 @@
   width: 1rem;
   height: 1rem;
   border-width: 0.15em;
-}
-
-@keyframes pulse-active {
-  0%,
-  100% {
-    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.5);
-  }
-  50% {
-    box-shadow: 0 0 0 6px rgba(16, 185, 129, 0);
-  }
 }
 
 @media (max-width: 991.98px) {

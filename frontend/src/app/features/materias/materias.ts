@@ -1,14 +1,12 @@
 ﻿import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { MateriaService, type Materia, type MateriaEstadisticas } from '../../core/services/materia.service';
 import { AuthService } from '../../core/services/auth.service';
-import { CardComponent } from '../../shared/components/card/card.component';
 
 @Component({
   selector: 'app-materias',
-  imports: [CommonModule, FormsModule, CardComponent, RouterLink],
+  imports: [FormsModule, RouterLink],
   templateUrl: './materias.html',
   styleUrl: './materias.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -221,14 +219,6 @@ export class MateriasPage {
 
   obtenerEstadoTexto(estado: 'activo' | 'archivado'): string {
     return this.materiaService.obtenerEstadoTexto(estado);
-  }
-
-  obtenerEstadoBadgeClase(estado: 'activo' | 'archivado'): string {
-    return this.materiaService.obtenerEstadoBadgeClase(estado);
-  }
-
-  obtenerPeriodoBadgeClase(periodo: string): string {
-    return this.materiaService.obtenerPeriodoBadgeClase(periodo);
   }
 
   obtenerDescripcionPeriodo(periodo: string): string {

@@ -19,7 +19,7 @@ export const routes: Routes = [
   {
     path: '',
     canActivate: [authGuard],
-    loadComponent: () => import('./layout/app-shell.component').then((m) => m.AppShellComponent),
+    loadComponent: () => import('./layout/shell').then((m) => m.ShellComponent),
     children: [
       // Redirección según rol del usuario
       {
