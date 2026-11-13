@@ -1,0 +1,205 @@
+<div class="detalle-page">
+  <nav class="detalle-breadcrumb" aria-label="Ruta de navegación">
+    <a routerLink="/biblioteca" class="detalle-back">
+      <i class="bi bi-arrow-left" aria-hidden="true"></i>
+      Volver a la biblioteca
+    </a>
+  </nav>
+
+  @if (loading()) {
+    <div class="detalle-state" role="status" aria-live="polite">
+      <span class="spinner-border" aria-hidden="true"></span>
+      <p>Cargando el documento...</p>
+    </div>
+  }
+
+  @if (!loading() && error()) {
+    <div class="alert alert-danger d-flex flex-wrap align-items-center gap-2" role="alert">
+      <i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i>
+      <span class="flex-grow-1">{{ error() }}</span>
+      <button type="button" class="btn btn-sm btn-outline-danger" (click)="cargar()">
+        Reintentar
+      </button>
+    </div>
+
+    <a class="btn btn-outline-secondary" routerLink="/biblioteca">
+      <i class="bi bi-arrow-left me-1" aria-hidden="true"></i>
+      Volver a la biblioteca
+    </a>
+  }
+
+  @if (documento(); as doc) {
+    <header class="detalle-hero mb-4">
+      <div class="detalle-hero-main">
+        <span class="detalle-icon" aria-hidden="true">
+          <i class="bi bi-file-earmark-text"></i>
+        </span>
+
+        <div class="detalle-heading">
+          <span class="page-eyebrow">Detalle del documento</span>
+          <h1 class="detalle-title" [title]="doc.nombre">{{ doc.nombre }}</h1>
+          <p class="detalle-file mb-0">
+            <span class="detalle-file-name">{{ doc.nombre_archivo }}</span>
+            <span class="detalle-badge {{ estadoClase() }}">
+              <span class="detalle-badge-dot" aria-hidden="true"></span>
+              {{ estadoTexto() }}
+            </span>
+          </p>
+        </div>
+      </div>
+
+      <div class="detalle-actions">
+        <button
+          type="button"
+          class="btn btn-primary"
+          (click)="descargar()"
+          [disabled]="descargando() || eliminando()"
+        >
+          <i class="bi bi-download me-1" aria-hidden="true"></i>
+          {{ descargando() ? 'Generando descarga...' : 'Descargar' }}
+        </button>
+
+        @if (confirmandoEliminar()) {
+          <span class="detalle-confirm" role="group" aria-label="Confirmar eliminación del documento">
+            <span class="detalle-confirm-text">¿Eliminar este documento?</span>
+            <button
+              type="button"
+              class="btn btn-danger"
+              (click)="eliminar()"
+              [disabled]="eliminando()"
+            >
+              {{ eliminando() ? 'Eliminando...' : 'Sí, eliminar' }}
+            </button>
+            <button
+              type="button"
+              class="btn btn-outline-secondary"
+              (click)="cancelarEliminar()"
+              [disabled]="eliminando()"
+            >
+              Cancelar
+            </button>
+          </span>
+        } @else {
+          <button
+            type="button"
+            class="btn btn-outline-danger"
+            (click)="pedirConfirmacion()"
+            [disabled]="descargando() || eliminando()"
+          >
+            <i class="bi bi-trash me-1" aria-hidden="true"></i>
+            Eliminar
+          </button>
+        }
+      </div>
+    </header>
+
+    @if (errorAccion()) {
+      <div class="alert alert-danger d-flex align-items-center gap-2" role="alert">
+        <i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i>
+        <div class="flex-fill">{{ errorAccion() }}</div>
+      </div>
+    }
+
+    @if (doc.estado_procesamiento === 'error') {
+      <div class="alert alert-warning d-flex align-items-start gap-2" role="alert">
+        <i class="bi bi-exclamation-circle-fill" aria-hidden="true"></i>
+        <div>
+          <strong>El procesamiento de este documento falló.</strong>
+          @if (doc.motivo_error) {
+            <p class="mb-0">{{ doc.motivo_error }}</p>
+          } @else {
+            <p class="mb-0">Vuelve a intentarlo más tarde.</p>
+          }
+        </div>
+      </div>
+    }
+
+    <app-card [elevated]="true">
+      <section class="detalle-panel" aria-labelledby="detalle-datos">
+        <h2 id="detalle-datos" class="detalle-panel-title">
+          <i class="bi bi-info-circle" aria-hidden="true"></i>
+          Información del documento
+        </h2>
+
+        <dl class="detalle-grid">
+          <div class="detalle-item">
+            <dt>Nombre</dt>
+            <dd>{{ doc.nombre }}</dd>
+          </div>
+
+          <div class="detalle-item">
+            <dt>Archivo</dt>
+            <dd>{{ doc.nombre_archivo }}</dd>
+          </div>
+
+          <div class="detalle-item">
+            <dt>Formato</dt>
+            <dd>{{ formato() }}</dd>
+          </div>
+
+          <div class="detalle-item">
+            <dt>Tamaño</dt>
+            <dd>{{ tamano() }}</dd>
+          </div>
+
+          <div class="detalle-item">
+            <dt>Materia</dt>
+            <dd>
+              @if (materia(); as materiaDocumento) {
+                <span class="detalle-subject">
+                  <span
+                    class="detalle-subject-dot"
+                    [style.background]="materiaDocumento.color"
+                    aria-hidden="true"
+                  ></span>
+                  {{ materiaDocumento.nombre }}
+                  @if (materiaDocumento.codigo) {
+                    <span class="detalle-subject-code">{{ materiaDocumento.codigo }}</span>
+                  }
+                </span>
+              } @else {
+                Sin materia
+              }
+            </dd>
+          </div>
+
+          <div class="detalle-item">
+            <dt>Estado</dt>
+            <dd>
+              <span class="detalle-badge {{ estadoClase() }}">
+                <span class="detalle-badge-dot" aria-hidden="true"></span>
+                {{ estadoTexto() }}
+              </span>
+            </dd>
+          </div>
+
+          <div class="detalle-item">
+            <dt>Fecha de carga</dt>
+            <dd>{{ doc.fecha_carga | date: 'dd/MM/yyyy, HH:mm' }}</dd>
+          </div>
+
+          <div class="detalle-item">
+            <dt>Última actualización</dt>
+            <dd>
+              @if (doc.fecha_actualizacion) {
+                {{ doc.fecha_actualizacion | date: 'dd/MM/yyyy, HH:mm' }}
+              } @else {
+                Sin cambios
+              }
+            </dd>
+          </div>
+
+          <div class="detalle-item">
+            <dt>Páginas</dt>
+            <dd>{{ doc.numero_paginas ?? 'Sin procesar' }}</dd>
+          </div>
+
+          <div class="detalle-item">
+            <dt>Unidad</dt>
+            <dd>{{ doc.unidad_id ? 'Unidad asignada' : 'Sin unidad' }}</dd>
+          </div>
+        </dl>
+      </section>
+    </app-card>
+  }
+</div>

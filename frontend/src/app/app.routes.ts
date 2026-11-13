@@ -122,6 +122,14 @@ export const routes: Routes = [
         loadComponent: () =>
           import('./features/biblioteca/biblioteca').then((m) => m.BibliotecaPage),
       },
+      {
+        path: 'biblioteca/:id',
+        title: 'Detalle del documento | MINGO',
+        loadComponent: () =>
+          import('./features/biblioteca/documento-detalle/documento-detalle').then(
+            (m) => m.DocumentoDetallePage,
+          ),
+      },
 
       {
         path: 'centro-estudio',

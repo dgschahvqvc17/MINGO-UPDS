@@ -7,12 +7,13 @@ const {
   documentoUrlCargaSchema,
   documentoRegistroSchema,
   documentoFiltrosSchema,
+  documentoIdParamSchema,
 } = require('../models/documento.model');
 
 const router = Router();
 
 /**
- * Rutas de documentos academicos (HU07).
+ * Rutas de documentos academicos (HU07 y HU08).
  * Todas requieren autenticacion y RLS: cada usuario accede solo a sus documentos.
  */
 router.use(authMiddleware);
@@ -60,5 +61,35 @@ router.post(
  * Registra los metadatos despues de subir el archivo.
  */
 router.post('/', validationMiddleware({ body: documentoRegistroSchema }), atender('registrarDocumento'));
+
+/**
+ * GET /documentos/:id/descarga
+ * Firma una URL de descarga directa desde S3.
+ */
+router.get(
+  '/:id/descarga',
+  validationMiddleware({ params: documentoIdParamSchema }),
+  atender('obtenerUrlDescarga'),
+);
+
+/**
+ * GET /documentos/:id
+ * Devuelve el detalle de un documento propio.
+ */
+router.get(
+  '/:id',
+  validationMiddleware({ params: documentoIdParamSchema }),
+  atender('obtenerDocumento'),
+);
+
+/**
+ * DELETE /documentos/:id
+ * Elimina el objeto de S3 y los metadatos del documento.
+ */
+router.delete(
+  '/:id',
+  validationMiddleware({ params: documentoIdParamSchema }),
+  atender('eliminarDocumento'),
+);
 
 module.exports = router;

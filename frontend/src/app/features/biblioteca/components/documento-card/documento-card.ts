@@ -1,10 +1,10 @@
-import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, input, output, signal } from '@angular/core';
+import { RouterLink } from '@angular/router';
 import { CardComponent } from '../../../../shared/components/card/card.component';
 import {
   DocumentoService,
   type Documento,
   type DocumentoMateriaResumen,
-  type EstadoDocumento,
 } from '../../../../core/services/documento.service';
 
 const ICONOS_POR_EXTENSION: Record<string, string> = {
@@ -18,7 +18,7 @@ const ICONOS_POR_EXTENSION: Record<string, string> = {
 
 @Component({
   selector: 'app-documento-card',
-  imports: [CardComponent],
+  imports: [CardComponent, RouterLink],
   templateUrl: './documento-card.html',
   styleUrl: './documento-card.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -27,6 +27,13 @@ export class DocumentoCardComponent {
   private readonly documentoService = inject(DocumentoService);
 
   readonly documento = input.required<Documento>();
+  readonly descargando = input(false);
+  readonly eliminando = input(false);
+
+  readonly descargar = output<Documento>();
+  readonly eliminar = output<Documento>();
+
+  readonly confirmandoEliminar = signal(false);
 
   readonly materia = computed<DocumentoMateriaResumen | null>(() => {
     const materias = this.documento().materias;
@@ -48,16 +55,15 @@ export class DocumentoCardComponent {
     return this.documentoService.estadoTexto(this.documento().estado_procesamiento);
   }
 
-  estadoClase(estado: EstadoDocumento = this.documento().estado_procesamiento): string {
-    const clases: Record<EstadoDocumento, string> = {
-      pendiente: 'doc-badge--muted',
-      en_cola: 'doc-badge--info',
-      procesando: 'doc-badge--info',
-      procesado: 'doc-badge--success',
-      error: 'doc-badge--danger',
-    };
+  estadoClase(): string {
+    return this.documentoService.estadoClase(this.documento().estado_procesamiento);
+  }
 
-    return clases[estado];
+  formatoTexto(): string {
+    return this.documentoService.formatoTexto(
+      this.documento().tipo_archivo,
+      this.documento().nombre_archivo,
+    );
   }
 
   tamanoTexto(): string {
@@ -70,5 +76,18 @@ export class DocumentoCardComponent {
       month: 'short',
       year: 'numeric',
     });
+  }
+
+  pedirConfirmacion(): void {
+    this.confirmandoEliminar.set(true);
+  }
+
+  cancelarEliminar(): void {
+    this.confirmandoEliminar.set(false);
+  }
+
+  confirmarEliminar(): void {
+    this.confirmandoEliminar.set(false);
+    this.eliminar.emit(this.documento());
   }
 }

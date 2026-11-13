@@ -2,9 +2,9 @@ const { z } = require('zod');
 const config = require('../config/environment');
 
 /**
- * Esquemas Zod para HU07: cargar documentos academicos.
- * Valida forma, formato y tamano; la propiedad de la materia y de la clave
- * del objeto se verifican en el servicio.
+ * Esquemas Zod para HU07 y HU08: cargar y administrar documentos academicos.
+ * Valida forma, formato y tamano; la propiedad de la materia, del documento
+ * y de la clave del objeto se verifican en el servicio.
  */
 
 const EXTENSIONES_POR_MIME = {
@@ -19,6 +19,10 @@ const EXTENSIONES_POR_MIME = {
 const MAXIMO_BYTES = config.uploads.maxFileSizeBytes;
 const MAXIMO_MB = Math.round(MAXIMO_BYTES / (1024 * 1024));
 const LARGO_MAXIMO_NOMBRE = 255;
+const LARGO_MAXIMO_BUSQUEDA = 120;
+
+/** Estados posibles de procesamiento; deben coincidir con el CHECK de la tabla. */
+const ESTADOS_PROCESAMIENTO = ['pendiente', 'en_cola', 'procesando', 'procesado', 'error'];
 
 const patronRuta = /^usuarios\/[0-9a-fA-F-]{36}\/documentos\/[0-9a-fA-F-]{36}\/[^/\\]+$/;
 
@@ -89,17 +93,41 @@ const documentoRegistroSchema = z.object({
 
 /**
  * Query de GET /documentos: listado paginado del usuario.
+ * `q` busca por nombre visible; `estado` filtra por estado de procesamiento.
  */
 const documentoFiltrosSchema = z.object({
   materia_id: materiaIdSchema.optional(),
+  q: z
+    .string()
+    .trim()
+    .max(
+      LARGO_MAXIMO_BUSQUEDA,
+      `La busqueda no puede exceder ${LARGO_MAXIMO_BUSQUEDA} caracteres`,
+    )
+    .optional(),
+  estado: z.enum(ESTADOS_PROCESAMIENTO, {
+    message: 'El estado de procesamiento no es valido',
+  }).optional(),
   limit: z.coerce.number().int().min(1).max(100).default(20),
   offset: z.coerce.number().int().min(0).default(0),
 });
 
+/**
+ * Parametro :id de las rutas de detalle, descarga y eliminacion.
+ */
+const documentoIdSchema = z
+  .string()
+  .uuid('El identificador del documento no es valido');
+
+const documentoIdParamSchema = z.object({ id: documentoIdSchema });
+
 module.exports = {
   EXTENSIONES_POR_MIME,
   MAXIMO_BYTES,
+  ESTADOS_PROCESAMIENTO,
   documentoUrlCargaSchema,
   documentoRegistroSchema,
   documentoFiltrosSchema,
+  documentoIdSchema,
+  documentoIdParamSchema,
 };

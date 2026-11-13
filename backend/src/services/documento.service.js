@@ -1,5 +1,5 @@
 /**
- * Servicio de carga de documentos academicos (HU07).
+ * Servicio de documentos academicos (HU07 y HU08).
  * Aplica las reglas de negocio y la autorizacion de dominio.
  * No conoce req ni res: recibe datos ya validados por la capa HTTP.
  */
@@ -10,6 +10,7 @@ const {
   documentoUrlCargaSchema,
   documentoRegistroSchema,
   documentoFiltrosSchema,
+  documentoIdSchema,
 } = require('../models/documento.model');
 
 const SEGUNDOS_EXPIRACION_URL = 900;
@@ -148,6 +149,85 @@ class DocumentoService {
 
       throw error;
     }
+  }
+
+  /**
+   * Obtiene un documento del usuario por su identificador.
+   * Un documento ajeno responde 404 para no revelar su existencia.
+   *
+   * @param {string} documentoId UUID del documento.
+   * @returns {Promise<object>} Documento encontrado.
+   */
+  async obtenerDocumento(documentoId) {
+    const id = validarEntrada(documentoIdSchema, documentoId);
+    const documento = await this.documentoRepository.obtenerDocumentoPorId(
+      this.usuarioActualId,
+      id,
+    );
+
+    if (!documento) {
+      throw ApiError.notFound('Documento no encontrado.');
+    }
+
+    return documento;
+  }
+
+  /**
+   * Firma una URL de descarga directa desde S3 para un documento propio.
+   * Verifica primero que el objeto siga existiendo para no entregar una URL rota.
+   *
+   * @param {string} documentoId UUID del documento.
+   * @returns {Promise<{ downloadUrl: string, nombreArchivo: string, tipoArchivo: string, expiresInSeconds: number }>}
+   */
+  async obtenerUrlDescarga(documentoId) {
+    const documento = await this.obtenerDocumento(documentoId);
+    this.verificarAlmacenamiento();
+
+    const metadatos = await this.almacenamientoRepository.obtenerMetadatos(
+      documento.ruta_almacenamiento,
+    );
+
+    if (!metadatos) {
+      throw ApiError.notFound('El archivo de este documento ya no esta disponible.');
+    }
+
+    const downloadUrl = await this.almacenamientoRepository.crearUrlDescarga({
+      ruta: documento.ruta_almacenamiento,
+      nombreArchivo: documento.nombre_archivo,
+      expiresInSeconds: SEGUNDOS_EXPIRACION_URL,
+    });
+
+    return {
+      downloadUrl,
+      nombreArchivo: documento.nombre_archivo,
+      tipoArchivo: documento.tipo_archivo,
+      expiresInSeconds: SEGUNDOS_EXPIRACION_URL,
+    };
+  }
+
+  /**
+   * Elimina un documento propio: primero el objeto de S3 y luego los metadatos.
+   * Si el objeto ya no existe en S3, la eliminacion continua sin fallar.
+   *
+   * @param {string} documentoId UUID del documento.
+   * @returns {Promise<{ id: string }>}
+   */
+  async eliminarDocumento(documentoId) {
+    const documento = await this.obtenerDocumento(documentoId);
+    this.verificarAlmacenamiento();
+
+    await this.almacenamientoRepository.eliminarObjeto(documento.ruta_almacenamiento);
+
+    const eliminado = await this.documentoRepository.eliminarDocumento(
+      this.usuarioActualId,
+      documento.id,
+    );
+
+    if (!eliminado) {
+      throw ApiError.notFound('Documento no encontrado.');
+    }
+
+    return { id: documento.id };
   }
 
   /**

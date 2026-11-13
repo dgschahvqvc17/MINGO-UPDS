@@ -79,6 +79,8 @@ export interface DocumentoListado {
 
 export interface DocumentoFiltros {
   materia_id?: string;
+  q?: string;
+  estado?: EstadoDocumento;
   limit?: number;
   offset?: number;
 }
@@ -104,10 +106,17 @@ export interface RegistroDocumento {
   unidad_id?: string | null;
 }
 
+export interface RespuestaDescarga {
+  downloadUrl: string;
+  nombreArchivo: string;
+  tipoArchivo: string;
+  expiresInSeconds: number;
+}
+
 /**
- * Servicio de documentos academicos (HU07).
+ * Servicio de documentos academicos (HU07 y HU08).
  * La subida va directo del navegador a S3 con una URL prefirmada; la API solo
- * firma la URL y registra metadatos.
+ * firma las URLs y registra metadatos.
  */
 @Injectable({ providedIn: 'root' })
 export class DocumentoService {
@@ -118,6 +127,8 @@ export class DocumentoService {
     return this.api
       .getWithMeta<Documento[], { paginacion: PaginacionDocumentos }>('/documentos', {
         materia_id: filtros.materia_id,
+        q: filtros.q,
+        estado: filtros.estado,
         limit: filtros.limit,
         offset: filtros.offset,
       })
@@ -127,6 +138,18 @@ export class DocumentoService {
           paginacion: meta.paginacion,
         })),
       );
+  }
+
+  obtener(id: string): Observable<Documento> {
+    return this.api.get<Documento>(`/documentos/${encodeURIComponent(id)}`);
+  }
+
+  urlDescarga(id: string): Observable<RespuestaDescarga> {
+    return this.api.get<RespuestaDescarga>(`/documentos/${encodeURIComponent(id)}/descarga`);
+  }
+
+  eliminar(id: string): Observable<{ id: string }> {
+    return this.api.delete<{ id: string }>(`/documentos/${encodeURIComponent(id)}`);
   }
 
   solicitarUrlCarga(datos: SolicitudUrlCarga): Observable<RespuestaUrlCarga> {
@@ -182,6 +205,28 @@ export class DocumentoService {
     };
 
     return textos[estado];
+  }
+
+  estadoClase(estado: EstadoDocumento): string {
+    const clases: Record<EstadoDocumento, string> = {
+      pendiente: 'doc-badge--muted',
+      en_cola: 'doc-badge--info',
+      procesando: 'doc-badge--info',
+      procesado: 'doc-badge--success',
+      error: 'doc-badge--danger',
+    };
+
+    return clases[estado];
+  }
+
+  formatoTexto(tipoArchivo: string, nombreArchivo: string): string {
+    const formato = this.obtenerFormato(tipoArchivo);
+    if (formato) {
+      return formato.etiqueta;
+    }
+
+    const extension = this.obtenerExtension(nombreArchivo);
+    return extension ? extension.replace('.', '').toUpperCase() : 'Desconocido';
   }
 
   formatearTamano(bytes: number): string {

@@ -101,6 +101,56 @@ describe('DocumentoService', () => {
     req.flush({ success: true, data: mockDocumento });
   });
 
+  it('envía la búsqueda y el filtro de estado al listar', () => {
+    const paginacion = { limit: 12, offset: 0, total: 0 };
+
+    service
+      .listar({ q: 'cálculo', estado: 'procesado', limit: 12, offset: 0 })
+      .subscribe((resultado) => expect(resultado.documentos).toHaveLength(0));
+
+    const req = httpMock.expectOne((request) => request.url === '/api/documentos');
+    expect(req.request.params.get('q')).toBe('cálculo');
+    expect(req.request.params.get('estado')).toBe('procesado');
+    req.flush({ success: true, data: [], meta: { paginacion } });
+  });
+
+  it('pide el detalle de un documento por su identificador', () => {
+    service
+      .obtener(mockDocumento.id)
+      .subscribe((documento) => expect(documento.id).toBe(mockDocumento.id));
+
+    const req = httpMock.expectOne(`/api/documentos/${mockDocumento.id}`);
+    expect(req.request.method).toBe('GET');
+    req.flush({ success: true, data: mockDocumento });
+  });
+
+  it('solicita la URL de descarga del documento', () => {
+    const respuesta = {
+      downloadUrl: 'https://s3.example.com/descarga',
+      nombreArchivo: 'calculo.pdf',
+      tipoArchivo: 'application/pdf',
+      expiresInSeconds: 900,
+    };
+
+    service
+      .urlDescarga(mockDocumento.id)
+      .subscribe((datos) => expect(datos.downloadUrl).toBe(respuesta.downloadUrl));
+
+    const req = httpMock.expectOne(`/api/documentos/${mockDocumento.id}/descarga`);
+    expect(req.request.method).toBe('GET');
+    req.flush({ success: true, data: respuesta });
+  });
+
+  it('elimina el documento por su identificador', () => {
+    service
+      .eliminar(mockDocumento.id)
+      .subscribe((resultado) => expect(resultado.id).toBe(mockDocumento.id));
+
+    const req = httpMock.expectOne(`/api/documentos/${mockDocumento.id}`);
+    expect(req.request.method).toBe('DELETE');
+    req.flush({ success: true, data: { id: mockDocumento.id } });
+  });
+
   it('sube el archivo a S3 con el tipo declarado y reporta progreso', () => {
     const archivo = new File(['contenido'], 'calculo.pdf', { type: 'application/pdf' });
     const url = 'https://s3.example.com/firmada';
