@@ -511,7 +511,7 @@ Parámetros `dias` (1–30, por defecto 7) y `limit` (1–50, por defecto 10). D
 | GET | `/api/documentos` | HU08 | Lista documentos con filtros. |
 | GET | `/api/documentos/:id` | HU08 | Detalle del documento. |
 | GET | `/api/documentos/:id/descarga` | HU08 | URL prefirmada de descarga. |
-| DELETE | `/api/documentos/:id` | HU08 | Elimina metadatos, fragmentos y objeto S3. |
+| DELETE | `/api/documentos/:id` | HU08 | Elimina el objeto S3 y los metadatos. |
 | POST | `/api/documentos/:id/procesar` | HU09 | Encola el procesamiento. |
 | GET | `/api/documentos/:id/estado` | HU09 | Estado del procesamiento. |
 | GET | `/api/documentos/buscar` | HU11 | Búsqueda semántica. |
@@ -577,7 +577,99 @@ Parámetros `dias` (1–30, por defecto 7) y `limit` (1–50, por defecto 10). D
 - Si el objeto no existe en S3: `400`. Si la clave no es del usuario: `403`. Si ya estaba registrado: `409`.
 - La respuesta es `201` con el documento registrado en estado `pendiente`.
 
-### 10.2. Estados de procesamiento
+### 10.2. Listado y filtros (HU08)
+
+```text
+GET /api/documentos?materia_id=6d1c2a53-4f7e-4b8a-9c1d-2e3f4a5b6c7d&q=calculo&estado=procesado&limit=12&offset=0
+```
+
+**Respuesta `200`**
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": "9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d",
+      "usuario_id": "3f2b7e5c-1a4d-4c8e-9f10-2b6d8a7c9e01",
+      "materia_id": "6d1c2a53-4f7e-4b8a-9c1d-2e3f4a5b6c7d",
+      "unidad_id": null,
+      "nombre": "Cálculo Diferencial - Unidad 1",
+      "nombre_archivo": "calculo.pdf",
+      "ruta_almacenamiento": "usuarios/3f2b7e5c-1a4d-4c8e-9f10-2b6d8a7c9e01/documentos/9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d/calculo.pdf",
+      "tipo_archivo": "application/pdf",
+      "tamano": 4823000,
+      "estado_procesamiento": "procesado",
+      "motivo_error": null,
+      "numero_paginas": 24,
+      "fecha_carga": "2026-11-12T10:00:00.000Z",
+      "fecha_actualizacion": "2026-11-12T10:02:00.000Z",
+      "materias": { "nombre": "Cálculo", "codigo": "MAT101", "color": "#3B82F6" }
+    }
+  ],
+  "meta": {
+    "paginacion": { "limit": 12, "offset": 0, "total": 1 }
+  }
+}
+```
+
+**Parámetros**
+
+| Parámetro | Tipo | Regla |
+|---|---|---|
+| `materia_id` | UUID | Opcional. Filtra por materia del usuario. |
+| `q` | Texto | Opcional, máximo 120 caracteres. Busca por `nombre` sin distinguir mayúsculas. |
+| `estado` | Enum | Opcional. Uno de `pendiente`, `en_cola`, `procesando`, `procesado`, `error`. |
+| `limit` | Entero | 1–100, por defecto 20. |
+| `offset` | Entero | ≥ 0, por defecto 0. |
+
+**Reglas**
+
+- RLS y filtro explícito por `usuario_id`: el listado solo devuelve documentos del usuario autenticado.
+- Orden: `fecha_carga` descendente (el más reciente primero).
+- `q` se sanea antes de la consulta (se descartan comas, paréntesis, `%` y `_`) para no alterar el filtro.
+- Un `estado` fuera de la lista cerrada responde `400`.
+
+### 10.3. Detalle, descarga y eliminación (HU08)
+
+**`GET /api/documentos/:id`**
+
+Devuelve el documento con el resumen de su materia embebido (`materias`). Un documento de otro usuario o inexistente responde `404` para no revelar su existencia. Un identificador que no es UUID responde `400`.
+
+**`GET /api/documentos/:id/descarga`**
+
+```json
+{
+  "success": true,
+  "data": {
+    "downloadUrl": "https://mingo-documentos.s3.us-east-1.amazonaws.com/...&X-Amz-Expires=900",
+    "nombreArchivo": "calculo.pdf",
+    "tipoArchivo": "application/pdf",
+    "expiresInSeconds": 900
+  }
+}
+```
+
+- Verifica con `HEAD` que el objeto siga en S3 antes de firmar; si ya no está, responde `404`.
+- La URL fuerza la descarga con el nombre original (`Content-Disposition`) y dura 15 minutos.
+- El documento debe pertenecer al usuario (`404` en caso contrario).
+- Si S3 no está configurado, responde `503`.
+
+**`DELETE /api/documentos/:id`**
+
+```json
+{
+  "success": true,
+  "message": "Documento eliminado exitosamente.",
+  "data": { "id": "9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d" }
+}
+```
+
+- Elimina primero el objeto de S3 (tolerando que ya no exista) y después la fila.
+- Un documento ajeno o inexistente responde `404`; si la fila desaparece entre la lectura y el borrado, también `404`.
+- Si S3 no está configurado, responde `503` y no borra metadatos.
+
+### 10.4. Estados de procesamiento
 
 | Estado | Significado |
 |---|---|
@@ -587,7 +679,7 @@ Parámetros `dias` (1–30, por defecto 7) y `limit` (1–50, por defecto 10). D
 | `procesado` | Texto, fragmentos y embeddings listos. |
 | `error` | Falló; revisar `motivo_error`. |
 
-### 10.3. Búsqueda semántica (HU11)
+### 10.5. Búsqueda semántica (HU11)
 
 ```text
 GET /api/documentos/buscar?q=derivadas%20de%20funciones&materia_id=6d1c2a53-4f7e-4b8a-9c1d-2e3f4a5b6c7d&limit=8

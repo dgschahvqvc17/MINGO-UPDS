@@ -55,25 +55,40 @@
     </div>
   }
 
+  @if (errorAccion()) {
+    <div class="alert alert-danger d-flex align-items-center gap-2" role="alert">
+      <i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i>
+      <div class="flex-fill">{{ errorAccion() }}</div>
+      <button
+        type="button"
+        class="btn-icon"
+        aria-label="Cerrar mensaje de error"
+        (click)="cerrarErrorAccion()"
+      >
+        <i class="bi bi-x-lg" aria-hidden="true"></i>
+      </button>
+    </div>
+  }
+
   <section class="mat-filters mb-4" aria-label="Filtros de documentos">
     <div class="mat-filters-head">
       <span class="mat-filters-title">
         <i class="bi bi-funnel-fill" aria-hidden="true"></i>
         Filtrar documentos
-        @if (materiaFiltro()) {
+        @if (hayFiltrosActivos()) {
           <span class="mat-count-chip"><i class="bi bi-check2" aria-hidden="true"></i>Activo</span>
         }
       </span>
-      @if (materiaFiltro()) {
+      @if (hayFiltrosActivos()) {
         <button type="button" class="mat-clear-btn" (click)="limpiarFiltros()">
           <i class="bi bi-x-circle" aria-hidden="true"></i>
-          Limpiar filtro
+          Limpiar filtros
         </button>
       }
     </div>
 
     <div class="row g-3 align-items-end">
-      <div class="col-12 col-md-6">
+      <div class="col-12 col-md-4">
         <label class="mat-filter-label" for="filtro-materia-doc">
           <i class="bi bi-journal-bookmark" aria-hidden="true"></i>
           Materia
@@ -89,6 +104,40 @@
             <option [value]="materia.id">{{ materia.nombre }} ({{ materia.codigo }})</option>
           }
         </select>
+      </div>
+
+      <div class="col-12 col-md-3">
+        <label class="mat-filter-label" for="filtro-estado-doc">
+          <i class="bi bi-activity" aria-hidden="true"></i>
+          Estado
+        </label>
+        <select
+          id="filtro-estado-doc"
+          class="form-select"
+          [value]="estadoFiltro()"
+          (change)="alCambiarEstado($any($event.target).value)"
+        >
+          <option value="">Todos los estados</option>
+          @for (estado of estados; track estado) {
+            <option [value]="estado">{{ estadoTexto(estado) }}</option>
+          }
+        </select>
+      </div>
+
+      <div class="col-12 col-md-5">
+        <label class="mat-filter-label" for="filtro-busqueda-doc">
+          <i class="bi bi-search" aria-hidden="true"></i>
+          Buscar por nombre
+        </label>
+        <input
+          id="filtro-busqueda-doc"
+          type="search"
+          class="form-control"
+          placeholder="Ej. Cálculo diferencial"
+          autocomplete="off"
+          [value]="terminoBusqueda()"
+          (input)="alBuscar($any($event.target).value)"
+        />
       </div>
     </div>
   </section>
@@ -113,22 +162,33 @@
   @if (mostrarListaVacia()) {
     <div class="mat-state mat-state--empty" role="status">
       <span class="mat-empty-icon" aria-hidden="true"><i class="bi bi-folder2-open"></i></span>
-      <h3>No hay documentos todavía</h3>
+      <h3>No hay documentos para mostrar</h3>
       <p class="text-muted-soft mb-0">
-        @if (materiaFiltro()) {
-          Esta materia aún no tiene documentos cargados.
+        @if (hayFiltrosActivos()) {
+          Ningún documento coincide con los filtros aplicados. Prueba con otro término o límpialos.
         } @else {
           Sube tu primer documento para empezar tu biblioteca académica.
         }
       </p>
+      @if (hayFiltrosActivos()) {
+        <button type="button" class="btn btn-sm btn-outline-primary mt-3" (click)="limpiarFiltros()">
+          Limpiar filtros
+        </button>
+      }
     </div>
   }
 
-  @if (tieneResultados() && !loading()) {
+  @if (tieneResultados() && !mostrarCargando()) {
     <section class="row g-3" aria-label="Documentos cargados">
       @for (documento of documentos(); track documento.id) {
         <div class="col-12 col-md-6 col-xl-4">
-          <app-documento-card [documento]="documento" />
+          <app-documento-card
+            [documento]="documento"
+            [descargando]="descargandoId() === documento.id"
+            [eliminando]="eliminandoId() === documento.id"
+            (descargar)="descargar($event)"
+            (eliminar)="eliminar($event)"
+          />
         </div>
       }
     </section>

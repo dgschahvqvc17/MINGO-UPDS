@@ -125,3 +125,32 @@
   font-size: 0.72rem;
   font-weight: 600;
 }
+
+.doc-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--mingo-border-soft);
+}
+
+.doc-confirm {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+  margin-left: auto;
+}
+
+.doc-confirm-text {
+  color: var(--mingo-text-muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+@media (max-width: 575.98px) {
+  .doc-confirm {
+    margin-left: 0;
+  }
+}

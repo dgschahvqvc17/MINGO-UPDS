@@ -34,6 +34,8 @@ describe('DocumentoService', () => {
       crearDocumento: j.fn(),
       obtenerPorRuta: j.fn(),
       listarDocumentos: j.fn(),
+      obtenerDocumentoPorId: j.fn(),
+      eliminarDocumento: j.fn(),
     };
 
     materiaRepository = {
@@ -42,6 +44,8 @@ describe('DocumentoService', () => {
 
     almacenamientoRepository = {
       crearUrlCarga: j.fn().mockResolvedValue('https://s3.example.com/firmada'),
+      crearUrlDescarga: j.fn().mockResolvedValue('https://s3.example.com/descarga'),
+      eliminarObjeto: j.fn().mockResolvedValue(true),
       obtenerMetadatos: j.fn().mockResolvedValue({
         tamano: 1024,
         tipoArchivo: 'application/pdf',
@@ -196,6 +200,161 @@ describe('DocumentoService', () => {
         limit: 20,
         offset: 0,
       });
+    });
+
+    it('traslada la busqueda por nombre y el filtro por estado', async () => {
+      documentoRepository.listarDocumentos.mockResolvedValue({ items: [], total: 0 });
+
+      await service.listarDocumentos({ q: 'calculo', estado: 'procesado', limit: 20, offset: 0 });
+
+      expect(documentoRepository.listarDocumentos).toHaveBeenCalledWith(USUARIO_ID, {
+        q: 'calculo',
+        estado: 'procesado',
+        limit: 20,
+        offset: 0,
+      });
+    });
+
+    it('rechaza un estado de procesamiento desconocido', async () => {
+      await expect(service.listarDocumentos({ estado: 'inventado' })).rejects.toMatchObject({
+        statusCode: 400,
+      });
+      expect(documentoRepository.listarDocumentos).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('obtenerDocumento', () => {
+    it('devuelve el documento cuando pertenece al usuario', async () => {
+      documentoRepository.obtenerDocumentoPorId.mockResolvedValue({
+        id: DOCUMENTO_ID,
+        nombre: 'Cálculo diferencial',
+      });
+
+      const documento = await service.obtenerDocumento(DOCUMENTO_ID);
+
+      expect(documentoRepository.obtenerDocumentoPorId).toHaveBeenCalledWith(
+        USUARIO_ID,
+        DOCUMENTO_ID,
+      );
+      expect(documento.id).toBe(DOCUMENTO_ID);
+    });
+
+    it('responde 404 cuando el documento no existe o es de otro usuario', async () => {
+      documentoRepository.obtenerDocumentoPorId.mockResolvedValue(null);
+
+      await expect(service.obtenerDocumento(DOCUMENTO_ID)).rejects.toMatchObject({
+        statusCode: 404,
+      });
+    });
+
+    it('responde 400 cuando el identificador no es un UUID', async () => {
+      await expect(service.obtenerDocumento('no-es-uuid')).rejects.toMatchObject({
+        statusCode: 400,
+      });
+      expect(documentoRepository.obtenerDocumentoPorId).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('obtenerUrlDescarga', () => {
+    const documento = {
+      id: DOCUMENTO_ID,
+      ruta_almacenamiento: OBJECT_KEY,
+      nombre_archivo: 'calculo.pdf',
+      tipo_archivo: 'application/pdf',
+    };
+
+    beforeEach(() => {
+      documentoRepository.obtenerDocumentoPorId.mockResolvedValue(documento);
+    });
+
+    it('firma la descarga con el nombre original del archivo', async () => {
+      const resultado = await service.obtenerUrlDescarga(DOCUMENTO_ID);
+
+      expect(almacenamientoRepository.obtenerMetadatos).toHaveBeenCalledWith(OBJECT_KEY);
+      expect(almacenamientoRepository.crearUrlDescarga).toHaveBeenCalledWith({
+        ruta: OBJECT_KEY,
+        nombreArchivo: 'calculo.pdf',
+        expiresInSeconds: 900,
+      });
+      expect(resultado).toEqual({
+        downloadUrl: 'https://s3.example.com/descarga',
+        nombreArchivo: 'calculo.pdf',
+        tipoArchivo: 'application/pdf',
+        expiresInSeconds: 900,
+      });
+    });
+
+    it('responde 404 cuando el objeto ya no existe en S3', async () => {
+      almacenamientoRepository.obtenerMetadatos.mockResolvedValue(null);
+
+      await expect(service.obtenerUrlDescarga(DOCUMENTO_ID)).rejects.toMatchObject({
+        statusCode: 404,
+      });
+      expect(almacenamientoRepository.crearUrlDescarga).not.toHaveBeenCalled();
+    });
+
+    it('responde 503 cuando S3 no está configurado', async () => {
+      almacenamientoRepository.estaDisponible.mockReturnValue(false);
+
+      await expect(service.obtenerUrlDescarga(DOCUMENTO_ID)).rejects.toMatchObject({
+        statusCode: 503,
+      });
+    });
+  });
+
+  describe('eliminarDocumento', () => {
+    const documento = {
+      id: DOCUMENTO_ID,
+      ruta_almacenamiento: OBJECT_KEY,
+      nombre_archivo: 'calculo.pdf',
+      tipo_archivo: 'application/pdf',
+    };
+
+    beforeEach(() => {
+      documentoRepository.obtenerDocumentoPorId.mockResolvedValue(documento);
+      documentoRepository.eliminarDocumento.mockResolvedValue({ id: DOCUMENTO_ID });
+    });
+
+    it('elimina primero el objeto de S3 y luego los metadatos', async () => {
+      const resultado = await service.eliminarDocumento(DOCUMENTO_ID);
+
+      expect(almacenamientoRepository.eliminarObjeto).toHaveBeenCalledWith(OBJECT_KEY);
+      expect(documentoRepository.eliminarDocumento).toHaveBeenCalledWith(USUARIO_ID, DOCUMENTO_ID);
+      expect(resultado).toEqual({ id: DOCUMENTO_ID });
+    });
+
+    it('sigue adelante cuando el objeto ya no existía en S3', async () => {
+      almacenamientoRepository.eliminarObjeto.mockResolvedValue(false);
+
+      await expect(service.eliminarDocumento(DOCUMENTO_ID)).resolves.toEqual({ id: DOCUMENTO_ID });
+      expect(documentoRepository.eliminarDocumento).toHaveBeenCalled();
+    });
+
+    it('responde 404 cuando el documento es de otro usuario', async () => {
+      documentoRepository.obtenerDocumentoPorId.mockResolvedValue(null);
+
+      await expect(service.eliminarDocumento(DOCUMENTO_ID)).rejects.toMatchObject({
+        statusCode: 404,
+      });
+      expect(almacenamientoRepository.eliminarObjeto).not.toHaveBeenCalled();
+      expect(documentoRepository.eliminarDocumento).not.toHaveBeenCalled();
+    });
+
+    it('responde 404 si la fila desapareció entre la lectura y el borrado', async () => {
+      documentoRepository.eliminarDocumento.mockResolvedValue(null);
+
+      await expect(service.eliminarDocumento(DOCUMENTO_ID)).rejects.toMatchObject({
+        statusCode: 404,
+      });
+    });
+
+    it('responde 503 cuando S3 no está configurado', async () => {
+      almacenamientoRepository.estaDisponible.mockReturnValue(false);
+
+      await expect(service.eliminarDocumento(DOCUMENTO_ID)).rejects.toMatchObject({
+        statusCode: 503,
+      });
+      expect(documentoRepository.eliminarDocumento).not.toHaveBeenCalled();
     });
   });
 

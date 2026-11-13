@@ -1,5 +1,5 @@
 /**
- * Acceso a datos de los documentos academicos (HU07).
+ * Acceso a datos de los documentos academicos (HU07 y HU08).
  * Usa el cliente de Supabase del usuario para que RLS se aplique en cada consulta.
  * No conoce HTTP ni reglas de negocio.
  */
@@ -20,6 +20,17 @@ const DOCUMENTO_COLUMNS = `
   fecha_actualizacion,
   materias ( nombre, codigo, color )
 `;
+
+/**
+ * Limpia el termino de busqueda para que no se interprete como sintaxis
+ * del filtro `or` ni como comodines de ILIKE.
+ *
+ * @param {string} termino
+ * @returns {string}
+ */
+function limpiarTerminoBusqueda(termino) {
+  return String(termino).replace(/[,()%_]/g, ' ').trim();
+}
 
 class DocumentoRepository {
   /**
@@ -84,13 +95,36 @@ class DocumentoRepository {
   }
 
   /**
+   * Busca un documento del usuario por su identificador.
+   * Devuelve null si no existe o pertenece a otro usuario (RLS + filtro explicito).
+   *
+   * @param {string} usuarioId UUID del usuario.
+   * @param {string} documentoId UUID del documento.
+   * @returns {Promise<object | null>}
+   */
+  async obtenerDocumentoPorId(usuarioId, documentoId) {
+    const { data, error } = await this.requireClient()
+      .from('documentos')
+      .select(DOCUMENTO_COLUMNS)
+      .eq('usuario_id', usuarioId)
+      .eq('id', documentoId)
+      .maybeSingle();
+
+    if (error) {
+      throw error;
+    }
+
+    return data;
+  }
+
+  /**
    * Lista los documentos del usuario, del mas reciente al mas antiguo.
    *
    * @param {string} usuarioId UUID del usuario.
-   * @param {{ materia_id?: string, limit: number, offset: number }} filtros
+   * @param {{ materia_id?: string, q?: string, estado?: string, limit: number, offset: number }} filtros
    * @returns {Promise<{ items: object[], total: number }>}
    */
-  async listarDocumentos(usuarioId, { materia_id: materiaId, limit, offset }) {
+  async listarDocumentos(usuarioId, { materia_id: materiaId, q, estado, limit, offset }) {
     const desde = offset;
     const hasta = offset + limit - 1;
 
@@ -103,6 +137,15 @@ class DocumentoRepository {
       consulta = consulta.eq('materia_id', materiaId);
     }
 
+    if (estado) {
+      consulta = consulta.eq('estado_procesamiento', estado);
+    }
+
+    const termino = q ? limpiarTerminoBusqueda(q) : '';
+    if (termino) {
+      consulta = consulta.ilike('nombre', `%${termino}%`);
+    }
+
     const { data, error, count } = await consulta
       .order('fecha_carga', { ascending: false })
       .range(desde, hasta);
@@ -112,6 +155,30 @@ class DocumentoRepository {
     }
 
     return { items: data ?? [], total: count ?? 0 };
+  }
+
+  /**
+   * Elimina los metadatos de un documento del usuario.
+   * Devuelve la fila eliminada o null si ya no existia.
+   *
+   * @param {string} usuarioId UUID del usuario.
+   * @param {string} documentoId UUID del documento.
+   * @returns {Promise<object | null>}
+   */
+  async eliminarDocumento(usuarioId, documentoId) {
+    const { data, error } = await this.requireClient()
+      .from('documentos')
+      .delete()
+      .eq('usuario_id', usuarioId)
+      .eq('id', documentoId)
+      .select('id, ruta_almacenamiento')
+      .maybeSingle();
+
+    if (error) {
+      throw error;
+    }
+
+    return data;
   }
 
   requireClient() {

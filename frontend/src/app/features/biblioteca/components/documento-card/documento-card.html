@@ -20,6 +20,10 @@
 
     <div class="doc-meta">
       <span class="doc-meta-item">
+        <i class="bi bi-filetype-pdf" aria-hidden="true"></i>
+        {{ formatoTexto() }}
+      </span>
+      <span class="doc-meta-item">
         <i class="bi bi-hdd" aria-hidden="true"></i>
         {{ tamanoTexto() }}
       </span>
@@ -43,5 +47,54 @@
         <span class="doc-error" [title]="documento().motivo_error ?? ''">Revisar error</span>
       }
     </footer>
+
+    <div class="doc-actions">
+      <a class="btn btn-sm btn-outline-secondary" [routerLink]="['/biblioteca', documento().id]">
+        <i class="bi bi-eye me-1" aria-hidden="true"></i>
+        Detalle
+      </a>
+
+      <button
+        type="button"
+        class="btn btn-sm btn-outline-primary"
+        (click)="descargar.emit(documento())"
+        [disabled]="descargando() || eliminando()"
+      >
+        <i class="bi bi-download me-1" aria-hidden="true"></i>
+        {{ descargando() ? 'Descargando...' : 'Descargar' }}
+      </button>
+
+      @if (confirmandoEliminar()) {
+        <span class="doc-confirm" role="group" aria-label="Confirmar eliminación del documento">
+          <span class="doc-confirm-text">¿Eliminar?</span>
+          <button
+            type="button"
+            class="btn btn-sm btn-danger"
+            (click)="confirmarEliminar()"
+            [disabled]="eliminando()"
+          >
+            Sí, eliminar
+          </button>
+          <button
+            type="button"
+            class="btn btn-sm btn-outline-secondary"
+            (click)="cancelarEliminar()"
+            [disabled]="eliminando()"
+          >
+            Cancelar
+          </button>
+        </span>
+      } @else {
+        <button
+          type="button"
+          class="btn btn-sm btn-outline-danger"
+          (click)="pedirConfirmacion()"
+          [disabled]="descargando() || eliminando()"
+        >
+          <i class="bi bi-trash me-1" aria-hidden="true"></i>
+          {{ eliminando() ? 'Eliminando...' : 'Eliminar' }}
+        </button>
+      }
+    </div>
   </article>
 </app-card>

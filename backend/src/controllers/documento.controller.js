@@ -40,6 +40,34 @@ class DocumentoController {
       data: documento,
     });
   };
+
+  obtenerDocumento = async (req, res) => {
+    const documento = await this.documentoService.obtenerDocumento(req.validated.params.id);
+
+    res.status(200).json({
+      success: true,
+      data: documento,
+    });
+  };
+
+  obtenerUrlDescarga = async (req, res) => {
+    const descarga = await this.documentoService.obtenerUrlDescarga(req.validated.params.id);
+
+    res.status(200).json({
+      success: true,
+      data: descarga,
+    });
+  };
+
+  eliminarDocumento = async (req, res) => {
+    const resultado = await this.documentoService.eliminarDocumento(req.validated.params.id);
+
+    res.status(200).json({
+      success: true,
+      message: 'Documento eliminado exitosamente.',
+      data: resultado,
+    });
+  };
 }
 
 module.exports = DocumentoController;
