@@ -1,0 +1,99 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >
+  MINGO - HU07. Bucket privado para documentos academicos de estudiantes.
+  Solo Amazon S3 (capa gratuita). Sin versionado ilimitado, sin acceso publico,
+  cifrado SSE-S3 y lifecycle de limpieza.
+
+Parameters:
+  Environment:
+    Type: String
+    Default: dev
+    AllowedValues: [dev, prod]
+    Description: Entorno de MINGO.
+
+  BucketName:
+    Type: String
+    Default: mingo-documentos
+    Description: Nombre global del bucket de documentos.
+
+Conditions:
+  IsProd: !Equals [!Ref Environment, prod]
+
+Resources:
+  DocumentosBucket:
+    Type: AWS::S3::Bucket
+    # Retain evita que un fallo de despliegue borre documentos de usuarios.
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BucketName: !Ref BucketName
+      # Sin ACLs: el propietario del bucket siempre posee los objetos.
+      OwnershipControls:
+        Rules:
+          - ObjectOwnership: BucketOwnerEnforced
+      # Regla obligatoria: ningun acceso publico, ni por ACL ni por politica.
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - BucketKeyEnabled: true
+            ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      # Sin versionado: evita almacenamiento duplicado con costo oculto.
+      VersioningConfiguration:
+        Status: Suspended
+      LifecycleConfiguration:
+        Rules:
+          - Id: abortar-cargas-multipart-incompletas
+            Status: Enabled
+            AbortIncompleteMultipartUpload:
+              DaysAfterInitiation: 1
+          - Id: limpiar-temporales
+            Status: Enabled
+            Prefix: tmp/
+            ExpirationInDays: !If [IsProd, 3, 1]
+      Tags:
+        - { Key: Project, Value: MINGO }
+        - { Key: Environment, Value: !Ref Environment }
+        - { Key: Owner, Value: equipo-mingo }
+        - { Key: ManagedBy, Value: cloudformation }
+        - { Key: CostCenter, Value: academico }
+
+  # Rechaza cualquier peticion sin TLS. Las URLs prefirmadas de la app ya usan HTTPS.
+  DocumentosBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref DocumentosBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: DenyInsecureTransport
+            Effect: Deny
+            Principal: '*'
+            Action: 's3:*'
+            Resource:
+              - !GetAtt DocumentosBucket.Arn
+              - !Sub '${DocumentosBucket.Arn}/*'
+            Condition:
+              Bool:
+                aws:SecureTransport: 'false'
+
+Outputs:
+  BucketName:
+    Description: Nombre del bucket de documentos.
+    Value: !Ref DocumentosBucket
+    Export:
+      Name: !Sub '${AWS::StackName}-BucketName'
+
+  BucketArn:
+    Description: ARN del bucket de documentos.
+    Value: !GetAtt DocumentosBucket.Arn
+    Export:
+      Name: !Sub '${AWS::StackName}-BucketArn'
+
+  BucketRegion:
+    Description: Region donde vive el bucket.
+    Value: !Ref AWS::Region
