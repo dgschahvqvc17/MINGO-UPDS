@@ -172,6 +172,23 @@ Presupuestos obligatorios en AWS Budgets:
 | `mingo-alerta-baja` | $1/mes | 50 %, 80 %, 100 % real y pronosticado |
 | `mingo-alerta-media` | $5/mes | 50 %, 80 %, 100 % real y pronosticado |
 
+**Nota de cobertura compartida (2026-11-12).** La cuenta `591015654164` se comparte
+con otro proyecto (Concesionaria BMW), así que la alerta de $1 **no se duplica**.
+Verificado por CLI con el usuario `mingo-agente`:
+
+| Dato verificado | Valor |
+|---|---|
+| Presupuesto | `ConcesionariaBMW-1USD` |
+| Monto y periodo | $1.00 / mes |
+| Filtros | **ninguno** → mide toda la cuenta, MINGO incluido (más estricto que un filtro por etiqueta) |
+| Notificaciones | 80 % **real** y 100 % **pronosticado** → `jesielvv17adam@gmail.com` |
+| Costo del presupuesto | $0 (monitoreo y notificaciones son gratuitos) |
+
+Con esto la condición 4 de `AGENTS.md` queda cubierta para la alerta de $1.
+Sigue pendiente `mingo-alerta-media` ($5, sin filtro), que la condición 4 exige
+antes de cualquier despliegue. Los umbrales 50 % real y 100 % real del presupuesto
+compartido son mejora opcional.
+
 Activar también **Free Tier usage alerts** y revisar **Cost Explorer** semanalmente.
 
 ---

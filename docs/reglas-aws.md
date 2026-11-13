@@ -224,6 +224,15 @@ Crear en **AWS Billing and Cost Management → Budgets**:
 
 Los dos primeros presupuestos son gratuitos. Enviar alertas al correo del responsable del proyecto y al equipo.
 
+> Precio vigente (verificado en la página oficial de AWS Budgets, 2026-11-12): el
+> **monitoreo y las notificaciones son gratuitos**; solo los *budget actions*
+> cuestan, a partir del tercero ($0.10/día). Los *budget reports* cuestan $0.01 cada
+> uno. En MINGO no se usan acciones ni informes automáticos.
+>
+> Cobertura compartida: en la cuenta `591015654164` la alerta de $1 la cumple el
+> presupuesto `ConcesionariaBMW-1USD` (sin filtros, cubre toda la cuenta). Ver la
+> nota en [reglas-aws-agente.md](reglas-aws-agente.md) §7.
+
 Además:
 
 - Activar **Free Tier usage alerts** en Billing.
