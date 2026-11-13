@@ -522,7 +522,7 @@ Parámetros `dias` (1–30, por defecto 7) y `limit` (1–50, por defecto 10). D
 1. POST /api/documentos/url-carga
 2. Angular sube el archivo a la URL devuelta (PUT directo a S3)
 3. POST /api/documentos con la clave del objeto
-4. PUT de S3 dispara evento a SQS
+4. PUT de S3 dispara evento a SQS (se activa con HU09)
 5. Lambda procesadora actualiza el estado
 ```
 
@@ -533,7 +533,7 @@ Parámetros `dias` (1–30, por defecto 7) y `limit` (1–50, por defecto 10). D
   "nombre_archivo": "calculo.pdf",
   "tipo_archivo": "application/pdf",
   "tamano": 4823000,
-  "materia_id": 1
+  "materia_id": "6d1c2a53-4f7e-4b8a-9c1d-2e3f4a5b6c7d"
 }
 ```
 
@@ -544,7 +544,7 @@ Parámetros `dias` (1–30, por defecto 7) y `limit` (1–50, por defecto 10). D
   "success": true,
   "data": {
     "uploadUrl": "https://mingo-documentos.s3.us-east-1.amazonaws.com/...&X-Amz-Expires=900",
-    "objectKey": "usuarios/3f2b7e5c.../documentos/1/calculo.pdf",
+    "objectKey": "usuarios/3f2b7e5c-1a4d-4c8e-9f10-2b6d8a7c9e01/documentos/9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d/calculo.pdf",
     "expiresInSeconds": 900,
     "maxSizeBytes": 20971520
   }
@@ -553,22 +553,29 @@ Parámetros `dias` (1–30, por defecto 7) y `limit` (1–50, por defecto 10). D
 
 **Reglas**
 
-- Formatos: PDF, DOC, DOCX, PPT, PPTX, TXT.
+- Formatos: PDF, DOC, DOCX, PPT, PPTX, TXT. La extensión debe coincidir con el `tipo_archivo` declarado.
 - Tamaño máximo: 20 MB.
+- `materia_id` es un UUID y debe pertenecer al usuario autenticado; si no, la respuesta es `404`.
 - La URL prefirmada dura 15 minutos.
-- La `objectKey` debe empezar con `usuarios/<usuario_id>/`.
-- El backend valida tipo y tamaño declarados; Lambda valida el contenido real.
+- La `objectKey` debe empezar con `usuarios/<usuario_id>/documentos/<uuid>/`; el servidor la genera, el cliente no la elige.
+- El backend valida tipo y tamaño declarados; al registrar se vuelven a validar contra el objeto real de S3.
+- Si S3 no está configurado, la respuesta es `503`.
 
 **Body `POST /api/documentos`**
 
 ```json
 {
-  "objectKey": "usuarios/3f2b7e5c.../documentos/1/calculo.pdf",
+  "objectKey": "usuarios/3f2b7e5c-1a4d-4c8e-9f10-2b6d8a7c9e01/documentos/9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d/calculo.pdf",
   "nombre": "Cálculo Diferencial - Unidad 1",
-  "materia_id": 1,
+  "materia_id": "6d1c2a53-4f7e-4b8a-9c1d-2e3f4a5b6c7d",
   "unidad_id": null
 }
 ```
+
+- El tamaño y el tipo se leen de S3 (`HEAD`); no se confía en el cliente.
+- `unidad_id` es opcional y queda en `null` hasta que exista HU03 (tabla `unidades`).
+- Si el objeto no existe en S3: `400`. Si la clave no es del usuario: `403`. Si ya estaba registrado: `409`.
+- La respuesta es `201` con el documento registrado en estado `pendiente`.
 
 ### 10.2. Estados de procesamiento
 
@@ -583,7 +590,7 @@ Parámetros `dias` (1–30, por defecto 7) y `limit` (1–50, por defecto 10). D
 ### 10.3. Búsqueda semántica (HU11)
 
 ```text
-GET /api/documentos/buscar?q=derivadas%20de%20funciones&materia_id=1&limit=8
+GET /api/documentos/buscar?q=derivadas%20de%20funciones&materia_id=6d1c2a53-4f7e-4b8a-9c1d-2e3f4a5b6c7d&limit=8
 ```
 
 **Respuesta**
@@ -594,7 +601,7 @@ GET /api/documentos/buscar?q=derivadas%20de%20funciones&materia_id=1&limit=8
   "data": [
     {
       "fragmento_id": 1,
-      "documento_id": 1,
+      "documento_id": "9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d",
       "documento_nombre": "Cálculo Diferencial - Unidad 1",
       "contenido": "La derivada de una función mide...",
       "numero_pagina": 12,
