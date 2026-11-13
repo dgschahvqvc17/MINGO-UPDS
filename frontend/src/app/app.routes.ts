@@ -118,6 +118,7 @@ export const routes: Routes = [
 
       {
         path: 'biblioteca',
+        title: 'Biblioteca | MINGO',
         loadComponent: () =>
           import('./features/biblioteca/biblioteca').then((m) => m.BibliotecaPage),
       },

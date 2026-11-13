@@ -182,7 +182,7 @@
           <div class="card-body">
             <h2 class="h5 fw-bold mb-3">Acciones rápidas</h2>
             <div class="row g-3">
-              <div class="col-md-4">
+              <div class="col-md-6 col-xl-3">
                 <button type="button" class="btn btn-outline-primary w-100" (click)="verTareas()">
                   <i class="bi bi-list-check me-2" aria-hidden="true"></i>
                   Ver tareas
@@ -191,7 +191,7 @@
                   }
                 </button>
               </div>
-              <div class="col-md-4">
+              <div class="col-md-6 col-xl-3">
                 <button type="button" class="btn btn-outline-success w-100" (click)="verDocumentos()">
                   <i class="bi bi-file-earmark-text me-2" aria-hidden="true"></i>
                   Ver documentos
@@ -200,7 +200,13 @@
                   }
                 </button>
               </div>
-              <div class="col-md-4">
+              <div class="col-md-6 col-xl-3">
+                <button type="button" class="btn btn-outline-info w-100" (click)="subirDocumento()">
+                  <i class="bi bi-cloud-arrow-up me-2" aria-hidden="true"></i>
+                  Subir documento
+                </button>
+              </div>
+              <div class="col-md-6 col-xl-3">
                 <button
                   type="button"
                   class="btn btn-outline-warning w-100"

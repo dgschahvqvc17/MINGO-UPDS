@@ -1,0 +1,140 @@
+<section class="upload-panel" aria-labelledby="upload-titulo">
+  <header class="upload-head">
+    <span class="upload-head-icon" aria-hidden="true"><i class="bi bi-cloud-arrow-up"></i></span>
+    <div>
+      <h2 class="upload-title" id="upload-titulo">Subir documento</h2>
+      <p class="upload-subtitle">
+        El archivo se guarda en tu espacio privado y queda vinculado a la materia.
+      </p>
+    </div>
+  </header>
+
+  <form [formGroup]="form" (ngSubmit)="enviar()" novalidate>
+    <div class="row g-3">
+      <div class="col-12 col-md-6">
+        <label class="form-label" for="doc-materia">Materia</label>
+        <select
+          id="doc-materia"
+          class="form-select"
+          formControlName="materia_id"
+          [class.is-invalid]="materiaControl.invalid && materiaControl.touched"
+          [attr.aria-describedby]="materiaControl.invalid && materiaControl.touched ? 'doc-materia-error' : null"
+          [attr.aria-invalid]="materiaControl.invalid && materiaControl.touched"
+        >
+          <option value="">Selecciona una materia</option>
+          @for (materia of materias(); track materia.id) {
+            <option [value]="materia.id">{{ materia.nombre }} ({{ materia.codigo }})</option>
+          }
+        </select>
+        @if (materiaControl.invalid && materiaControl.touched) {
+          <div class="invalid-feedback" id="doc-materia-error">
+            Selecciona la materia a la que pertenece el documento.
+          </div>
+        }
+      </div>
+
+      <div class="col-12 col-md-6">
+        <label class="form-label" for="doc-nombre">Nombre del documento</label>
+        <input
+          id="doc-nombre"
+          type="text"
+          class="form-control"
+          formControlName="nombre"
+          placeholder="Cálculo diferencial - Unidad 1"
+          [class.is-invalid]="nombreControl.invalid && nombreControl.touched"
+          [attr.aria-describedby]="nombreControl.invalid && nombreControl.touched ? 'doc-nombre-error' : null"
+          [attr.aria-invalid]="nombreControl.invalid && nombreControl.touched"
+        />
+        @if (nombreControl.invalid && nombreControl.touched) {
+          <div class="invalid-feedback" id="doc-nombre-error">
+            El nombre debe tener entre 3 y 255 caracteres.
+          </div>
+        }
+      </div>
+
+      <div class="col-12">
+        <div
+          class="upload-drop"
+          [class.upload-drop--active]="arrastrando()"
+          (dragover)="alArrastrar($event)"
+          (dragleave)="alSalirArrastre()"
+          (drop)="alSoltar($event)"
+        >
+          <span class="upload-drop-icon" aria-hidden="true"><i class="bi bi-file-earmark-arrow-up"></i></span>
+
+          @if (archivo(); as archivoSeleccionado) {
+            <p class="upload-drop-title text-truncate mb-1">{{ archivoSeleccionado.name }}</p>
+            <p class="upload-drop-hint mb-2">{{ formatearTamano(archivoSeleccionado.size) }}</p>
+            <button
+              type="button"
+              class="btn btn-sm btn-outline-danger"
+              (click)="quitarArchivo()"
+              [disabled]="enviando"
+            >
+              <i class="bi bi-x-lg me-1" aria-hidden="true"></i>
+              Quitar archivo
+            </button>
+          } @else {
+            <p class="upload-drop-title mb-1">Arrastra tu archivo aquí</p>
+            <p class="upload-drop-hint">PDF, DOC, DOCX, PPT, PPTX o TXT · máximo {{ tamanoMaximoMb }} MB</p>
+            <button
+              type="button"
+              class="btn btn-outline-primary btn-sm"
+              (click)="inputArchivo()?.nativeElement?.click()"
+              [disabled]="enviando"
+            >
+              <i class="bi bi-folder2-open me-1" aria-hidden="true"></i>
+              Seleccionar archivo
+            </button>
+          }
+
+          <input
+            #archivoInput
+            id="doc-archivo"
+            type="file"
+            class="visually-hidden"
+            [accept]="extensionesAceptadas"
+            (change)="alSeleccionarArchivo($event)"
+            [disabled]="enviando"
+            aria-label="Archivo del documento"
+          />
+        </div>
+      </div>
+    </div>
+
+    @if (error()) {
+      <div class="alert alert-danger d-flex align-items-start gap-2 mt-3 mb-0" role="alert">
+        <i class="bi bi-exclamation-triangle-fill mt-1" aria-hidden="true"></i>
+        <span>{{ error() }}</span>
+      </div>
+    }
+
+    @if (enviando) {
+      <div class="upload-progress" role="status" aria-live="polite">
+        <div class="d-flex justify-content-between align-items-center mb-1">
+          <span class="upload-progress-label">{{ faseTexto() }}</span>
+          <span class="upload-progress-value">{{ progreso() }}%</span>
+        </div>
+        <div
+          class="progress"
+          role="progressbar"
+          [attr.aria-valuenow]="progreso()"
+          aria-valuemin="0"
+          aria-valuemax="100"
+        >
+          <div class="progress-bar" [style.width.%]="progreso()"></div>
+        </div>
+      </div>
+    }
+
+    <footer class="upload-actions">
+      <button type="button" class="btn btn-outline-secondary" (click)="cancelar()" [disabled]="enviando">
+        Cancelar
+      </button>
+      <button type="submit" class="btn btn-primary" [disabled]="enviando || !archivo()">
+        <i class="bi bi-cloud-arrow-up me-1" aria-hidden="true"></i>
+        {{ enviando ? 'Subiendo...' : 'Subir documento' }}
+      </button>
+    </footer>
+  </form>
+</section>

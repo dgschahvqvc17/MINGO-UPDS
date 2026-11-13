@@ -1,0 +1,114 @@
+.upload-panel {
+  padding: 1.25rem 1.35rem;
+  border: 1px solid var(--mingo-border);
+  border-radius: var(--mingo-radius-lg);
+  background:
+    linear-gradient(160deg, rgba(56, 189, 248, 0.1), transparent 45%),
+    var(--mingo-surface);
+  box-shadow: var(--mingo-shadow-md);
+}
+
+.upload-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.85rem;
+  margin-bottom: 1.1rem;
+}
+
+.upload-head-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 2.6rem;
+  height: 2.6rem;
+  border-radius: var(--mingo-radius);
+  background: var(--mingo-ai-soft);
+  border: 1px solid rgba(56, 189, 248, 0.35);
+  color: var(--mingo-ai);
+  font-size: 1.2rem;
+}
+
+.upload-title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--mingo-text);
+}
+
+.upload-subtitle {
+  margin: 0.15rem 0 0;
+  color: var(--mingo-text-muted);
+  font-size: 0.85rem;
+}
+
+.upload-drop {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15rem;
+  padding: 1.5rem 1rem;
+  text-align: center;
+  border: 1px dashed var(--mingo-border);
+  border-radius: var(--mingo-radius);
+  background: rgba(10, 17, 40, 0.6);
+  transition:
+    border-color var(--mingo-transition-fast),
+    background var(--mingo-transition-fast);
+}
+
+.upload-drop--active {
+  border-color: var(--mingo-ai);
+  background: var(--mingo-ai-soft);
+}
+
+.upload-drop-icon {
+  font-size: 1.7rem;
+  color: var(--mingo-ai);
+  margin-bottom: 0.35rem;
+}
+
+.upload-drop-title {
+  max-width: 100%;
+  font-weight: 600;
+  color: var(--mingo-text);
+  margin: 0;
+}
+
+.upload-drop-hint {
+  color: var(--mingo-text-muted);
+  font-size: 0.8rem;
+  margin: 0;
+}
+
+.upload-progress {
+  margin-top: 1rem;
+}
+
+.upload-progress-label {
+  color: var(--mingo-text-muted);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.upload-progress-value {
+  color: var(--mingo-ai);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.upload-progress .progress {
+  height: 0.5rem;
+  background: rgba(148, 163, 184, 0.16);
+}
+
+.upload-progress .progress-bar {
+  background: linear-gradient(90deg, var(--mingo-primary), var(--mingo-ai));
+}
+
+.upload-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.6rem;
+  margin-top: 1.25rem;
+}

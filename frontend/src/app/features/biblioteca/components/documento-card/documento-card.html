@@ -1,0 +1,47 @@
+<app-card [hoverable]="true" class="h-100">
+  <article class="doc-card h-100">
+    <div class="doc-card-head">
+      <span class="doc-icon" [style.color]="colorMateria()" aria-hidden="true">
+        <i class="bi {{ icono() }}"></i>
+      </span>
+
+      <div class="doc-card-title min-width-0">
+        <h3 class="doc-name" [title]="documento().nombre">{{ documento().nombre }}</h3>
+        @if (materia(); as materiaDocumento) {
+          <span class="doc-subject">
+            <span class="doc-subject-dot" [style.background]="materiaDocumento.color" aria-hidden="true"></span>
+            {{ materiaDocumento.nombre }}
+          </span>
+        } @else {
+          <span class="doc-subject">Sin materia</span>
+        }
+      </div>
+    </div>
+
+    <div class="doc-meta">
+      <span class="doc-meta-item">
+        <i class="bi bi-hdd" aria-hidden="true"></i>
+        {{ tamanoTexto() }}
+      </span>
+      <span class="doc-meta-item">
+        <i class="bi bi-calendar3" aria-hidden="true"></i>
+        {{ fechaTexto() }}
+      </span>
+      <span class="doc-meta-item">
+        <i class="bi bi-diagram-3" aria-hidden="true"></i>
+        {{ documento().unidad_id ? 'Unidad asignada' : 'Sin unidad' }}
+      </span>
+    </div>
+
+    <footer class="doc-card-foot">
+      <span class="doc-badge {{ estadoClase() }}">
+        <span class="doc-badge-dot" aria-hidden="true"></span>
+        {{ estadoTexto() }}
+      </span>
+
+      @if (documento().estado_procesamiento === 'error' && documento().motivo_error) {
+        <span class="doc-error" [title]="documento().motivo_error ?? ''">Revisar error</span>
+      }
+    </footer>
+  </article>
+</app-card>

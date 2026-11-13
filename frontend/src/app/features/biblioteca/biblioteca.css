@@ -1,0 +1,46 @@
+.biblioteca-page {
+  display: block;
+}
+
+.biblio-hero {
+  position: relative;
+  padding: 1.35rem 1.5rem;
+  border: 1px solid var(--mingo-border);
+  border-radius: var(--mingo-radius-xl);
+  background:
+    radial-gradient(120% 140% at 100% 0%, rgba(56, 189, 248, 0.16), transparent 55%),
+    radial-gradient(120% 140% at 0% 100%, rgba(37, 99, 235, 0.14), transparent 55%),
+    var(--mingo-surface);
+  box-shadow: var(--mingo-shadow-md);
+}
+
+.hero-text {
+  min-width: 0;
+}
+
+.biblio-pagination {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--mingo-border-soft);
+}
+
+.biblio-range,
+.biblio-page {
+  color: var(--mingo-text-muted);
+  font-size: 0.8rem;
+}
+
+.biblio-page {
+  font-weight: 600;
+}
+
+@media (max-width: 575.98px) {
+  .biblio-hero {
+    padding: 1.1rem;
+  }
+}
