@@ -112,10 +112,10 @@ de recursos incluidos en la lista blanca:
 3. El agente **explica antes de implementar** qué recurso creará, para qué, con qué
    límites y qué costo estimado, y espera la aprobación explícita del usuario para
    ese cambio concreto, en el momento de ejecutarlo.
-4. Los presupuestos de alerta deben estar verificados activos antes del despliegue:
-   `mingo-alerta-media` ($5) y, para la alerta de $1, el presupuesto compartido de
-   la cuenta (ver la nota de cobertura compartida en
-   `docs/reglas-aws-agente.md` §7).
+4. Antes de cada despliegue debe estar verificado activo el presupuesto de alerta de
+   $1 (compartido de la cuenta, ver `docs/reglas-aws-agente.md` §7). El presupuesto
+   de $5 (`mingo-alerta-media`) no se exige por decisión del dueño del proyecto
+   (excepción 2026-11-12, revisión 2027-02-12).
 5. Las credenciales son únicamente locales del usuario (SSO, perfil CLI o variables
    en su `.env` local ignorado por git) o OIDC desde el CI. Jamás credenciales en el
    chat, en git ni en el frontend.

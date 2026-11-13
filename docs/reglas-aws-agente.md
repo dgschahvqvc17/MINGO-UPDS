@@ -165,12 +165,17 @@ ManagedBy   = sam | cloudformation
 CostCenter  = academico
 ```
 
-Presupuestos obligatorios en AWS Budgets:
+Presupuesto de alerta obligatorio en AWS Budgets:
 
 | Nombre | Monto | Alertas |
 |---|---|---|
-| `mingo-alerta-baja` | $1/mes | 50 %, 80 %, 100 % real y pronosticado |
-| `mingo-alerta-media` | $5/mes | 50 %, 80 %, 100 % real y pronosticado |
+| `ConcesionariaBMW-1USD` (compartido de la cuenta) | $1/mes | 80 % real y 100 % pronosticado |
+
+**Presupuesto único de $1 (excepción aprobada 2026-11-12).** Por decisión del dueño
+del proyecto, MINGO opera únicamente con el presupuesto compartido de $1. **No se
+crea** `mingo-alerta-media` ($5). Motivo: el monto es suficiente para la capa
+gratuita y se prefiere no administrar un segundo presupuesto. **Fecha de revisión:
+2027-02-12.**
 
 **Nota de cobertura compartida (2026-11-12).** La cuenta `591015654164` se comparte
 con otro proyecto (Concesionaria BMW), así que la alerta de $1 **no se duplica**.
@@ -184,10 +189,11 @@ Verificado por CLI con el usuario `mingo-agente`:
 | Notificaciones | 80 % **real** y 100 % **pronosticado** → `jesielvv17adam@gmail.com` |
 | Costo del presupuesto | $0 (monitoreo y notificaciones son gratuitos) |
 
-Con esto la condición 4 de `AGENTS.md` queda cubierta para la alerta de $1.
-Sigue pendiente `mingo-alerta-media` ($5, sin filtro), que la condición 4 exige
-antes de cualquier despliegue. Los umbrales 50 % real y 100 % real del presupuesto
-compartido son mejora opcional.
+Con esto la condición 4 de `AGENTS.md` queda cubierta. **Riesgo aceptado:** el
+consumo del otro proyecto puede consumir el umbral y enmascarar el gasto de MINGO,
+o hacer saltar la alerta sin que MINGO gaste. **Mitigación:** límites del bucket
+(objetos ≤ 20 MB), lifecycle, sin versionado y revisión semanal de Cost Explorer.
+Los umbrales 50 % real y 100 % real del presupuesto compartido son mejora opcional.
 
 Activar también **Free Tier usage alerts** y revisar **Cost Explorer** semanalmente.
 
