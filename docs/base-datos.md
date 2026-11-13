@@ -374,20 +374,29 @@ Metadatos de los documentos académicos.
 
 | Campo | Tipo | Nulo | Clave | Descripción |
 |---|---|---|:---:|---|
-| `id` | `SERIAL` | No | PK | Identificador del documento. |
+| `id` | `UUID` | No | PK | Identificador del documento. |
 | `usuario_id` | `UUID` | No | FK → `perfiles.id` | Propietario del documento. |
 | `materia_id` | `UUID` | No | FK → `materias.id` | Materia a la que pertenece. |
-| `nombre` | `VARCHAR` | No | | Nombre visible del documento. |
-| `ruta_almacenamiento` | `TEXT` | No | | Clave del objeto en S3. |
-| `tamano` | `BIGINT` | No | | Tamaño en bytes. |
-| `estado_procesamiento` | `VARCHAR` | No | | `pendiente`, `en_cola`, `procesando`, `procesado` o `error`. |
-| `fecha_carga` | `TIMESTAMP` | No | | Fecha de carga. |
+| `unidad_id` | `UUID` | Sí | — | Unidad académica; nula hasta que exista HU03. |
+| `nombre` | `VARCHAR(255)` | No | | Nombre visible del documento. |
+| `nombre_archivo` | `VARCHAR(255)` | No | | Nombre del archivo tal como se guardó en S3. |
+| `ruta_almacenamiento` | `TEXT` | No | Único | Clave del objeto en S3. |
+| `tipo_archivo` | `VARCHAR(120)` | No | | MIME real leído de S3. |
+| `tamano` | `BIGINT` | No | | Tamaño real en bytes, leído de S3 (máx. 20 MB). |
+| `estado_procesamiento` | `VARCHAR(20)` | No | | `pendiente`, `en_cola`, `procesando`, `procesado` o `error`. |
+| `motivo_error` | `TEXT` | Sí | | Detalle del fallo de procesamiento. |
+| `numero_paginas` | `INTEGER` | Sí | | Páginas extraídas, cuando aplique. |
+| `fecha_carga` | `TIMESTAMPTZ` | No | | Fecha de carga. |
+| `fecha_actualizacion` | `TIMESTAMPTZ` | Sí | | Última modificación (trigger). |
 
 Reglas:
 
-- La ruta en S3 debe empezar con `usuarios/<usuario_id>/`.
+- La ruta en S3 debe empezar con `usuarios/<usuario_id>/documentos/` y es única.
 - El archivo real vive en S3; aquí solo se guardan metadatos.
+- `unidad_id` queda en `null` hasta que exista la tabla `unidades` (HU03); cuando exista se agrega la FK.
 - Al eliminar el documento se eliminan sus fragmentos y el objeto de S3.
+- RLS activo con cuatro políticas sobre `auth.uid() = usuario_id`.
+- DDL: `supabase/migrations/0004_hu07_documentos.sql` (idempotente).
 
 ### 3.9. `fragmentos_documento`
 

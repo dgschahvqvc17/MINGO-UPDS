@@ -1,0 +1,162 @@
+<div class="biblioteca-page">
+  <header class="biblio-hero mb-4">
+    <div class="d-flex flex-wrap justify-content-between align-items-start gap-3">
+      <div class="hero-text">
+        <span class="page-eyebrow">Biblioteca</span>
+        <h1 class="page-title mt-1 mb-2">Biblioteca inteligente</h1>
+        <p class="page-subtitle">
+          Carga tus documentos académicos y mantenlos organizados por materia.
+        </p>
+      </div>
+
+      <button
+        type="button"
+        class="btn-cta"
+        (click)="abrirFormulario()"
+        [disabled]="sinMaterias() || mostrarFormulario()"
+      >
+        <span class="btn-cta-icon" aria-hidden="true"><i class="bi bi-cloud-arrow-up"></i></span>
+        <span class="btn-cta-copy">
+          <strong>Subir documento</strong>
+          <small>PDF, Word, PowerPoint o TXT</small>
+        </span>
+      </button>
+    </div>
+  </header>
+
+  @if (sinMaterias()) {
+    <div class="alert alert-info d-flex flex-wrap align-items-center gap-2" role="status">
+      <i class="bi bi-info-circle-fill" aria-hidden="true"></i>
+      <span class="flex-grow-1">
+        Necesitas al menos una materia activa para subir documentos.
+      </span>
+      <a class="btn btn-sm btn-outline-primary" routerLink="/materias/nueva">Crear materia</a>
+    </div>
+  }
+
+  @if (mostrarFormulario()) {
+    <div class="mb-4">
+      <app-documento-upload
+        [materias]="materiasDisponibles()"
+        [materiaSeleccionada]="materiaFiltro()"
+        (cargado)="alCargarDocumento($event)"
+        (cancelado)="cerrarFormulario()"
+      />
+    </div>
+  }
+
+  @if (mensajeExito()) {
+    <div class="alert alert-success d-flex align-items-center gap-2" role="status">
+      <i class="bi bi-check-circle-fill" aria-hidden="true"></i>
+      <div class="flex-fill">{{ mensajeExito() }}</div>
+      <button type="button" class="btn-icon" aria-label="Cerrar mensaje" (click)="cerrarMensaje()">
+        <i class="bi bi-x-lg" aria-hidden="true"></i>
+      </button>
+    </div>
+  }
+
+  <section class="mat-filters mb-4" aria-label="Filtros de documentos">
+    <div class="mat-filters-head">
+      <span class="mat-filters-title">
+        <i class="bi bi-funnel-fill" aria-hidden="true"></i>
+        Filtrar documentos
+        @if (materiaFiltro()) {
+          <span class="mat-count-chip"><i class="bi bi-check2" aria-hidden="true"></i>Activo</span>
+        }
+      </span>
+      @if (materiaFiltro()) {
+        <button type="button" class="mat-clear-btn" (click)="limpiarFiltros()">
+          <i class="bi bi-x-circle" aria-hidden="true"></i>
+          Limpiar filtro
+        </button>
+      }
+    </div>
+
+    <div class="row g-3 align-items-end">
+      <div class="col-12 col-md-6">
+        <label class="mat-filter-label" for="filtro-materia-doc">
+          <i class="bi bi-journal-bookmark" aria-hidden="true"></i>
+          Materia
+        </label>
+        <select
+          id="filtro-materia-doc"
+          class="form-select"
+          [value]="materiaFiltro()"
+          (change)="cambiarMateria($any($event.target).value)"
+        >
+          <option value="">Todas las materias</option>
+          @for (materia of materiasDisponibles(); track materia.id) {
+            <option [value]="materia.id">{{ materia.nombre }} ({{ materia.codigo }})</option>
+          }
+        </select>
+      </div>
+    </div>
+  </section>
+
+  @if (mostrarCargando()) {
+    <div class="mat-state" role="status" aria-live="polite">
+      <span class="spinner-border" aria-hidden="true"></span>
+      <p>Cargando tu biblioteca...</p>
+    </div>
+  }
+
+  @if (mostrarError()) {
+    <div class="alert alert-danger d-flex flex-wrap align-items-center gap-2" role="alert">
+      <i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i>
+      <span class="flex-grow-1">{{ error() }}</span>
+      <button type="button" class="btn btn-sm btn-outline-danger" (click)="cargarDocumentos()">
+        Reintentar
+      </button>
+    </div>
+  }
+
+  @if (mostrarListaVacia()) {
+    <div class="mat-state mat-state--empty" role="status">
+      <span class="mat-empty-icon" aria-hidden="true"><i class="bi bi-folder2-open"></i></span>
+      <h3>No hay documentos todavía</h3>
+      <p class="text-muted-soft mb-0">
+        @if (materiaFiltro()) {
+          Esta materia aún no tiene documentos cargados.
+        } @else {
+          Sube tu primer documento para empezar tu biblioteca académica.
+        }
+      </p>
+    </div>
+  }
+
+  @if (tieneResultados() && !loading()) {
+    <section class="row g-3" aria-label="Documentos cargados">
+      @for (documento of documentos(); track documento.id) {
+        <div class="col-12 col-md-6 col-xl-4">
+          <app-documento-card [documento]="documento" />
+        </div>
+      }
+    </section>
+
+    <footer class="biblio-pagination">
+      <span class="biblio-range">{{ rangoMostrado() }}</span>
+
+      <div class="d-flex align-items-center gap-2">
+        <button
+          type="button"
+          class="btn btn-sm btn-outline-secondary"
+          (click)="paginaAnterior()"
+          [disabled]="!puedeRetroceder()"
+        >
+          <i class="bi bi-chevron-left me-1" aria-hidden="true"></i>
+          Anterior
+        </button>
+        <span class="biblio-page">Página {{ paginaActual() }} de {{ totalPaginas() }}</span>
+        <button
+          type="button"
+          class="btn btn-sm btn-outline-secondary"
+          (click)="paginaSiguiente()"
+          [disabled]="!puedeAvanzar()"
+        >
+          Siguiente
+          <i class="bi bi-chevron-right ms-1" aria-hidden="true"></i>
+        </button>
+      </div>
+    </footer>
+  }
+</div>

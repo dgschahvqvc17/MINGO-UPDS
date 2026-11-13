@@ -165,12 +165,35 @@ ManagedBy   = sam | cloudformation
 CostCenter  = academico
 ```
 
-Presupuestos obligatorios en AWS Budgets:
+Presupuesto de alerta obligatorio en AWS Budgets:
 
 | Nombre | Monto | Alertas |
 |---|---|---|
-| `mingo-alerta-baja` | $1/mes | 50 %, 80 %, 100 % real y pronosticado |
-| `mingo-alerta-media` | $5/mes | 50 %, 80 %, 100 % real y pronosticado |
+| `ConcesionariaBMW-1USD` (compartido de la cuenta) | $1/mes | 80 % real y 100 % pronosticado |
+
+**Presupuesto único de $1 (excepción aprobada 2026-11-12).** Por decisión del dueño
+del proyecto, MINGO opera únicamente con el presupuesto compartido de $1. **No se
+crea** `mingo-alerta-media` ($5). Motivo: el monto es suficiente para la capa
+gratuita y se prefiere no administrar un segundo presupuesto. **Fecha de revisión:
+2027-02-12.**
+
+**Nota de cobertura compartida (2026-11-12).** La cuenta `591015654164` se comparte
+con otro proyecto (Concesionaria BMW), así que la alerta de $1 **no se duplica**.
+Verificado por CLI con el usuario `mingo-agente`:
+
+| Dato verificado | Valor |
+|---|---|
+| Presupuesto | `ConcesionariaBMW-1USD` |
+| Monto y periodo | $1.00 / mes |
+| Filtros | **ninguno** → mide toda la cuenta, MINGO incluido (más estricto que un filtro por etiqueta) |
+| Notificaciones | 80 % **real** y 100 % **pronosticado** → `jesielvv17adam@gmail.com` |
+| Costo del presupuesto | $0 (monitoreo y notificaciones son gratuitos) |
+
+Con esto la condición 4 de `AGENTS.md` queda cubierta. **Riesgo aceptado:** el
+consumo del otro proyecto puede consumir el umbral y enmascarar el gasto de MINGO,
+o hacer saltar la alerta sin que MINGO gaste. **Mitigación:** límites del bucket
+(objetos ≤ 20 MB), lifecycle, sin versionado y revisión semanal de Cost Explorer.
+Los umbrales 50 % real y 100 % real del presupuesto compartido son mejora opcional.
 
 Activar también **Free Tier usage alerts** y revisar **Cost Explorer** semanalmente.
 
@@ -216,9 +239,9 @@ Activar también **Free Tier usage alerts** y revisar **Cost Explorer** semanalm
 
 El agente **no debe**:
 
-- Ejecutar `aws` con comandos de creación, actualización o eliminación de infraestructura.
-- Ejecutar `sam deploy`, `aws cloudformation deploy` ni equivalentes sin autorización explícita.
-- Crear buckets, colas, topics, funciones, roles, usuarios o claves.
+- Ejecutar `aws` con comandos de creación, actualización o eliminación de infraestructura sin aprobación explícita del usuario sobre la plantilla exacta y su costo (ver «Ejecución de infraestructura por el agente» en AGENTS.md).
+- Ejecutar `sam deploy`, `aws cloudformation deploy` ni equivalentes sin autorización explícita del usuario, en el momento, sobre el cambio concreto.
+- Crear buckets, colas, topics, funciones u otros recursos sin la aprobación explícita del usuario sobre la plantilla exacta y su costo (ver AGENTS.md). Roles, usuarios y claves siguen prohibidos en todo caso.
 - Modificar presupuestos, alertas, regiones o cuentas.
 - Crear archivos de credenciales (`.aws/credentials`, access keys).
 - Aprobar excepciones por su cuenta.

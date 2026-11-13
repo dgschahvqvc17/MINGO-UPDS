@@ -130,10 +130,25 @@ export class MateriaDetallePage {
   }
 
   /**
-   * Navega a la biblioteca de documentos del usuario
+   * Navega a la biblioteca de documentos filtrada por esta materia
    */
   verDocumentos(): void {
-    this.router.navigate(['/biblioteca']);
+    const materia = this.materia();
+    this.router.navigate(['/biblioteca'], {
+      queryParams: materia ? { materia_id: materia.id } : {},
+    });
+  }
+
+  /**
+   * Abre la biblioteca con el formulario de carga listo para esta materia
+   */
+  subirDocumento(): void {
+    const materia = this.materia();
+    if (!materia) return;
+
+    this.router.navigate(['/biblioteca'], {
+      queryParams: { materia_id: materia.id, subir: '1' },
+    });
   }
 
   /**

@@ -7,18 +7,23 @@ const UsuarioAdminRepository = require('./repositories/usuario-admin.repository'
 const MateriaRepository = require('./repositories/materia.repository');
 const TareaRepository = require('./repositories/tarea.repository');
 const CalendarioRepository = require('./repositories/calendario.repository');
+const DocumentoRepository = require('./repositories/documento.repository');
+const AlmacenamientoRepository = require('./repositories/almacenamiento.repository');
 const AuthService = require('./services/auth.service');
 const UsuarioAdminService = require('./services/usuario-admin.service');
 const MateriaService = require('./services/materia.service');
 const TareaService = require('./services/tarea.service');
 const CalendarioService = require('./services/calendario.service');
 const DashboardService = require('./services/dashboard.service');
+const DocumentoService = require('./services/documento.service');
 const AuthController = require('./controllers/auth.controller');
 const UsuarioAdminController = require('./controllers/usuario-admin.controller');
 const MateriaController = require('./controllers/materia.controller');
 const TareaController = require('./controllers/tarea.controller');
 const CalendarioController = require('./controllers/calendario.controller');
 const DashboardController = require('./controllers/dashboard.controller');
+const DocumentoController = require('./controllers/documento.controller');
+const { s3Client } = require('./config/aws');
 const {
   createSupabaseClient,
   createSupabaseServiceRoleClient,
@@ -134,6 +139,32 @@ function createDashboardController(dashboardService) {
   return new DashboardController({ dashboardService });
 }
 
+/**
+ * Crea el servicio de documentos academicos de HU07.
+ * Usa el cliente del usuario para que RLS aplique y el cliente S3 compartido.
+ *
+ * @param {string} usuarioActualId - ID del usuario autenticado
+ * @param {string} accessToken - JWT del usuario autenticado
+ * @returns {DocumentoService}
+ */
+function createDocumentoService(usuarioActualId, accessToken) {
+  const supabaseClient = createSupabaseClient(accessToken);
+  const documentoRepository = new DocumentoRepository({ supabase: supabaseClient });
+  const materiaRepository = new MateriaRepository({ supabase: supabaseClient });
+  const almacenamientoRepository = new AlmacenamientoRepository({ s3Client });
+
+  return new DocumentoService({
+    documentoRepository,
+    materiaRepository,
+    almacenamientoRepository,
+    usuarioActualId,
+  });
+}
+
+function createDocumentoController(documentoService) {
+  return new DocumentoController({ documentoService });
+}
+
 const authController = new AuthController();
 
 module.exports = {
@@ -143,9 +174,11 @@ module.exports = {
   createTareaService,
   createCalendarioService,
   createDashboardService,
+  createDocumentoService,
   createTareaController,
   createCalendarioController,
   createDashboardController,
+  createDocumentoController,
   authController,
   usuarioAdminController: new UsuarioAdminController(),
   materiaController: new MateriaController(),

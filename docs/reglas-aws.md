@@ -215,14 +215,27 @@ Estos valores se configuran en la infraestructura como código, no "a mano" en l
 
 ### 7.1. Presupuestos obligatorios
 
-Crear en **AWS Billing and Cost Management → Budgets**:
+Presupuesto de alerta verificado en la cuenta (ver la excepción en
+[reglas-aws-agente.md](reglas-aws-agente.md) §7):
 
 | Presupuesto | Monto | Alertas |
 |---|---|---|
-| `mingo-alerta-baja` | $1 USD/mes | 50 %, 80 %, 100 % real y 100 % pronosticado |
-| `mingo-alerta-media` | $5 USD/mes | 50 %, 80 %, 100 % real y 100 % pronosticado |
+| `ConcesionariaBMW-1USD` (compartido de la cuenta) | $1 USD/mes | 80 % real y 100 % pronosticado |
 
-Los dos primeros presupuestos son gratuitos. Enviar alertas al correo del responsable del proyecto y al equipo.
+Por decisión del dueño del proyecto (excepción 2026-11-12, revisión 2027-02-12) no
+se crea `mingo-alerta-media` ($5). Los umbrales 50 % real y 100 % real del
+presupuesto compartido son mejora opcional.
+
+Los presupuestos son gratuitos. Enviar alertas al correo del responsable del proyecto y al equipo.
+
+> Precio vigente (verificado en la página oficial de AWS Budgets, 2026-11-12): el
+> **monitoreo y las notificaciones son gratuitos**; solo los *budget actions*
+> cuestan, a partir del tercero ($0.10/día). Los *budget reports* cuestan $0.01 cada
+> uno. En MINGO no se usan acciones ni informes automáticos.
+>
+> Cobertura compartida: en la cuenta `591015654164` la alerta de $1 la cumple el
+> presupuesto `ConcesionariaBMW-1USD` (sin filtros, cubre toda la cuenta). Ver la
+> nota en [reglas-aws-agente.md](reglas-aws-agente.md) §7.
 
 Además:
 
