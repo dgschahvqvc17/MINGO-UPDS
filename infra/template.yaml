@@ -16,6 +16,15 @@ Parameters:
     Default: mingo-documentos
     Description: Nombre global del bucket de documentos.
 
+  FrontendOrigin:
+    Type: String
+    Default: http://localhost:4200
+    Description: >
+      Origen exacto del frontend autorizado a subir por CORS.
+      En produccion se reemplaza por el dominio del sitio.
+    AllowedPattern: '^https?://[^/]+$'
+    ConstraintDescription: Debe ser un origen sin ruta, por ejemplo https://mingo.example.com
+
 Conditions:
   IsProd: !Equals [!Ref Environment, prod]
 
@@ -45,6 +54,20 @@ Resources:
       # Sin versionado: evita almacenamiento duplicado con costo oculto.
       VersioningConfiguration:
         Status: Suspended
+      # El navegador sube directo a S3 con la URL prefirmada: hace falta CORS.
+      # Solo PUT desde el origen del frontend; no se exponen listados ni otros metodos.
+      CorsConfiguration:
+        CorsRules:
+          - Id: subida-directa-desde-el-frontend
+            AllowedOrigins:
+              - !Ref FrontendOrigin
+            AllowedMethods:
+              - PUT
+            AllowedHeaders:
+              - '*'
+            ExposedHeaders:
+              - ETag
+            MaxAge: 3000
       LifecycleConfiguration:
         Rules:
           - Id: abortar-cargas-multipart-incompletas
