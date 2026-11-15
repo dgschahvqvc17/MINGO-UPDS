@@ -8,7 +8,7 @@
 } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { EMPTY, Observable, Subject, catchError, debounceTime, switchMap } from 'rxjs';
+import { EMPTY, Observable, Subject, Subscription, catchError, debounceTime, switchMap, take, takeWhile, timer } from 'rxjs';
 import {
   ESTADOS_DOCUMENTO,
   DocumentoService,
@@ -16,6 +16,7 @@ import {
   type DocumentoFiltros,
   type DocumentoListado,
   type EstadoDocumento,
+  type EstadoProcesamiento,
   type PaginacionDocumentos,
 } from '../../core/services/documento.service';
 import { MateriaService, type Materia } from '../../core/services/materia.service';
@@ -26,6 +27,8 @@ import { DocumentoUploadComponent } from './components/documento-upload/document
 const LIMITE_POR_PAGINA = 12;
 const MAXIMO_MATERIAS = 100;
 const ESPERA_BUSQUEDA_MS = 300;
+const INTERVALO_SEGUIMIENTO_MS = 3000;
+const MAXIMO_INTENTOS_SEGUIMIENTO = 20;
 
 const PAGINACION_INICIAL: PaginacionDocumentos = {
   limit: LIMITE_POR_PAGINA,
@@ -48,6 +51,7 @@ export class BibliotecaPage {
 
   private readonly solicitudDocumentos = new Subject<void>();
   private readonly busquedaDocumentos = new Subject<void>();
+  private readonly seguimientos = new Map<string, Subscription>();
 
   readonly documentos = signal<Documento[]>([]);
   readonly materias = signal<Materia[]>([]);
@@ -63,6 +67,7 @@ export class BibliotecaPage {
   readonly terminoBusqueda = signal('');
   readonly descargandoId = signal<string | null>(null);
   readonly eliminandoId = signal<string | null>(null);
+  readonly procesandoId = signal<string | null>(null);
 
   readonly estados = ESTADOS_DOCUMENTO;
 
@@ -135,6 +140,11 @@ export class BibliotecaPage {
 
     this.cargarMaterias();
     this.cargarDocumentos();
+
+    this.destroyRef.onDestroy(() => {
+      this.seguimientos.forEach((seguimiento) => seguimiento.unsubscribe());
+      this.seguimientos.clear();
+    });
   }
 
   cargarMaterias(): void {
@@ -265,6 +275,39 @@ export class BibliotecaPage {
       });
   }
 
+  procesar(documento: Documento): void {
+    if (
+      this.procesandoId() ||
+      !this.documentoService.puedeProcesar(documento.estado_procesamiento)
+    ) {
+      return;
+    }
+
+    this.procesandoId.set(documento.id);
+    this.errorAccion.set(null);
+
+    this.documentoService
+      .procesar(documento.id)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: ({ estado }) => {
+          this.procesandoId.set(null);
+          this.actualizarDocumento(documento.id, {
+            estado_procesamiento: estado,
+            motivo_error: null,
+          });
+          this.mensajeExito.set(`"${documento.nombre}" se envió a procesamiento.`);
+          this.seguirProcesamiento(documento.id);
+        },
+        error: (error: unknown) => {
+          this.procesandoId.set(null);
+          this.errorAccion.set(
+            mensajeDeErrorHttp(error, 'No se pudo iniciar el procesamiento del documento.'),
+          );
+        },
+      });
+  }
+
   abrirFormulario(): void {
     this.mensajeExito.set(null);
     this.mostrarFormulario.set(true);
@@ -292,6 +335,46 @@ export class BibliotecaPage {
 
   estadoTexto(estado: EstadoDocumento): string {
     return this.documentoService.estadoTexto(estado);
+  }
+
+  private seguirProcesamiento(documentoId: string): void {
+    this.seguimientos.get(documentoId)?.unsubscribe();
+
+    const seguimiento = timer(0, INTERVALO_SEGUIMIENTO_MS)
+      .pipe(
+        switchMap(() =>
+          this.documentoService.obtenerEstado(documentoId).pipe(catchError(() => EMPTY)),
+        ),
+        take(MAXIMO_INTENTOS_SEGUIMIENTO),
+        takeWhile(
+          (estado) => this.documentoService.estaEnProceso(estado.estado_procesamiento),
+          true,
+        ),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe({
+        next: (estado) => this.aplicarEstado(estado),
+        complete: () => this.seguimientos.delete(documentoId),
+      });
+
+    this.seguimientos.set(documentoId, seguimiento);
+  }
+
+  private aplicarEstado(estado: EstadoProcesamiento): void {
+    this.actualizarDocumento(estado.id, {
+      estado_procesamiento: estado.estado_procesamiento,
+      motivo_error: estado.motivo_error,
+      numero_paginas: estado.numero_paginas,
+      fecha_actualizacion: estado.fecha_actualizacion,
+    });
+  }
+
+  private actualizarDocumento(documentoId: string, cambios: Partial<Documento>): void {
+    this.documentos.update((documentos) =>
+      documentos.map((documento) =>
+        documento.id === documentoId ? { ...documento, ...cambios } : documento,
+      ),
+    );
   }
 
   private consultarDocumentos(): Observable<DocumentoListado> {

@@ -29,9 +29,11 @@ export class DocumentoCardComponent {
   readonly documento = input.required<Documento>();
   readonly descargando = input(false);
   readonly eliminando = input(false);
+  readonly procesando = input(false);
 
   readonly descargar = output<Documento>();
   readonly eliminar = output<Documento>();
+  readonly procesar = output<Documento>();
 
   readonly confirmandoEliminar = signal(false);
 
@@ -57,6 +59,22 @@ export class DocumentoCardComponent {
 
   estadoClase(): string {
     return this.documentoService.estadoClase(this.documento().estado_procesamiento);
+  }
+
+  puedeProcesar(): boolean {
+    return this.documentoService.puedeProcesar(this.documento().estado_procesamiento);
+  }
+
+  textoProcesar(): string {
+    return this.documentoService.textoProcesar(this.documento().estado_procesamiento);
+  }
+
+  solicitarProcesamiento(): void {
+    if (!this.puedeProcesar() || this.procesando()) {
+      return;
+    }
+
+    this.procesar.emit(this.documento());
   }
 
   formatoTexto(): string {

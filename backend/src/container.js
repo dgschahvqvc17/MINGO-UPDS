@@ -8,7 +8,9 @@ const MateriaRepository = require('./repositories/materia.repository');
 const TareaRepository = require('./repositories/tarea.repository');
 const CalendarioRepository = require('./repositories/calendario.repository');
 const DocumentoRepository = require('./repositories/documento.repository');
+const FragmentoRepository = require('./repositories/fragmento.repository');
 const AlmacenamientoRepository = require('./repositories/almacenamiento.repository');
+const ColaRepository = require('./repositories/cola.repository');
 const AuthService = require('./services/auth.service');
 const UsuarioAdminService = require('./services/usuario-admin.service');
 const MateriaService = require('./services/materia.service');
@@ -16,6 +18,8 @@ const TareaService = require('./services/tarea.service');
 const CalendarioService = require('./services/calendario.service');
 const DashboardService = require('./services/dashboard.service');
 const DocumentoService = require('./services/documento.service');
+const ProcesamientoService = require('./services/procesamiento.service');
+const EmbeddingsService = require('./services/ia/embeddings.service');
 const AuthController = require('./controllers/auth.controller');
 const UsuarioAdminController = require('./controllers/usuario-admin.controller');
 const MateriaController = require('./controllers/materia.controller');
@@ -23,7 +27,7 @@ const TareaController = require('./controllers/tarea.controller');
 const CalendarioController = require('./controllers/calendario.controller');
 const DashboardController = require('./controllers/dashboard.controller');
 const DocumentoController = require('./controllers/documento.controller');
-const { s3Client } = require('./config/aws');
+const { s3Client, sqsClient } = require('./config/aws');
 const {
   createSupabaseClient,
   createSupabaseServiceRoleClient,
@@ -152,17 +156,42 @@ function createDocumentoService(usuarioActualId, accessToken) {
   const documentoRepository = new DocumentoRepository({ supabase: supabaseClient });
   const materiaRepository = new MateriaRepository({ supabase: supabaseClient });
   const almacenamientoRepository = new AlmacenamientoRepository({ s3Client });
+  const colaRepository = new ColaRepository({ sqsClient });
 
   return new DocumentoService({
     documentoRepository,
     materiaRepository,
     almacenamientoRepository,
+    colaRepository,
     usuarioActualId,
   });
 }
 
 function createDocumentoController(documentoService) {
   return new DocumentoController({ documentoService });
+}
+
+/**
+ * Crea el servicio que ejecuta el worker de procesamiento.
+ * Usa service_role porque no hay usuario autenticado en la Lambda; el servicio
+ * valida la propiedad del documento y de la ruta antes de tocar nada.
+ *
+ * @param {{ supabaseClient?: import('@supabase/supabase-js').SupabaseClient }} [dependencias]
+ * @returns {ProcesamientoService}
+ */
+function createProcesamientoService({ supabaseClient } = {}) {
+  const client = supabaseClient ?? createSupabaseServiceRoleClient();
+  const documentoRepository = new DocumentoRepository({ supabase: client });
+  const fragmentoRepository = new FragmentoRepository({ supabase: client });
+  const almacenamientoRepository = new AlmacenamientoRepository({ s3Client });
+  const embeddingsService = new EmbeddingsService();
+
+  return new ProcesamientoService({
+    documentoRepository,
+    fragmentoRepository,
+    almacenamientoRepository,
+    embeddingsService,
+  });
 }
 
 const authController = new AuthController();
@@ -175,6 +204,7 @@ module.exports = {
   createCalendarioService,
   createDashboardService,
   createDocumentoService,
+  createProcesamientoService,
   createTareaController,
   createCalendarioController,
   createDashboardController,

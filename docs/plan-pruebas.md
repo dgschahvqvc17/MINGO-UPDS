@@ -140,12 +140,17 @@ Reglas:
 | Tamaño mayor a 20 MB | 413. |
 | `objectKey` fuera de la ruta del usuario | 403/400. |
 | Registrar metadatos válidos | 201 con estado `pendiente`. |
-| Procesar documento | Estado pasa a `procesado`. |
-| Procesar dos veces | Idempotente; no duplica fragmentos. |
-| Documento sin texto | Estado `error` con motivo claro. |
-| Archivo corrupto | `error`, sin bucle de reintentos. |
+| Procesar documento | Estado pasa a `procesado`, fragmentos y embeddings guardados. |
+| Procesar documento sin texto | Estado `error` con motivo claro. |
+| Procesar documento en estado `en_cola` o `procesando` | 409, evita doble procesamiento. |
+| Procesar documento ya procesado | 409 salvo `forzar=true` (reproceso explícito). |
+| Reintentar procesamiento temporal | Se relanza error temporal; SQS reintenta. |
+| Error permanente | Se marca `error`, no se reintentará. |
+| Consultar estado | Devuelve estado, motivo y número de páginas. |
+| Procesar documento ajeno | 404. |
+| Procesar documento sin SQS configurado | 503. |
+| Encolar al registrar | El documento queda `en_cola` o `pendiente` si la cola no responde. |
 | Eliminar documento | Se borran metadatos, fragmentos y objeto S3. |
-| Descargar documento ajeno | 404. |
 
 ### 4.8. Búsqueda semántica (HU11)
 

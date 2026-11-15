@@ -1,8 +1,8 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: >
-  MINGO - HU07. Bucket privado para documentos academicos de estudiantes.
-  Solo Amazon S3 (capa gratuita). Sin versionado ilimitado, sin acceso publico,
-  cifrado SSE-S3 y lifecycle de limpieza.
+Description: >-
+  MINGO - HU07 y HU09. Bucket privado de documentos academicos y procesamiento
+  asincrono serverless (S3 -> SQS -> Lambda). Sin servidores, sin VPC, sin
+  concurrencia provisionada y con DLQ acotada. Solo capa gratuita.
 
 Parameters:
   Environment:
@@ -25,12 +25,57 @@ Parameters:
     AllowedPattern: '^https?://[^/]+$'
     ConstraintDescription: Debe ser un origen sin ruta, por ejemplo https://mingo.example.com
 
+  ProcessorConcurrency:
+    Type: Number
+    Default: 2
+    MinValue: 1
+    MaxValue: 10
+    Description: >
+      Concurrencia reservada del worker. 2 en dev y 5 en prod; nunca
+      concurrencia provisionada.
+
+  SupabaseUrl:
+    Type: String
+    Description: URL del proyecto de Supabase.
+
+  SupabaseServiceRoleKey:
+    Type: String
+    NoEcho: true
+    Description: >
+      Clave service_role para el worker. Se inyecta desde el pipeline o desde
+      un parametro seguro; nunca se versiona en el repositorio.
+
+  AiApiKey:
+    Type: String
+    NoEcho: true
+    Description: Clave del proveedor de IA. Se inyecta desde el pipeline.
+
+  AiBaseUrl:
+    Type: String
+    Default: ''
+    Description: URL base opcional del proveedor compatible con OpenAI.
+
+  AiEmbeddingModel:
+    Type: String
+    Default: text-embedding-3-small
+    Description: Modelo de embeddings; debe producir 1536 dimensiones.
+
+  AiEmbeddingDimensions:
+    Type: Number
+    Default: 1536
+    AllowedValues: [1536]
+    Description: >
+      Dimension fija de la columna vector(1536). Cambiarla exige migracion y
+      reprocesar todos los documentos.
+
 Conditions:
   IsProd: !Equals [!Ref Environment, prod]
 
 Resources:
   DocumentosBucket:
     Type: AWS::S3::Bucket
+    # La politica de la cola debe existir antes de configurar la notificacion.
+    DependsOn: ProcesamientoQueuePolicy
     # Retain evita que un fallo de despliegue borre documentos de usuarios.
     DeletionPolicy: Retain
     UpdateReplacePolicy: Retain
@@ -78,6 +123,16 @@ Resources:
             Status: Enabled
             Prefix: tmp/
             ExpirationInDays: !If [IsProd, 3, 1]
+      # Todo objeto subido bajo usuarios/ dispara el procesamiento asincrono.
+      NotificationConfiguration:
+        QueueConfigurations:
+          - Event: 's3:ObjectCreated:*'
+            Queue: !GetAtt ProcesamientoQueue.Arn
+            Filter:
+              S3Key:
+                Rules:
+                  - Name: prefix
+                    Value: usuarios/
       Tags:
         - { Key: Project, Value: MINGO }
         - { Key: Environment, Value: !Ref Environment }
@@ -104,6 +159,140 @@ Resources:
               Bool:
                 aws:SecureTransport: 'false'
 
+  ProcesamientoDeadLetterQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub '${AWS::StackName}-procesamiento-dlq'
+      MessageRetentionPeriod: 345600 # 4 dias
+      Tags:
+        - { Key: Project, Value: MINGO }
+        - { Key: Environment, Value: !Ref Environment }
+        - { Key: Owner, Value: equipo-mingo }
+        - { Key: ManagedBy, Value: cloudformation }
+        - { Key: CostCenter, Value: academico }
+
+  ProcesamientoQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub '${AWS::StackName}-procesamiento'
+      MessageRetentionPeriod: 345600 # 4 dias
+      VisibilityTimeout: 360 # mayor que el timeout de la Lambda (300 s)
+      ReceiveMessageWaitTimeSeconds: 20 # long polling, sin bucles en vacio
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt ProcesamientoDeadLetterQueue.Arn
+        maxReceiveCount: 3
+      Tags:
+        - { Key: Project, Value: MINGO }
+        - { Key: Environment, Value: !Ref Environment }
+        - { Key: Owner, Value: equipo-mingo }
+        - { Key: ManagedBy, Value: cloudformation }
+        - { Key: CostCenter, Value: academico }
+
+  ProcesamientoQueuePolicy:
+    Type: AWS::SQS::QueuePolicy
+    Properties:
+      Queues:
+        - !Ref ProcesamientoQueue
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: PermitirNotificacionesDelBucket
+            Effect: Allow
+            Principal:
+              Service: s3.amazonaws.com
+            Action: 'sqs:SendMessage'
+            Resource: !GetAtt ProcesamientoQueue.Arn
+            Condition:
+              # Se usa el nombre del parametro para evitar una dependencia
+              # circular con el bucket que publica la notificacion.
+              ArnLike:
+                aws:SourceArn: !Sub 'arn:${AWS::Partition}:s3:::${BucketName}'
+              StringEquals:
+                aws:SourceAccount: !Ref AWS::AccountId
+
+  ProcesadorLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/lambda/${AWS::StackName}-procesador'
+      RetentionInDays: !If [IsProd, 30, 7]
+
+  ProcesadorRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: 'sts:AssumeRole'
+      ManagedPolicyArns:
+        - !Sub 'arn:${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole'
+      Policies:
+        - PolicyName: leer-documentos-y-consumir-cola
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: 's3:GetObject'
+                Resource: !Sub '${DocumentosBucket.Arn}/*'
+              - Effect: Allow
+                Action:
+                  - 'sqs:ReceiveMessage'
+                  - 'sqs:DeleteMessage'
+                  - 'sqs:GetQueueAttributes'
+                  - 'sqs:ChangeMessageVisibility'
+                Resource: !GetAtt ProcesamientoQueue.Arn
+      Tags:
+        - { Key: Project, Value: MINGO }
+        - { Key: Environment, Value: !Ref Environment }
+        - { Key: Owner, Value: equipo-mingo }
+        - { Key: ManagedBy, Value: cloudformation }
+        - { Key: CostCenter, Value: academico }
+
+  ProcesadorFunction:
+    Type: AWS::Lambda::Function
+    DependsOn: ProcesadorLogGroup
+    Properties:
+      FunctionName: !Sub '${AWS::StackName}-procesador'
+      Description: Extrae texto, fragmenta y genera embeddings de los documentos.
+      CodeUri: ../backend/
+      Handler: src/lambda/procesador.handler
+      Runtime: nodejs22.x
+      Architectures: [arm64]
+      MemorySize: 512
+      Timeout: 300
+      ReservedConcurrentExecutions: !Ref ProcessorConcurrency
+      Role: !GetAtt ProcesadorRole.Arn
+      Environment:
+        Variables:
+          NODE_ENV: production
+          SUPABASE_URL: !Ref SupabaseUrl
+          SUPABASE_SERVICE_ROLE_KEY: !Ref SupabaseServiceRoleKey
+          AWS_S3_BUCKET: !Ref BucketName
+          AI_PROVIDER: openai
+          AI_API_KEY: !Ref AiApiKey
+          AI_BASE_URL: !Ref AiBaseUrl
+          AI_EMBEDDING_MODEL: !Ref AiEmbeddingModel
+          AI_EMBEDDING_DIMENSIONS: !Ref AiEmbeddingDimensions
+      Tags:
+        - { Key: Project, Value: MINGO }
+        - { Key: Environment, Value: !Ref Environment }
+        - { Key: Owner, Value: equipo-mingo }
+        - { Key: ManagedBy, Value: cloudformation }
+        - { Key: CostCenter, Value: academico }
+
+  ProcesadorEventSource:
+    Type: AWS::Lambda::EventSourceMapping
+    Properties:
+      EventSourceArn: !GetAtt ProcesamientoQueue.Arn
+      FunctionName: !Ref ProcesadorFunction
+      BatchSize: 5
+      MaximumBatchingWindowInSeconds: 5
+      FunctionResponseTypes:
+        - ReportBatchItemFailures
+      Enabled: true
+
 Outputs:
   BucketName:
     Description: Nombre del bucket de documentos.
@@ -120,3 +309,27 @@ Outputs:
   BucketRegion:
     Description: Region donde vive el bucket.
     Value: !Ref AWS::Region
+
+  ProcessingQueueUrl:
+    Description: URL de la cola de procesamiento.
+    Value: !Ref ProcesamientoQueue
+    Export:
+      Name: !Sub '${AWS::StackName}-ProcessingQueueUrl'
+
+  ProcessingQueueArn:
+    Description: ARN de la cola de procesamiento.
+    Value: !GetAtt ProcesamientoQueue.Arn
+    Export:
+      Name: !Sub '${AWS::StackName}-ProcessingQueueArn'
+
+  DeadLetterQueueUrl:
+    Description: URL de la cola de mensajes fallidos.
+    Value: !Ref ProcesamientoDeadLetterQueue
+    Export:
+      Name: !Sub '${AWS::StackName}-DeadLetterQueueUrl'
+
+  ProcessorFunctionName:
+    Description: Nombre de la Lambda procesadora.
+    Value: !Ref ProcesadorFunction
+    Export:
+      Name: !Sub '${AWS::StackName}-ProcessorFunctionName'

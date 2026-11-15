@@ -9,14 +9,18 @@ import {
 import { DatePipe } from '@angular/common';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { map, switchMap } from 'rxjs/operators';
+import { EMPTY, Subscription, catchError, map, switchMap, take, takeWhile, timer } from 'rxjs';
 import {
   DocumentoService,
   type Documento,
   type DocumentoMateriaResumen,
+  type EstadoProcesamiento,
 } from '../../../core/services/documento.service';
 import { mensajeDeErrorHttp } from '../../../core/utils/http-error';
 import { CardComponent } from '../../../shared/components/card/card.component';
+
+const INTERVALO_SEGUIMIENTO_MS = 3000;
+const MAXIMO_INTENTOS_SEGUIMIENTO = 20;
 
 @Component({
   selector: 'app-documento-detalle',
@@ -38,6 +42,9 @@ export class DocumentoDetallePage {
   readonly descargando = signal(false);
   readonly eliminando = signal(false);
   readonly confirmandoEliminar = signal(false);
+  readonly procesando = signal(false);
+
+  private seguimiento: Subscription | null = null;
 
   readonly materia = computed<DocumentoMateriaResumen | null>(() => {
     const materias = this.documento()?.materias;
@@ -80,6 +87,10 @@ export class DocumentoDetallePage {
         next: (documento) => {
           this.documento.set(documento);
           this.loading.set(false);
+
+          if (this.documentoService.estaEnProceso(documento.estado_procesamiento)) {
+            this.seguirProcesamiento(documento.id);
+          }
         },
         error: (error: unknown) => {
           this.documento.set(null);
@@ -97,6 +108,50 @@ export class DocumentoDetallePage {
   estadoClase(): string {
     const documento = this.documento();
     return documento ? this.documentoService.estadoClase(documento.estado_procesamiento) : '';
+  }
+
+  puedeProcesar(): boolean {
+    const documento = this.documento();
+    return documento
+      ? this.documentoService.puedeProcesar(documento.estado_procesamiento)
+      : false;
+  }
+
+  textoProcesar(): string {
+    const documento = this.documento();
+    return documento
+      ? this.documentoService.textoProcesar(documento.estado_procesamiento)
+      : 'Procesar';
+  }
+
+  procesar(): void {
+    const documento = this.documento();
+    if (!documento || this.procesando() || !this.puedeProcesar()) {
+      return;
+    }
+
+    this.procesando.set(true);
+    this.errorAccion.set(null);
+
+    this.documentoService
+      .procesar(documento.id)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: ({ estado }) => {
+          this.procesando.set(false);
+          this.aplicarCambios({
+            estado_procesamiento: estado,
+            motivo_error: null,
+          });
+          this.seguirProcesamiento(documento.id);
+        },
+        error: (error: unknown) => {
+          this.procesando.set(false);
+          this.errorAccion.set(
+            mensajeDeErrorHttp(error, 'No se pudo iniciar el procesamiento del documento.'),
+          );
+        },
+      });
   }
 
   descargar(): void {
@@ -155,6 +210,42 @@ export class DocumentoDetallePage {
           this.eliminando.set(false);
         },
       });
+  }
+
+  private seguirProcesamiento(documentoId: string): void {
+    this.seguimiento?.unsubscribe();
+
+    this.seguimiento = timer(0, INTERVALO_SEGUIMIENTO_MS)
+      .pipe(
+        switchMap(() =>
+          this.documentoService.obtenerEstado(documentoId).pipe(catchError(() => EMPTY)),
+        ),
+        take(MAXIMO_INTENTOS_SEGUIMIENTO),
+        takeWhile(
+          (estado) => this.documentoService.estaEnProceso(estado.estado_procesamiento),
+          true,
+        ),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe({
+        next: (estado) => this.aplicarEstado(estado),
+        complete: () => {
+          this.seguimiento = null;
+        },
+      });
+  }
+
+  private aplicarEstado(estado: EstadoProcesamiento): void {
+    this.aplicarCambios({
+      estado_procesamiento: estado.estado_procesamiento,
+      motivo_error: estado.motivo_error,
+      numero_paginas: estado.numero_paginas,
+      fecha_actualizacion: estado.fecha_actualizacion,
+    });
+  }
+
+  private aplicarCambios(cambios: Partial<Documento>): void {
+    this.documento.update((actual) => (actual ? { ...actual, ...cambios } : actual));
   }
 
   private iniciarDescarga(url: string, nombreArchivo: string): void {

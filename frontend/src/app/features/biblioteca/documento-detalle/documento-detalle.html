@@ -59,6 +59,18 @@
           {{ descargando() ? 'Generando descarga...' : 'Descargar' }}
         </button>
 
+        @if (puedeProcesar()) {
+          <button
+            type="button"
+            class="btn btn-outline-info"
+            (click)="procesar()"
+            [disabled]="procesando() || descargando() || eliminando()"
+          >
+            <i class="bi bi-cpu me-1" aria-hidden="true"></i>
+            {{ procesando() ? 'Enviando...' : textoProcesar() }}
+          </button>
+        }
+
         @if (confirmandoEliminar()) {
           <span class="detalle-confirm" role="group" aria-label="Confirmar eliminación del documento">
             <span class="detalle-confirm-text">¿Eliminar este documento?</span>

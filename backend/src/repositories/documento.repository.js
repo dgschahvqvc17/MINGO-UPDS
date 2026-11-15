@@ -22,6 +22,24 @@ const DOCUMENTO_COLUMNS = `
 `;
 
 /**
+ * Columnas que necesita el worker de procesamiento.
+ * No incluye la relacion con materias: el worker solo usa datos del archivo.
+ */
+const DOCUMENTO_PROCESAMIENTO_COLUMNS = `
+  id,
+  usuario_id,
+  nombre_archivo,
+  ruta_almacenamiento,
+  tipo_archivo,
+  estado_procesamiento,
+  motivo_error,
+  numero_paginas
+`;
+
+/** Estados desde los que se puede iniciar un procesamiento. */
+const ESTADOS_INICIABLES = ['pendiente', 'en_cola', 'error'];
+
+/**
  * Limpia el termino de busqueda para que no se interprete como sintaxis
  * del filtro `or` ni como comodines de ILIKE.
  *
@@ -173,6 +191,140 @@ class DocumentoRepository {
       .eq('id', documentoId)
       .select('id, ruta_almacenamiento')
       .maybeSingle();
+
+    if (error) {
+      throw error;
+    }
+
+    return data;
+  }
+
+  /**
+   * Marca un documento como encolado para su procesamiento.
+   * Solo aplica desde estados iniciales para no pisar un procesamiento activo.
+   *
+   * @param {string} usuarioId UUID del usuario.
+   * @param {string} documentoId UUID del documento.
+   * @returns {Promise<object | null>} Fila actualizada o null si el estado no lo permite.
+   */
+  async marcarEnCola(usuarioId, documentoId) {
+    const { data, error } = await this.requireClient()
+      .from('documentos')
+      .update({
+        estado_procesamiento: 'en_cola',
+        motivo_error: null,
+        fecha_actualizacion: new Date().toISOString(),
+      })
+      .eq('usuario_id', usuarioId)
+      .eq('id', documentoId)
+      .in('estado_procesamiento', ESTADOS_INICIABLES)
+      .select(DOCUMENTO_PROCESAMIENTO_COLUMNS)
+      .maybeSingle();
+
+    if (error) {
+      throw error;
+    }
+
+    return data;
+  }
+
+  /**
+   * Obtiene un documento sin filtrar por usuario.
+   * Solo para el worker con service_role, que valida la propiedad por su cuenta.
+   *
+   * @param {string} documentoId UUID del documento.
+   * @returns {Promise<object | null>}
+   */
+  async obtenerPorIdSinUsuario(documentoId) {
+    const { data, error } = await this.requireClient()
+      .from('documentos')
+      .select(DOCUMENTO_PROCESAMIENTO_COLUMNS)
+      .eq('id', documentoId)
+      .maybeSingle();
+
+    if (error) {
+      throw error;
+    }
+
+    return data;
+  }
+
+  /**
+   * Obtiene un documento por la clave del objeto en S3, sin filtrar por usuario.
+   * Sirve para resolver los eventos automaticos de S3.
+   *
+   * @param {string} rutaAlmacenamiento Clave del objeto en S3.
+   * @returns {Promise<object | null>}
+   */
+  async obtenerPorRutaSinUsuario(rutaAlmacenamiento) {
+    const { data, error } = await this.requireClient()
+      .from('documentos')
+      .select(DOCUMENTO_PROCESAMIENTO_COLUMNS)
+      .eq('ruta_almacenamiento', rutaAlmacenamiento)
+      .maybeSingle();
+
+    if (error) {
+      throw error;
+    }
+
+    return data;
+  }
+
+  /**
+   * Cambia el documento a `procesando` de forma condicional.
+   * La actualizacion condicional evita procesar dos veces el mismo documento
+   * cuando coinciden el evento de S3 y el encolado manual.
+   *
+   * @param {string} documentoId UUID del documento.
+   * @param {{ incluirProcesado?: boolean }} opciones
+   * @returns {Promise<object | null>} Fila actualizada o null si otro proceso se adelanto.
+   */
+  async marcarProcesando(documentoId, { incluirProcesado = false } = {}) {
+    const estados = incluirProcesado
+      ? [...ESTADOS_INICIABLES, 'procesado']
+      : ESTADOS_INICIABLES;
+
+    const { data, error } = await this.requireClient()
+      .from('documentos')
+      .update({
+        estado_procesamiento: 'procesando',
+        motivo_error: null,
+        fecha_actualizacion: new Date().toISOString(),
+      })
+      .eq('id', documentoId)
+      .in('estado_procesamiento', estados)
+      .select(DOCUMENTO_PROCESAMIENTO_COLUMNS)
+      .maybeSingle();
+
+    if (error) {
+      throw error;
+    }
+
+    return data;
+  }
+
+  /**
+   * Guarda el resultado final del procesamiento.
+   *
+   * @param {string} documentoId UUID del documento.
+   * @param {{ estado: 'procesado' | 'error', motivoError?: string | null, numeroPaginas?: number | null }} resultado
+   * @returns {Promise<object>}
+   */
+  async actualizarResultadoProcesamiento(
+    documentoId,
+    { estado, motivoError = null, numeroPaginas = null },
+  ) {
+    const { data, error } = await this.requireClient()
+      .from('documentos')
+      .update({
+        estado_procesamiento: estado,
+        motivo_error: estado === 'error' ? motivoError : null,
+        numero_paginas: numeroPaginas,
+        fecha_actualizacion: new Date().toISOString(),
+      })
+      .eq('id', documentoId)
+      .select(DOCUMENTO_PROCESAMIENTO_COLUMNS)
+      .single();
 
     if (error) {
       throw error;

@@ -66,11 +66,11 @@ Reglas:
 
 | Parámetro | Valor inicial |
 |---|---|
-| Tamaño objetivo | 800–1000 tokens |
-| Solapamiento | 100–150 tokens |
-| Unidad mínima | 300 tokens (no fragmentos huérfanos) |
-| Corte | Por párrafos; respetar límites de página cuando sea posible |
-| Máximo de fragmentos por documento | 2000 (límite interno del MVP) |
+| Tamaño objetivo | 1200 caracteres (≈ 250–300 tokens) |
+| Solapamiento | 200 caracteres |
+| Unidad mínima | ~300 caracteres (no fragmentos huérfanos) |
+| Corte | Por párrafos; si un párrafo supera el límite, se divide por oraciones; respetar límites de página cuando sea posible |
+| Máximo de fragmentos por documento | 1500 (límite interno del MVP) |
 
 Reglas:
 
