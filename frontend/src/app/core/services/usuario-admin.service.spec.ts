@@ -68,8 +68,7 @@ describe('UsuarioAdminService', () => {
 
   describe('listarUsuarios', () => {
     it('should fetch users with default parameters', () => {
-      const mockResponse = {
-        usuarios: mockUsuarios,
+      const mockMeta = {
         paginacion: { limit: 50, offset: 0, total: 2 },
         estadisticas: { total: 2, activos: 2, inactivos: 0, administradores: 1, estudiantes: 1 }
       };
@@ -83,12 +82,11 @@ describe('UsuarioAdminService', () => {
       const req = httpMock.expectOne('/api/usuarios');
       expect(req.request.method).toBe('GET');
       expect(req.request.params.keys().length).toBe(0); // No query params por defecto
-      req.flush({ success: true, data: mockResponse });
+      req.flush({ success: true, data: mockUsuarios, meta: mockMeta });
     });
 
     it('should fetch users with filters', () => {
-      const mockResponse = {
-        usuarios: [mockUsuarios[0]],
+      const mockMeta = {
         paginacion: { limit: 20, offset: 0, total: 1 },
         estadisticas: { total: 1, activos: 1, inactivos: 0, administradores: 0, estudiantes: 1 }
       };
@@ -104,6 +102,7 @@ describe('UsuarioAdminService', () => {
       service.listarUsuarios(filters).subscribe(response => {
         expect(response.usuarios.length).toBe(1);
         expect(response.usuarios[0].nombre).toBe('Juan');
+        expect(response.estadisticas.total).toBe(1);
       });
 
       // La URL lleva query params: se compara solo la ruta y luego se validan los params.
@@ -115,7 +114,7 @@ describe('UsuarioAdminService', () => {
       expect(req.request.params.get('rol')).toBe('estudiante');
       expect(req.request.params.get('limit')).toBe('20');
       expect(req.request.params.get('offset')).toBe('0');
-      req.flush({ success: true, data: mockResponse });
+      req.flush({ success: true, data: [mockUsuarios[0]], meta: mockMeta });
     });
   });
 

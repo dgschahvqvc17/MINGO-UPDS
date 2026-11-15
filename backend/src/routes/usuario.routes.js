@@ -42,11 +42,11 @@ router.use((req, _res, next) => {
  */
 router.get(
   '/',
-  validationMiddleware({ schema: usuarioBusquedaSchema, source: 'query' }),
-  asyncHandler(async (req, res) => {
+  validationMiddleware({ query: usuarioBusquedaSchema }),
+  asyncHandler(async (req, res, next) => {
     // Usar el servicio inyectado en el middleware
     const controller = new (require('../controllers/usuario-admin.controller'))(req.usuarioAdminService);
-    await controller.listarUsuarios(req, res);
+    await controller.listarUsuarios(req, res, next);
   })
 );
 
@@ -56,9 +56,9 @@ router.get(
  */
 router.get(
   '/buscar',
-  asyncHandler(async (req, res) => {
+  asyncHandler(async (req, res, next) => {
     const controller = new (require('../controllers/usuario-admin.controller'))(req.usuarioAdminService);
-    await controller.buscarUsuarios(req, res);
+    await controller.buscarUsuarios(req, res, next);
   })
 );
 
@@ -68,9 +68,9 @@ router.get(
  */
 router.get(
   '/roles',
-  asyncHandler(async (req, res) => {
+  asyncHandler(async (req, res, next) => {
     const controller = new (require('../controllers/usuario-admin.controller'))(req.usuarioAdminService);
-    await controller.obtenerRolesDisponibles(req, res);
+    await controller.obtenerRolesDisponibles(req, res, next);
   })
 );
 
@@ -80,10 +80,10 @@ router.get(
  */
 router.get(
   '/:id',
-  validationMiddleware({ schema: usuarioIdParamSchema, source: 'params' }),
-  asyncHandler(async (req, res) => {
+  validationMiddleware({ params: usuarioIdParamSchema }),
+  asyncHandler(async (req, res, next) => {
     const controller = new (require('../controllers/usuario-admin.controller'))(req.usuarioAdminService);
-    await controller.obtenerUsuario(req, res);
+    await controller.obtenerUsuario(req, res, next);
   })
 );
 
@@ -93,12 +93,12 @@ router.get(
  */
 router.patch(
   '/:id/roles',
-  validationMiddleware({ schema: usuarioIdParamSchema, source: 'params' }),
-  validationMiddleware({ schema: usuarioActualizarRolesSchema, source: 'body' }),
+  validationMiddleware({ params: usuarioIdParamSchema }),
+  validationMiddleware({ body: usuarioActualizarRolesSchema }),
   noSelfModificationMiddleware,
-  asyncHandler(async (req, res) => {
+  asyncHandler(async (req, res, next) => {
     const controller = new (require('../controllers/usuario-admin.controller'))(req.usuarioAdminService);
-    await controller.actualizarRolesUsuario(req, res);
+    await controller.actualizarRolesUsuario(req, res, next);
   })
 );
 
@@ -108,12 +108,12 @@ router.patch(
  */
 router.patch(
   '/:id/estado',
-  validationMiddleware({ schema: usuarioIdParamSchema, source: 'params' }),
-  validationMiddleware({ schema: usuarioActualizarEstadoSchema, source: 'body' }),
+  validationMiddleware({ params: usuarioIdParamSchema }),
+  validationMiddleware({ body: usuarioActualizarEstadoSchema }),
   noSelfModificationMiddleware,
-  asyncHandler(async (req, res) => {
+  asyncHandler(async (req, res, next) => {
     const controller = new (require('../controllers/usuario-admin.controller'))(req.usuarioAdminService);
-    await controller.actualizarEstadoUsuario(req, res);
+    await controller.actualizarEstadoUsuario(req, res, next);
   })
 );
 

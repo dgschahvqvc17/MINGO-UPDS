@@ -1,263 +1,359 @@
 /**
- * Repositorio para operaciones de administración de usuarios.
- * Requiere privilegios de administrador y ejecución con service_role para operaciones de RLS.
+ * Acceso a datos de la administración de usuarios.
+ *
+ * Se ejecuta con el cliente service_role porque el panel necesita leer y
+ * escribir perfiles de otros usuarios, algo que RLS no permite al cliente
+ * autenticado. No conoce HTTP ni reglas de negocio.
  */
+const PERFIL_COLUMNS = 'id, nombre, apellido, correo, carrera, estado, fecha_creacion';
+
+const ROL_EMBED = 'id, nombre, descripcion';
+
+/**
+ * Supabase no permite combinar en un solo filtro columnas de una relación
+ * embebida sin usar `!inner`. Sin el join interno, filtrar por rol devolvería
+ * todos los perfiles.
+ */
+function construirSelect({ conFiltroRol }) {
+  const usuarioRoles = conFiltroRol
+    ? `usuario_roles!inner ( roles ( ${ROL_EMBED} ) )`
+    : `usuario_roles ( roles ( ${ROL_EMBED} ) )`;
+
+  return `${PERFIL_COLUMNS}, ${usuarioRoles}`;
+}
+
+/**
+ * PostgREST interpreta comas, paréntesis y comodines en el filtro `or`.
+ * Se eliminan para que un término de búsqueda no rompa la consulta.
+ */
+function sanearTerminoBusqueda(termino) {
+  return String(termino)
+    .replace(/[,()%*]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function extraerRoles(asignaciones = []) {
+  return asignaciones.map((asignacion) => asignacion?.roles).filter(Boolean);
+}
+
 class UsuarioAdminRepository {
-  constructor(dbClient) {
-    this.db = dbClient;
+  /**
+   * @param {import('@supabase/supabase-js').SupabaseClient | null} supabase
+   */
+  constructor(supabase) {
+    this.supabase = supabase;
   }
 
   /**
    * Lista usuarios con sus roles, opcionalmente filtrados por búsqueda.
-   * @param {Object} options - Opciones de búsqueda
-   * @returns {Promise<Array>} Lista de usuarios con roles
+   *
+   * @param {{ query?: string, estado?: string, rol?: string, limit?: number, offset?: number }} filtros
+   * @returns {Promise<object[]>} Usuarios con `roles` como arreglo de nombres.
    */
-  async listarUsuarios({ query, estado, rol, limit = 50, offset = 0 }) {
-    const params = [];
-    let whereClauses = [];
-    let paramCount = 1;
+  async listarUsuarios({ query, estado, rol, limit = 50, offset = 0 } = {}) {
+    let builder = this.requireClient()
+      .from('perfiles')
+      .select(construirSelect({ conFiltroRol: Boolean(rol) }));
 
-    // Construir condiciones WHERE dinámicamente
     if (query) {
-      whereClauses.push(
-        `(p.nombre ILIKE $${paramCount} OR p.apellido ILIKE $${paramCount} OR p.correo ILIKE $${paramCount})`
-      );
-      params.push(`%${query}%`);
-      paramCount++;
+      const termino = sanearTerminoBusqueda(query);
+
+      if (termino) {
+        builder = builder.or(
+          `nombre.ilike.%${termino}%,apellido.ilike.%${termino}%,correo.ilike.%${termino}%`,
+        );
+      }
     }
 
     if (estado) {
-      whereClauses.push(`p.estado = $${paramCount}`);
-      params.push(estado);
-      paramCount++;
+      builder = builder.eq('estado', estado);
     }
 
     if (rol) {
-      whereClauses.push(`r.nombre = $${paramCount}`);
-      params.push(rol);
-      paramCount++;
+      builder = builder.eq('usuario_roles.roles.nombre', rol);
     }
 
-    // Construir la consulta principal
-    let sql = `
-      SELECT 
-        p.id,
-        p.nombre,
-        p.apellido,
-        p.correo,
-        p.carrera,
-        p.estado,
-        p.fecha_creacion,
-        ARRAY_AGG(r.nombre ORDER BY r.nombre) as roles
-      FROM public.perfiles p
-      LEFT JOIN public.usuario_roles ur ON p.id = ur.usuario_id
-      LEFT JOIN public.roles r ON ur.rol_id = r.id
-    `;
-
-    if (whereClauses.length > 0) {
-      sql += ` WHERE ${whereClauses.join(' AND ')}`;
-    }
-
-    sql += `
-      GROUP BY p.id, p.nombre, p.apellido, p.correo, p.carrera, p.estado, p.fecha_creacion
-      ORDER BY p.fecha_creacion DESC
-      LIMIT $${paramCount}
-      OFFSET $${paramCount + 1}
-    `;
-
-    params.push(limit, offset);
-
-    const { data, error } = await this.db.query(sql, params);
+    const { data, error } = await builder
+      .order('fecha_creacion', { ascending: false })
+      .range(offset, offset + limit - 1);
 
     if (error) {
       throw new Error(`Error al listar usuarios: ${error.message}`, { cause: error });
     }
 
-    // Transformar NULL en array vacío para usuarios sin roles
-    return data.map(user => ({
-      ...user,
-      roles: user.roles[0] ? user.roles.filter(Boolean) : []
+    return (data ?? []).map(({ usuario_roles: asignaciones, ...perfil }) => ({
+      ...perfil,
+      roles: extraerRoles(asignaciones).map((rolEncontrado) => rolEncontrado.nombre),
     }));
   }
 
   /**
-   * Obtiene un usuario por ID con detalles completos incluyendo roles.
-   * @param {string} id - UUID del usuario
-   * @returns {Promise<Object|null>} Usuario con detalles o null si no existe
+   * Obtiene un usuario por ID con el detalle de sus roles.
+   *
+   * @param {string} id UUID del usuario.
+   * @returns {Promise<object | null>}
    */
   async obtenerUsuarioPorId(id) {
-    const { data, error } = await this.db.query(
-      `
-      SELECT 
-        p.id,
-        p.nombre,
-        p.apellido,
-        p.correo,
-        p.carrera,
-        p.estado,
-        p.fecha_creacion,
-        JSON_AGG(
-          JSON_BUILD_OBJECT(
-            'id', r.id,
-            'nombre', r.nombre,
-            'descripcion', r.descripcion
-          ) ORDER BY r.nombre
-        ) as roles_detalle
-      FROM public.perfiles p
-      LEFT JOIN public.usuario_roles ur ON p.id = ur.usuario_id
-      LEFT JOIN public.roles r ON ur.rol_id = r.id
-      WHERE p.id = $1
-      GROUP BY p.id, p.nombre, p.apellido, p.correo, p.carrera, p.estado, p.fecha_creacion
-      `,
-      [id]
-    );
+    const { data, error } = await this.requireClient()
+      .from('perfiles')
+      .select(`${PERFIL_COLUMNS}, usuario_roles ( roles ( ${ROL_EMBED} ) )`)
+      .eq('id', id)
+      .maybeSingle();
 
     if (error) {
-      throw new Error(`Error al obtener usuario: ${error.message}`);
+      throw new Error(`Error al obtener usuario: ${error.message}`, { cause: error });
     }
 
-    if (data.length === 0) {
+    if (!data) {
       return null;
     }
 
-    const usuario = data[0];
-    // Filtrar NULLs del JSON_AGG cuando no hay roles
-    usuario.roles_detalle = usuario.roles_detalle.filter(role => role.id !== null);
-    
-    return usuario;
+    const { usuario_roles: asignaciones, ...perfil } = data;
+
+    return {
+      ...perfil,
+      roles_detalle: extraerRoles(asignaciones),
+    };
   }
 
   /**
    * Obtiene todos los roles disponibles en el sistema.
-   * @returns {Promise<Array>} Lista de roles
+   *
+   * @returns {Promise<Array<{ id: number, nombre: string, descripcion: string | null }>>}
    */
   async obtenerRolesDisponibles() {
-    const { data, error } = await this.db.query(
-      'SELECT id, nombre, descripcion FROM public.roles ORDER BY nombre'
-    );
+    const { data, error } = await this.requireClient()
+      .from('roles')
+      .select(ROL_EMBED)
+      .order('nombre', { ascending: true });
 
     if (error) {
-      throw new Error(`Error al obtener roles: ${error.message}`);
+      throw new Error(`Error al obtener roles: ${error.message}`, { cause: error });
     }
 
-    return data;
+    return data ?? [];
   }
 
   /**
-   * Actualiza los roles de un usuario.
-   * @param {string} usuarioId - UUID del usuario
-   * @param {Array<string>} roles - Array de nombres de roles
+   * Reemplaza los roles de un usuario por los indicados.
+   *
+   * Supabase no expone transacciones multi-tabla desde el cliente REST, así que
+   * se aplican primero las altas y luego las bajas, y ante cualquier fallo se
+   * restauran exactamente las asignaciones anteriores.
+   *
+   * @param {string} usuarioId UUID del usuario.
+   * @param {string[]} roles Nombres de los roles solicitados.
    * @returns {Promise<void>}
    */
   async actualizarRolesUsuario(usuarioId, roles) {
-    // Primero obtenemos los IDs de los roles solicitados
-    const { data: rolesData, error: rolesError } = await this.db.query(
-      'SELECT id, nombre FROM public.roles WHERE nombre = ANY($1::varchar[])',
-      [roles]
-    );
-
-    if (rolesError) {
-      throw new Error(`Error al obtener IDs de roles: ${rolesError.message}`);
-    }
-
-    // Verificamos que todos los roles solicitados existan
-    if (rolesData.length !== roles.length) {
-      const rolesEncontrados = rolesData.map(r => r.nombre);
-      const rolesNoEncontrados = roles.filter(r => !rolesEncontrados.includes(r));
-      throw new Error(`Roles no encontrados: ${rolesNoEncontrados.join(', ')}`);
-    }
-
-    // Comenzamos transacción para mantener consistencia
-    const { error: beginError } = await this.db.query('BEGIN');
-    if (beginError) throw new Error(`Error al iniciar transacción: ${beginError.message}`);
+    const client = this.requireClient();
+    const rolesSolicitados = await this.obtenerRolesPorNombre(client, roles);
+    const idsPrevios = await this.obtenerIdsRolesUsuario(client, usuarioId);
+    const idsNuevos = rolesSolicitados.map((rol) => rol.id);
 
     try {
-      // Eliminar todos los roles actuales del usuario
-      const { error: deleteError } = await this.db.query(
-        'DELETE FROM public.usuario_roles WHERE usuario_id = $1',
-        [usuarioId]
-      );
-
-      if (deleteError) throw deleteError;
-
-      // Insertar los nuevos roles
-      for (const role of rolesData) {
-        const { error: insertError } = await this.db.query(
-          'INSERT INTO public.usuario_roles (usuario_id, rol_id) VALUES ($1, $2)',
-          [usuarioId, role.id]
-        );
-
-        if (insertError) throw insertError;
-      }
-
-      // Commit de la transacción
-      const { error: commitError } = await this.db.query('COMMIT');
-      if (commitError) throw commitError;
-
+      await this.aplicarCambiosDeRoles(client, usuarioId, idsPrevios, idsNuevos);
     } catch (error) {
-      // Rollback en caso de error
-      await this.db.query('ROLLBACK');
+      await this.restaurarRoles(client, usuarioId, idsPrevios);
       throw new Error(`Error al actualizar roles: ${error.message}`, { cause: error });
     }
   }
 
   /**
    * Actualiza el estado de un usuario.
-   * @param {string} usuarioId - UUID del usuario
-   * @param {string} estado - 'activo' o 'inactivo'
+   *
+   * @param {string} usuarioId UUID del usuario.
+   * @param {'activo' | 'inactivo'} estado Nuevo estado.
    * @returns {Promise<void>}
    */
   async actualizarEstadoUsuario(usuarioId, estado) {
-    const { error } = await this.db.query(
-      'UPDATE public.perfiles SET estado = $1 WHERE id = $2',
-      [estado, usuarioId]
-    );
+    const { error } = await this.requireClient()
+      .from('perfiles')
+      .update({ estado })
+      .eq('id', usuarioId);
 
     if (error) {
-      throw new Error(`Error al actualizar estado: ${error.message}`);
+      throw new Error(`Error al actualizar estado: ${error.message}`, { cause: error });
     }
   }
 
   /**
    * Verifica si un usuario existe.
-   * @param {string} usuarioId - UUID del usuario
+   *
+   * @param {string} usuarioId UUID del usuario.
    * @returns {Promise<boolean>}
    */
   async existeUsuario(usuarioId) {
-    const { data, error } = await this.db.query(
-      'SELECT 1 FROM public.perfiles WHERE id = $1',
-      [usuarioId]
-    );
+    const { count, error } = await this.requireClient()
+      .from('perfiles')
+      .select('id', { count: 'exact', head: true })
+      .eq('id', usuarioId);
 
     if (error) {
-      throw new Error(`Error al verificar usuario: ${error.message}`);
+      throw new Error(`Error al verificar usuario: ${error.message}`, { cause: error });
     }
 
-    return data.length > 0;
+    return (count ?? 0) > 0;
   }
 
   /**
-   * Obtiene estadísticas de usuarios para el dashboard administrativo.
-   * @returns {Promise<Object>} Estadísticas
+   * Obtiene las estadísticas del panel administrativo.
+   *
+   * @returns {Promise<{ total_usuarios: number, usuarios_activos: number, usuarios_inactivos: number, total_administradores: number, total_estudiantes: number }>}
    */
   async obtenerEstadisticas() {
-    const { data, error } = await this.db.query(`
-      SELECT 
-        COUNT(*) as total_usuarios,
-        COUNT(*) FILTER (WHERE estado = 'activo') as usuarios_activos,
-        COUNT(*) FILTER (WHERE estado = 'inactivo') as usuarios_inactivos,
-        COUNT(DISTINCT ur.usuario_id) FILTER (WHERE r.nombre = 'administrador') as total_administradores,
-        COUNT(DISTINCT ur.usuario_id) FILTER (WHERE r.nombre = 'estudiante') as total_estudiantes
-      FROM public.perfiles p
-      LEFT JOIN public.usuario_roles ur ON p.id = ur.usuario_id
-      LEFT JOIN public.roles r ON ur.rol_id = r.id
-    `);
+    const client = this.requireClient();
 
-    if (error) {
-      throw new Error(`Error al obtener estadísticas: ${error.message}`);
+    const contarPerfiles = (configurar = (builder) => builder) =>
+      configurar(
+        client.from('perfiles').select('id', { count: 'exact', head: true }),
+      );
+
+    const contarPorRol = (rol) =>
+      client
+        .from('usuario_roles')
+        .select('usuario_id, roles!inner ( nombre )', { count: 'exact', head: true })
+        .eq('roles.nombre', rol);
+
+    const [total, activos, inactivos, administradores, estudiantes] = await Promise.all([
+      contarPerfiles(),
+      contarPerfiles((builder) => builder.eq('estado', 'activo')),
+      contarPerfiles((builder) => builder.eq('estado', 'inactivo')),
+      contarPorRol('administrador'),
+      contarPorRol('estudiante'),
+    ]);
+
+    const resultados = [total, activos, inactivos, administradores, estudiantes];
+    const fallo = resultados.find((resultado) => resultado.error);
+
+    if (fallo) {
+      throw new Error(`Error al obtener estadísticas: ${fallo.error.message}`, {
+        cause: fallo.error,
+      });
     }
 
-    return data[0];
+    return {
+      total_usuarios: total.count ?? 0,
+      usuarios_activos: activos.count ?? 0,
+      usuarios_inactivos: inactivos.count ?? 0,
+      total_administradores: administradores.count ?? 0,
+      total_estudiantes: estudiantes.count ?? 0,
+    };
+  }
+
+  /**
+   * @param {import('@supabase/supabase-js').SupabaseClient} client
+   * @param {string[]} roles Nombres de roles solicitados.
+   * @returns {Promise<Array<{ id: number, nombre: string }>>}
+   */
+  async obtenerRolesPorNombre(client, roles) {
+    const { data, error } = await client.from('roles').select('id, nombre').in('nombre', roles);
+
+    if (error) {
+      throw new Error(`Error al obtener IDs de roles: ${error.message}`, { cause: error });
+    }
+
+    const encontrados = (data ?? []).map((rol) => rol.nombre);
+    const noEncontrados = roles.filter((rol) => !encontrados.includes(rol));
+
+    if (noEncontrados.length > 0) {
+      throw new Error(`Roles no encontrados: ${noEncontrados.join(', ')}`);
+    }
+
+    return data;
+  }
+
+  /**
+   * @param {import('@supabase/supabase-js').SupabaseClient} client
+   * @param {string} usuarioId UUID del usuario.
+   * @returns {Promise<number[]>} IDs de los roles asignados.
+   */
+  async obtenerIdsRolesUsuario(client, usuarioId) {
+    const { data, error } = await client
+      .from('usuario_roles')
+      .select('rol_id')
+      .eq('usuario_id', usuarioId);
+
+    if (error) {
+      throw new Error(`Error al leer roles del usuario: ${error.message}`, { cause: error });
+    }
+
+    return (data ?? []).map((asignacion) => asignacion.rol_id);
+  }
+
+  /**
+   * Aplica la diferencia entre los roles actuales y los solicitados.
+   * Las altas van primero para no dejar al usuario sin roles si algo falla.
+   *
+   * @param {import('@supabase/supabase-js').SupabaseClient} client
+   * @param {string} usuarioId UUID del usuario.
+   * @param {number[]} idsActuales
+   * @param {number[]} idsNuevos
+   * @returns {Promise<void>}
+   */
+  async aplicarCambiosDeRoles(client, usuarioId, idsActuales, idsNuevos) {
+    const idsAgregar = idsNuevos.filter((id) => !idsActuales.includes(id));
+    const idsQuitar = idsActuales.filter((id) => !idsNuevos.includes(id));
+
+    if (idsAgregar.length > 0) {
+      const { error } = await client
+        .from('usuario_roles')
+        .insert(idsAgregar.map((rolId) => ({ usuario_id: usuarioId, rol_id: rolId })));
+
+      if (error) throw error;
+    }
+
+    if (idsQuitar.length > 0) {
+      const { error } = await client
+        .from('usuario_roles')
+        .delete()
+        .eq('usuario_id', usuarioId)
+        .in('rol_id', idsQuitar);
+
+      if (error) throw error;
+    }
+  }
+
+  /**
+   * Compensación ante un fallo parcial: vuelve a dejar los roles previos.
+   *
+   * @param {import('@supabase/supabase-js').SupabaseClient} client
+   * @param {string} usuarioId UUID del usuario.
+   * @param {number[]} idsPrevios
+   * @returns {Promise<void>}
+   */
+  async restaurarRoles(client, usuarioId, idsPrevios) {
+    const { error: errorBorrado } = await client
+      .from('usuario_roles')
+      .delete()
+      .eq('usuario_id', usuarioId);
+
+    if (errorBorrado) {
+      throw new Error(`Error al restaurar roles: ${errorBorrado.message}`, { cause: errorBorrado });
+    }
+
+    if (idsPrevios.length === 0) {
+      return;
+    }
+
+    const { error: errorInsercion } = await client
+      .from('usuario_roles')
+      .insert(idsPrevios.map((rolId) => ({ usuario_id: usuarioId, rol_id: rolId })));
+
+    if (errorInsercion) {
+      throw new Error(`Error al restaurar roles: ${errorInsercion.message}`, {
+        cause: errorInsercion,
+      });
+    }
+  }
+
+  requireClient() {
+    if (!this.supabase) {
+      throw new Error('Supabase no esta configurado en el servidor.');
+    }
+
+    return this.supabase;
   }
 }
 
