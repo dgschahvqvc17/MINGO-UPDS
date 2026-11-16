@@ -1445,7 +1445,7 @@ npm test
 ```
 
 - `npm run lint`: sin errores.
-- `npm test`: **221 pruebas** en **21 suites**, todas aprobadas.
+- `npm test`: **222 pruebas** en **21 suites**, todas aprobadas.
 
 Las pruebas cubren servicios (`ApiService`, `AuthService`, tareas, calendario, documentos, administración de usuarios), el login, los guards, los esquemas de validación y las rutas de administración. Durante esta verificación se añadieron tres suites de regresión: `modelos-validacion.test.js` (límites de paginación), `usuario.routes.test.js` (middleware de validación y paso de `next`) y `usuario-admin.repository.test.js` (repositorio de administración con un cliente de Supabase simulado). No se declara un porcentaje de cobertura porque el proyecto no lo mide de forma automática.
 
@@ -1584,7 +1584,7 @@ Las capturas autenticadas destaparon defectos que impedían usar el sistema con 
 | 4 | El repositorio de administración usaba `this.db.query` (API de `pg`), pero recibe un cliente de Supabase; `GET /api/usuarios` respondía `500`. | `backend/src/repositories/usuario-admin.repository.js` | Reescrito con el cliente de Supabase: consultas, join `!inner` al filtrar por rol, saneo de búsqueda y compensación manual de roles. |
 | 5 | El servicio del frontend descartaba `meta` y la pantalla quedaba en «Cargando usuarios...». | `frontend/src/app/core/services/usuario-admin.service.ts` | `listarUsuarios` usa `getWithMeta` y combina `data` con `meta` (paginación y estadísticas). |
 
-Verificación posterior: `GET /api/usuarios?limit=20` responde **200** con 2 usuarios y estadísticas correctas, y la tabla del panel renderiza ambos perfiles. El backend quedó con **221 pruebas en 21 suites** y el frontend con **67 pruebas en 9 suites**.
+Verificación posterior: `GET /api/usuarios?limit=20` responde **200** con 2 usuarios y estadísticas correctas, y la tabla del panel renderiza ambos perfiles. El backend quedó con **222 pruebas en 21 suites** y el frontend con **67 pruebas en 9 suites**.
 
 #### 11.4.2. Captura pendiente: confirmación de eliminación
 

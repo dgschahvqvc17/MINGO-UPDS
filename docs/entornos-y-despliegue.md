@@ -63,17 +63,31 @@ Archivo `backend/.env` (no se versiona). Plantilla en `backend/.env.example`.
 | `AWS_LAMBDA_FUNCTION_NAME` | No | `mingo-document-processor` | Función procesadora. |
 | `AWS_SNS_TOPIC_ARN` | No | `arn:aws:sns:...` | Recordatorios por email. |
 | `AWS_SQS_QUEUE_URL` | No | `https://sqs...` | Cola de documentos. |
-| `AI_PROVIDER` | Sí | `openai` | Proveedor de IA. |
-| `AI_API_KEY` | Sí en prod | `sk-...` | Clave privada. |
-| `AI_BASE_URL` | No | `https://api.openai.com/v1` | Endpoint alternativo. |
-| `AI_CHAT_MODEL` | Sí | `gpt-4o-mini` | Modelo de chat. |
-| `AI_EMBEDDING_MODEL` | Sí | `text-embedding-3-small` | Modelo de embeddings. |
-| `AI_EMBEDDING_DIMENSIONS` | Sí | `1536` | Debe coincidir con `vector(n)`. |
+| `AI_PROVIDER` | Sí | `gemini` \| `openai` | Proveedor de IA. |
+| `AI_API_KEY` | Sí en prod | `AIza...` o `sk-...` | Clave privada. Nunca al frontend. |
+| `AI_BASE_URL` | No | `https://generativelanguage.googleapis.com/v1beta/openai/` | Endpoint compatible con OpenAI. Vacío usa el de OpenAI. |
+| `AI_CHAT_MODEL` | Sí | `gemini-2.5-flash` \| `gpt-4o-mini` | Modelo de chat. |
+| `AI_EMBEDDING_MODEL` | Sí | `gemini-embedding-001` \| `text-embedding-3-small` | Modelo de embeddings. |
+| `AI_EMBEDDING_DIMENSIONS` | Sí | `1536` | Debe coincidir con `vector(n)` y con el modelo. |
 | `MAX_UPLOAD_MB` | No | `20` | Tamaño máximo de archivo. |
 | `RATE_LIMIT_WINDOW_MINUTES` | No | `15` | Ventana de rate limit. |
 | `RATE_LIMIT_MAX_REQUESTS` | No | `300` | Máximo por ventana. |
 
 > En producción las variables se cargan desde el entorno de Lambda definido en SAM/CloudFormation. Los secretos se inyectan desde GitHub Actions o Parameter Store; nunca se escriben en el repositorio.
+
+**Proveedor de IA por entorno:**
+
+| Entorno | Proveedor | Modelo de embeddings | Dimensiones | Costo |
+|---|---|---|---|---|
+| Desarrollo y demo | Google Gemini (tier gratuito) | `gemini-embedding-001` | 1536 | $0, con límites de RPM/RPD por proyecto |
+| Producción | OpenAI | `text-embedding-3-small` | 1536 | ≈ $0.02 por millón de tokens |
+
+Reglas:
+
+- Antes de procesar documentos, comprobar la configuración con `cd backend && npm run verificar:embeddings`. El script imprime proveedor, modelo, dimensiones y latencia, y falla si la dimensión no coincide con `AI_EMBEDDING_DIMENSIONS`. No necesita AWS.
+- El tier gratuito de Gemini usa el contenido enviado para mejorar sus productos: solo documentos de prueba en desarrollo.
+- No mezclar modelos en un mismo corpus: al cambiar de proveedor hay que borrar los fragmentos y reprocesar.
+- Cambiar de 1536 dimensiones exige migración de la columna `vector(n)` y del índice HNSW antes de procesar.
 
 ### 3.2. Frontend
 
