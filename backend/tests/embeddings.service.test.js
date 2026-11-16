@@ -65,6 +65,24 @@ describe('EmbeddingsService', () => {
       expect(cliente.embeddings.create).toHaveBeenCalledWith({
         model: expect.any(String),
         input: ['uno', 'dos'],
+        dimensions: 1536,
+        encoding_format: 'float',
+      });
+    });
+
+    it('envía al proveedor la dimensión configurada', async () => {
+      const cliente1024 = crearClienteSimulado(async ({ input }) => ({
+        data: input.map((_, indice) => ({ index: indice, embedding: crearVector(1024) })),
+      }));
+      const service = new EmbeddingsService({ client: cliente1024, dimensiones: 1024 });
+
+      await service.generarEmbeddings(['uno']);
+
+      expect(cliente1024.embeddings.create).toHaveBeenCalledWith({
+        model: expect.any(String),
+        input: ['uno'],
+        dimensions: 1024,
+        encoding_format: 'float',
       });
     });
 

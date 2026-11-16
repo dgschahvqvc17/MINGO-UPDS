@@ -125,6 +125,12 @@ class EmbeddingsService {
       respuesta = await this.client.embeddings.create({
         model: this.modelo,
         input: textos,
+        // Sin `dimensions` el proveedor devuelve la dimension nativa del modelo,
+        // que puede no coincidir con la columna vector(n) de Supabase.
+        dimensions: this.dimensiones,
+        // El SDK pide base64 por defecto; no todos los proveedores compatibles
+        // lo implementan y aqui hacen falta los numeros para pgvector.
+        encoding_format: 'float',
       });
     } catch (error) {
       throw traducirError(error);
