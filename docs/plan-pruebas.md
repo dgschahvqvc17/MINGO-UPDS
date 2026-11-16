@@ -136,19 +136,20 @@ Reglas:
 | Caso | Resultado esperado |
 |---|---|
 | Solicitar URL válida | 200 con URL y expiración 15 min. |
-| Tipo no permitido | 415. |
-| Tamaño mayor a 20 MB | 413. |
-| `objectKey` fuera de la ruta del usuario | 403/400. |
-| Registrar metadatos válidos | 201 con estado `pendiente`. |
-| Procesar documento | Estado pasa a `procesado`, fragmentos y embeddings guardados. |
+| Tipo no permitido (DOC, PPT u otro) | 400 con mensaje de formatos aceptados (PDF, DOCX, PPTX, TXT). |
+| Extensión que no coincide con el MIME | 400. |
+| Tamaño mayor a 20 MB | 400. |
+| `objectKey` fuera de la ruta del usuario | 403. |
+| Registrar metadatos válidos | 201; el documento queda `en_cola` si la cola responde o `pendiente` si no. |
+| Procesar documento | 202 con estado `en_cola`; la Lambda lo pasa a `procesado` con fragmentos y embeddings. |
 | Procesar documento sin texto | Estado `error` con motivo claro. |
 | Procesar documento en estado `en_cola` o `procesando` | 409, evita doble procesamiento. |
-| Procesar documento ya procesado | 409 salvo `forzar=true` (reproceso explícito). |
+| Procesar documento ya procesado | 202 y vuelve a `en_cola` (reproceso explícito). |
 | Reintentar procesamiento temporal | Se relanza error temporal; SQS reintenta. |
 | Error permanente | Se marca `error`, no se reintentará. |
-| Consultar estado | Devuelve estado, motivo y número de páginas. |
-| Procesar documento ajeno | 404. |
-| Procesar documento sin SQS configurado | 503. |
+| Consultar estado (`GET /:id/estado`) | 200 con estado, motivo y número de páginas. |
+| Procesar documento ajeno o inexistente | 404. |
+| Procesar documento sin SQS configurado | 503 sin cambiar el estado. |
 | Encolar al registrar | El documento queda `en_cola` o `pendiente` si la cola no responde. |
 | Eliminar documento | Se borran metadatos, fragmentos y objeto S3. |
 

@@ -1027,6 +1027,12 @@ El diagrama actual cubre el núcleo académico, documental, de IA y de evaluaci�
 | `backend/sql/materias.sql` | Tabla `materias`, índices, RLS y funciones de HU03 (idempotente). |
 | `supabase/migrations/0002_hu04_tareas.sql` | Tabla `tareas`, índices, trigger de actualización, RLS y RPC `obtener_estadisticas_tareas` (HU04, idempotente). |
 | `supabase/migrations/0003_hu05_calendario.sql` | Tabla `eventos_calendario`, índices, trigger de actualización, RLS y RPC `obtener_eventos_proximos` y `crear_evento_desde_tarea` (HU05, idempotente). |
+| `supabase/migrations/0004_hu07_documentos.sql` | Tabla `documentos`, índices, trigger de actualización y RLS (HU07, idempotente). |
+| `supabase/migrations/0005_hu09_fragmentos.sql` | Tabla `fragmentos_documento`, extensión `pgvector`, índices y RLS (HU09, idempotente). |
+
+- El script `backend/scripts/run-migrations.js` (`npm run migrate`) aplica estas
+  migraciones en orden: identidad, materias, tareas, calendario, documentos y
+  fragmentos.
 
 - Flujo:
 

@@ -196,36 +196,45 @@ La contraseña de estas cuentas se comparte por el canal interno del equipo y no
 
 El backend Express se despliega con un adaptador (`serverless-http`).
 
-### 5.1. Punto de entrada
+### 5.1. Puntos de entrada
 
-```js
-// backend/src/lambda.js
-const serverless = require('serverless-http');
-const app = require('./app');
+| Función | Archivo | Handler | Estado |
+|---|---|---|---|
+| Procesadora de documentos (HU09) | `backend/src/lambda/procesador.js` | `src/lambda/procesador.handler` | Definida en `infra/template.yaml`. |
+| API HTTP (Express) | `backend/src/app.js` | Pendiente de adaptador | No incluida aún en la plantilla. |
 
-module.exports.handler = serverless(app);
-```
+La función procesadora ya existe y es la que despliega `infra/template.yaml`. La API
+HTTP se ejecutará en una Lambda aparte cuando se agregue el adaptador
+`serverless-http`; hasta entonces, la plantilla no crea la función de API.
 
 ### 5.2. Reglas de empaquetado
 
-- Node.js 24 en Lambda (o el runtime LTS disponible al desplegar).
+- Node.js 22 en Lambda: el runtime configurado es `nodejs22.x`.
 - Arquitectura ARM64.
-- Solo dependencias de producción: `npm ci --omit=dev`.
-- ZIP menor a 50 MB (límite directo de Lambda); si crece, usar capas o revisar dependencias.
+- Solo dependencias de producción: `sam build` instala las dependencias de `backend/package.json`.
+- ZIP menor a 50 MB (límite directo de Lambda); si crece, revisar dependencias.
 - Sin `.env`, `tests/`, `node_modules` de desarrollo ni archivos temporales.
-- `handler: src/lambda.handler`.
+- `CodeUri: ../backend/` es relativo a `infra/template.yaml`.
+- `handler: src/lambda/procesador.handler` para la procesadora.
 
-### 5.3. Script de build
+### 5.3. Empaquetado
 
-```json
-{
-  "scripts": {
-    "build:lambda": "npm ci --omit=dev && npm prune --omit=dev"
-  }
-}
+El backend **no** tiene un script `build:lambda`; el empaquetado lo hace SAM a
+partir de la plantilla:
+
+```bash
+sam build --template-file infra/template.yaml
 ```
 
-En CI se recomienda construir en un directorio limpio para evitar residuos.
+Para revisar el paquete generado:
+
+```bash
+sam package --template-file infra/template.yaml --output-template-file packaged.yaml
+```
+
+No se versiona `packaged.yaml` ni `.aws-sam/`: son artefactos de build. Si se
+necesita un ZIP manual, se construye en un directorio limpio con
+`npm ci --omit=dev` dentro de `backend/`.
 
 ## 6. Infraestructura con AWS SAM
 
@@ -253,7 +262,7 @@ Description: MINGO API serverless
 
 Globals:
   Function:
-    Runtime: nodejs24.x
+    Runtime: nodejs22.x
     Architectures: [arm64]
     MemorySize: 512
     Timeout: 30
@@ -396,7 +405,9 @@ Los presupuestos se crean una vez en la cuenta, no en cada despliegue:
 aws budgets create-budget --account-id <ACCOUNT_ID> --budget file://budget.json
 ```
 
-Configurar alertas al 50 %, 80 % y 100 %, y una segunda alerta a $5.
+MINGO usa un único presupuesto compartido de **$1/mes** (`ConcesionariaBMW-1USD`),
+con alertas al 80 % real y 100 % pronosticado. No se crea un presupuesto de $5
+(decisión del 2026-11-12, revisión 2027-02-12).
 
 ## 7. Frontend en S3 + CloudFront
 
@@ -578,7 +589,7 @@ Retención de logs: 7 días en desarrollo, 30 días en producción.
 
 - [ ] Cuenta AWS con MFA en root y sin access keys de root.
 - [ ] Usuario o rol IAM de despliegue con mínimo privilegio.
-- [ ] Presupuestos de $1 y $5 con alertas.
+- [ ] Presupuesto compartido de $1 con alertas (sin presupuesto de $5).
 - [ ] Free Tier alerts activadas.
 - [ ] Región única definida.
 - [ ] Variables de entorno cargadas de forma segura.

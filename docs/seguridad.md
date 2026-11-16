@@ -141,7 +141,7 @@ Nunca compartir el mismo proyecto Supabase entre producción y desarrollo.
 
 ### 7.1. Controles obligatorios
 
-- Formatos: PDF, DOC, DOCX, PPT, PPTX, TXT.
+- Formatos: PDF, DOCX, PPTX, TXT.
 - Tamaño máximo: 20 MB.
 - Nombre de archivo saneado; la clave en S3 la genera el backend.
 - Bucket privado con **Block Public Access**.

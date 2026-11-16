@@ -80,6 +80,9 @@
 
 > **Regla de seguridad:** un recurso de otro usuario responde **404**, no 403, para no revelar su existencia.
 
+> En la carga de documentos (HU07) el formato y el tamaño se validan con Zod y,
+> si no cumplen, la respuesta es `400`; la implementación actual no usa `413` ni `415`.
+
 ## 4. Autenticación
 
 El frontend inicia sesión directamente con Supabase Auth y envía el token al backend. El backend valida el token con Supabase, consulta `perfiles` y `usuario_roles`, y obtiene `id`, `email`, `role` y `estado`. El rol **no** se toma de los metadatos del JWT.
@@ -553,7 +556,7 @@ Parámetros `dias` (1–30, por defecto 7) y `limit` (1–50, por defecto 10). D
 
 **Reglas**
 
-- Formatos: PDF, DOC, DOCX, PPT, PPTX, TXT. La extensión debe coincidir con el `tipo_archivo` declarado.
+- Formatos: PDF, DOCX, PPTX, TXT. La extensión debe coincidir con el `tipo_archivo` declarado.
 - Tamaño máximo: 20 MB.
 - `materia_id` es un UUID y debe pertenecer al usuario autenticado; si no, la respuesta es `404`.
 - La URL prefirmada dura 15 minutos.
@@ -679,7 +682,53 @@ Devuelve el documento con el resumen de su materia embebido (`materias`). Un doc
 | `procesado` | Texto, fragmentos y embeddings listos. |
 | `error` | Falló; revisar `motivo_error`. |
 
-### 10.5. Búsqueda semántica (HU11)
+### 10.5. Procesamiento de documentos (HU09)
+
+**`POST /api/documentos/:id/procesar`**
+
+Encola el documento en SQS. La API no procesa el archivo: responde `202` y el
+trabajo real lo ejecuta la Lambda procesadora.
+
+**Respuesta `202`**
+
+```json
+{
+  "success": true,
+  "message": "Documento encolado para procesamiento.",
+  "data": { "id": "9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d", "estado": "en_cola" }
+}
+```
+
+**Reglas**
+
+- Un documento ajeno o inexistente responde `404`; un identificador que no es UUID responde `400`.
+- Si el documento está en `en_cola` o `procesando`, responde `409` para evitar un doble trabajo.
+- Si la cola no está configurada o no responde, responde `503` y no cambia el estado.
+- Los estados `pendiente`, `procesado` y `error` se pueden encolar; el reproceso de un documento ya procesado también responde `202` y vuelve a `en_cola`.
+- Al registrar un documento, si la cola está disponible se encola automáticamente; si falla, el registro sigue siendo válido y el usuario puede reintentar con este endpoint.
+
+**`GET /api/documentos/:id/estado`**
+
+**Respuesta `200`**
+
+```json
+{
+  "success": true,
+  "data": {
+    "id": "9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d",
+    "estado_procesamiento": "procesado",
+    "motivo_error": null,
+    "numero_paginas": 24,
+    "fecha_actualizacion": "2026-11-14T10:02:00.000Z"
+  }
+}
+```
+
+- Un documento ajeno o inexistente responde `404`.
+- El frontend consulta este endpoint mientras el estado es `en_cola` o `procesando`.
+- Los errores permanentes se guardan en `error` con `motivo_error`; un fallo temporal de la Lambda se relanza para que SQS reintente.
+
+### 10.6. Búsqueda semántica (HU11)
 
 ```text
 GET /api/documentos/buscar?q=derivadas%20de%20funciones&materia_id=6d1c2a53-4f7e-4b8a-9c1d-2e3f4a5b6c7d&limit=8
@@ -958,7 +1007,7 @@ GET /api/tareas?estado=pendiente&prioridad=alta&sort=fecha_entrega&order=asc&lim
 
 ## 17. Idempotencia
 
-- `POST /api/documentos/:id/procesar` es idempotente: si el documento ya está `procesado`, responde `200` con el estado actual.
+- `POST /api/documentos/:id/procesar` no es idempotente: cada llamada aceptada encola un trabajo nuevo y responde `202`. Mientras el documento está `en_cola` o `procesando` responde `409` y no duplica el trabajo. Un documento ya `procesado` se puede reprocesar y vuelve a `en_cola`.
 - `POST /api/asistente/chat` acepta `Idempotency-Key` opcional para evitar respuestas duplicadas por reintentos.
 - Los reintentos desde Angular deben usar el mismo `Idempotency-Key`.
 
