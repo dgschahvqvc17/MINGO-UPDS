@@ -251,7 +251,8 @@ Resources:
         - { Key: CostCenter, Value: academico }
 
   ProcesadorFunction:
-    Type: AWS::Lambda::Function
+    # AWS::Serverless::Function permite que `sam build` empaquete CodeUri ../backend/.
+    Type: AWS::Serverless::Function
     DependsOn: ProcesadorLogGroup
     Properties:
       FunctionName: !Sub '${AWS::StackName}-procesador'
