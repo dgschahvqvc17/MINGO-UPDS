@@ -25,13 +25,11 @@ export interface FormatoDocumento {
  */
 export const FORMATOS_DOCUMENTO: FormatoDocumento[] = [
   { mime: 'application/pdf', extensiones: ['.pdf'], etiqueta: 'PDF' },
-  { mime: 'application/msword', extensiones: ['.doc'], etiqueta: 'DOC' },
   {
     mime: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
     extensiones: ['.docx'],
     etiqueta: 'DOCX',
   },
-  { mime: 'application/vnd.ms-powerpoint', extensiones: ['.ppt'], etiqueta: 'PPT' },
   {
     mime: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
     extensiones: ['.pptx'],

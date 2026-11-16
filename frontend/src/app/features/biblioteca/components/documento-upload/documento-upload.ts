@@ -224,7 +224,7 @@ export class DocumentoUploadComponent {
     const formato = this.documentoService.obtenerFormatoPorNombre(archivo.name);
 
     if (!formato) {
-      this.rechazar('Formato no permitido. Se aceptan PDF, DOC, DOCX, PPT, PPTX y TXT.', input);
+      this.rechazar('Formato no permitido. Se aceptan PDF, DOCX, PPTX y TXT.', input);
       return;
     }
 
