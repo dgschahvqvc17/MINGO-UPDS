@@ -51,6 +51,7 @@ describe('ProcesamientoService', () => {
       obtenerPorIdSinUsuario: j.fn(),
       obtenerPorRutaSinUsuario: j.fn(),
       marcarProcesando: j.fn(),
+      marcarReintento: j.fn().mockResolvedValue({}),
       actualizarResultadoProcesamiento: j.fn().mockResolvedValue({}),
     };
 
@@ -172,13 +173,18 @@ describe('ProcesamientoService', () => {
 
       expect(documentoRepository.marcarProcesando).toHaveBeenCalledWith(DOCUMENTO_ID, {
         incluirProcesado: true,
+        incluirEnProceso: false,
+        actualizadoAntesDe: null,
       });
       expect(resultado.estado).toBe('procesado');
     });
 
     it('omite un documento que ya está en proceso', async () => {
       documentoRepository.obtenerPorIdSinUsuario.mockResolvedValue(
-        crearDocumento({ estado_procesamiento: 'procesando' }),
+        crearDocumento({
+          estado_procesamiento: 'procesando',
+          fecha_actualizacion: new Date().toISOString(),
+        }),
       );
 
       const resultado = await service.procesarDocumento({
@@ -192,6 +198,55 @@ describe('ProcesamientoService', () => {
         motivo: 'procesamiento_en_curso',
       });
       expect(documentoRepository.marcarProcesando).not.toHaveBeenCalled();
+    });
+
+    it('recupera un documento atascado aunque no sea un reintento de SQS', async () => {
+      documentoRepository.obtenerPorIdSinUsuario.mockResolvedValue(
+        crearDocumento({
+          estado_procesamiento: 'procesando',
+          fecha_actualizacion: '2026-01-01T00:00:00.000Z',
+        }),
+      );
+      documentoRepository.marcarProcesando.mockResolvedValue(crearDocumento());
+
+      const resultado = await service.procesarDocumento({
+        documentoId: DOCUMENTO_ID,
+        usuarioId: USUARIO_ID,
+      });
+
+      expect(documentoRepository.marcarProcesando).toHaveBeenCalledWith(
+        DOCUMENTO_ID,
+        expect.objectContaining({
+          incluirEnProceso: true,
+          actualizadoAntesDe: expect.any(String),
+        }),
+      );
+      expect(resultado.estado).toBe('procesado');
+    });
+
+    it('recupera el documento en un reintento de SQS sin esperar a que se atasque', async () => {
+      documentoRepository.obtenerPorIdSinUsuario.mockResolvedValue(
+        crearDocumento({
+          estado_procesamiento: 'procesando',
+          fecha_actualizacion: new Date().toISOString(),
+        }),
+      );
+      documentoRepository.marcarProcesando.mockResolvedValue(crearDocumento());
+
+      const resultado = await service.procesarDocumento({
+        documentoId: DOCUMENTO_ID,
+        usuarioId: USUARIO_ID,
+        esReintento: true,
+      });
+
+      expect(documentoRepository.marcarProcesando).toHaveBeenCalledWith(
+        DOCUMENTO_ID,
+        expect.objectContaining({
+          incluirEnProceso: true,
+          actualizadoAntesDe: expect.any(String),
+        }),
+      );
+      expect(resultado.estado).toBe('procesado');
     });
 
     it('omite el procesamiento si otro worker se adelantó en el cambio de estado', async () => {
@@ -296,7 +351,7 @@ describe('ProcesamientoService', () => {
       expect(fragmentoRepository.reemplazarFragmentos).not.toHaveBeenCalled();
     });
 
-    it('marca error y relanza cuando el fallo es temporal para que SQS reintente', async () => {
+    it('devuelve el documento a en_cola y relanza cuando el fallo es temporal', async () => {
       documentoRepository.obtenerPorIdSinUsuario.mockResolvedValue(crearDocumento());
       documentoRepository.marcarProcesando.mockResolvedValue(crearDocumento());
       embeddingsService.generarEmbeddings.mockRejectedValue(
@@ -307,14 +362,27 @@ describe('ProcesamientoService', () => {
         service.procesarDocumento({ documentoId: DOCUMENTO_ID, usuarioId: USUARIO_ID }),
       ).rejects.toMatchObject({ permanente: false });
 
-      expect(documentoRepository.actualizarResultadoProcesamiento).toHaveBeenCalledWith(
-        DOCUMENTO_ID,
-        {
-          estado: 'error',
-          motivoError: 'El proveedor de IA alcanzo su limite de uso.',
-        },
-      );
+      expect(documentoRepository.marcarReintento).toHaveBeenCalledWith(DOCUMENTO_ID);
+      expect(documentoRepository.actualizarResultadoProcesamiento).not.toHaveBeenCalled();
       expect(fragmentoRepository.reemplazarFragmentos).not.toHaveBeenCalled();
+    });
+
+    it('relanza el fallo temporal aunque no se pueda devolver el documento a la cola', async () => {
+      documentoRepository.obtenerPorIdSinUsuario.mockResolvedValue(crearDocumento());
+      documentoRepository.marcarProcesando.mockResolvedValue(crearDocumento());
+      documentoRepository.marcarReintento.mockRejectedValue(new Error('base caida'));
+      embeddingsService.generarEmbeddings.mockRejectedValue(
+        ErrorProcesamiento.temporal('Cuota del proveedor agotada.'),
+      );
+
+      await expect(
+        service.procesarDocumento({ documentoId: DOCUMENTO_ID, usuarioId: USUARIO_ID }),
+      ).rejects.toMatchObject({ permanente: false });
+
+      expect(logger.error).toHaveBeenCalledWith(
+        'No se pudo devolver el documento a la cola.',
+        expect.objectContaining({ documentoId: DOCUMENTO_ID }),
+      );
     });
 
     it('traduce un 429 del proveedor como error temporal', async () => {
@@ -326,13 +394,8 @@ describe('ProcesamientoService', () => {
         service.procesarDocumento({ documentoId: DOCUMENTO_ID, usuarioId: USUARIO_ID }),
       ).rejects.toMatchObject({ permanente: false });
 
-      expect(documentoRepository.actualizarResultadoProcesamiento).toHaveBeenCalledWith(
-        DOCUMENTO_ID,
-        {
-          estado: 'error',
-          motivoError: 'rate',
-        },
-      );
+      expect(documentoRepository.marcarReintento).toHaveBeenCalledWith(DOCUMENTO_ID);
+      expect(documentoRepository.actualizarResultadoProcesamiento).not.toHaveBeenCalled();
     });
 
     it('falla de forma controlada si el worker no tiene proveedor de IA', async () => {
@@ -375,10 +438,7 @@ describe('ProcesamientoService', () => {
         service.procesarDocumento({ documentoId: DOCUMENTO_ID, usuarioId: USUARIO_ID }),
       ).rejects.toMatchObject({ permanente: false });
 
-      expect(documentoRepository.actualizarResultadoProcesamiento).toHaveBeenCalledWith(
-        DOCUMENTO_ID,
-        expect.objectContaining({ estado: 'error' }),
-      );
+      expect(documentoRepository.marcarReintento).toHaveBeenCalledWith(DOCUMENTO_ID);
     });
 
     it('falla de forma permanente si el objeto ya no existe en S3', async () => {
@@ -442,12 +502,12 @@ describe('ProcesamientoService', () => {
       expect(documentoRepository.obtenerPorRutaSinUsuario).not.toHaveBeenCalled();
     });
 
-    it('omite los objetos que todavía no están registrados', async () => {
+    it('rechaza de forma temporal los objetos que todavía no están registrados', async () => {
       documentoRepository.obtenerPorRutaSinUsuario.mockResolvedValue(null);
 
-      const resultado = await service.procesarPorRuta(RUTA);
-
-      expect(resultado).toEqual({ omitido: true, motivo: 'documento_no_registrado' });
+      await expect(service.procesarPorRuta(RUTA)).rejects.toMatchObject({
+        permanente: false,
+      });
     });
 
     it('procesa el documento registrado pasando la ruta esperada', async () => {
@@ -455,13 +515,14 @@ describe('ProcesamientoService', () => {
       documentoRepository.obtenerPorRutaSinUsuario.mockResolvedValue(documento);
       service.procesarDocumento = j.fn().mockResolvedValue({ estado: 'procesado' });
 
-      const resultado = await service.procesarPorRuta(RUTA, { forzar: true });
+      const resultado = await service.procesarPorRuta(RUTA, { forzar: true, esReintento: true });
 
       expect(service.procesarDocumento).toHaveBeenCalledWith({
         documentoId: DOCUMENTO_ID,
         usuarioId: USUARIO_ID,
         rutaEsperada: RUTA,
         forzar: true,
+        esReintento: true,
       });
       expect(resultado).toEqual({ estado: 'procesado' });
     });

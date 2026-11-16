@@ -60,10 +60,23 @@ function extraerTareas(cuerpo) {
 }
 
 /**
+ * SQS incrementa `ApproximateReceiveCount` en cada entrega. Un valor mayor que
+ * uno significa que el mensaje ya se intento y el worker puede recuperar un
+ * documento que quedo en `en_cola` o `procesando`.
+ *
+ * @param {object} registro
+ * @returns {boolean}
+ */
+function esReintentoDeCola(registro) {
+  const recibidos = Number(registro?.attributes?.ApproximateReceiveCount ?? 1);
+  return Number.isFinite(recibidos) && recibidos > 1;
+}
+
+/**
  * Crea el handler con dependencias inyectables para las pruebas.
  *
  * @param {{ crearServicio?: () => { procesarDocumento: Function, procesarPorRuta: Function }, logger?: Pick<Console, 'error' | 'warn'> }} [dependencias]
- * @returns {(evento: { Records?: Array<{ messageId: string, body: string }> }) => Promise<{ batchItemFailures: Array<{ itemIdentifier: string }> }>}
+ * @returns {(evento: { Records?: Array<{ messageId: string, body: string, attributes?: object }> }) => Promise<{ batchItemFailures: Array<{ itemIdentifier: string }> }>}
  */
 function crearHandler({
   crearServicio = createProcesamientoService,
@@ -82,12 +95,16 @@ function crearHandler({
     for (const registro of registros) {
       try {
         const tareas = extraerTareas(registro.body);
+        const esReintento = esReintentoDeCola(registro);
 
         for (const tarea of tareas) {
           if (tarea.tipo === 's3') {
-            await servicio.procesarPorRuta(tarea.ruta, { forzar: tarea.forzar });
+            await servicio.procesarPorRuta(tarea.ruta, {
+              forzar: tarea.forzar,
+              esReintento,
+            });
           } else {
-            await servicio.procesarDocumento(tarea);
+            await servicio.procesarDocumento({ ...tarea, esReintento });
           }
         }
       } catch (error) {
@@ -110,4 +127,5 @@ module.exports = {
   crearHandler,
   extraerTareas,
   decodificarClave,
+  esReintentoDeCola,
 };

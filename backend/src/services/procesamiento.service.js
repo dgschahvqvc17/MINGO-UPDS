@@ -8,8 +8,7 @@ const { ErrorProcesamiento } = require('./procesamiento/procesamiento.error');
 const ExtractorContenidoService = require('./procesamiento/extractor-contenido.service');
 const FragmentadorService = require('./procesamiento/fragmentador.service');
 const { DIMENSION_VECTOR } = require('./ia/embeddings.service');
-
-const ESTADOS_EN_PROCESO = new Set(['en_cola', 'procesando']);
+const { calcularCorte, estaEnProceso, estaEstancado } = require('../utils/procesamiento-estado');
 
 class ProcesamientoService {
   /**
@@ -43,14 +42,15 @@ class ProcesamientoService {
 
   /**
    * Procesa el documento asociado a un evento de S3.
-   * Si el objeto todavia no esta registrado, se omite: el registro lo vuelve
-   * a encolar de forma best-effort y el reproceso manual sigue disponible.
+   * Si el objeto todavia no esta registrado se responde con un error temporal:
+   * SQS reintenta y da tiempo a que el registro llegue, cerrando el hueco entre
+   * la subida automatica y el alta de metadatos.
    *
    * @param {string} rutaAlmacenamiento Clave del objeto en S3.
-   * @param {{ forzar?: boolean }} [opciones]
+   * @param {{ forzar?: boolean, esReintento?: boolean }} [opciones]
    * @returns {Promise<object>}
    */
-  async procesarPorRuta(rutaAlmacenamiento, { forzar = false } = {}) {
+  async procesarPorRuta(rutaAlmacenamiento, { forzar = false, esReintento = false } = {}) {
     if (!String(rutaAlmacenamiento ?? '').startsWith('usuarios/')) {
       return { omitido: true, motivo: 'ruta_fuera_de_usuarios' };
     }
@@ -59,7 +59,9 @@ class ProcesamientoService {
       await this.documentoRepository.obtenerPorRutaSinUsuario(rutaAlmacenamiento);
 
     if (!documento) {
-      return { omitido: true, motivo: 'documento_no_registrado' };
+      throw ErrorProcesamiento.temporal(
+        'El documento todavia no esta registrado. Se reintentara en unos instantes.',
+      );
     }
 
     return this.procesarDocumento({
@@ -67,13 +69,20 @@ class ProcesamientoService {
       usuarioId: documento.usuario_id,
       rutaEsperada: rutaAlmacenamiento,
       forzar,
+      esReintento,
     });
   }
 
   /**
    * Procesa un documento con idempotencia y verificacion de propiedad.
    *
-   * @param {{ documentoId: string, usuarioId: string, rutaEsperada?: string | null, forzar?: boolean }} parametros
+   * @param {{
+   *   documentoId: string,
+   *   usuarioId: string,
+   *   rutaEsperada?: string | null,
+   *   forzar?: boolean,
+   *   esReintento?: boolean
+   * }} parametros
    * @returns {Promise<object>}
    */
   async procesarDocumento({
@@ -81,6 +90,7 @@ class ProcesamientoService {
     usuarioId,
     rutaEsperada = null,
     forzar = false,
+    esReintento = false,
   }) {
     const documento = await this.documentoRepository.obtenerPorIdSinUsuario(documentoId);
 
@@ -100,7 +110,10 @@ class ProcesamientoService {
       return { documentoId: documento.id, omitido: true, motivo: 'ya_procesado' };
     }
 
-    if (ESTADOS_EN_PROCESO.has(documento.estado_procesamiento)) {
+    const enProcesoAhora = estaEnProceso(documento.estado_procesamiento);
+    const recuperarEnProceso = enProcesoAhora && (esReintento || estaEstancado(documento));
+
+    if (enProcesoAhora && !recuperarEnProceso) {
       return {
         documentoId: documento.id,
         omitido: true,
@@ -110,6 +123,8 @@ class ProcesamientoService {
 
     const enProceso = await this.documentoRepository.marcarProcesando(documento.id, {
       incluirProcesado: forzar,
+      incluirEnProceso: recuperarEnProceso,
+      actualizadoAntesDe: recuperarEnProceso ? calcularCorte() : null,
     });
 
     if (!enProceso) {
@@ -194,7 +209,9 @@ class ProcesamientoService {
   }
 
   /**
-   * Registra el error en el documento y decide si SQS debe reintentar.
+   * Registra el fallo y decide si SQS debe reintentar.
+   * Un error permanente se guarda en el documento; uno temporal lo devuelve a
+   * `en_cola` y se relanza para que SQS lo entregue de nuevo.
    *
    * @param {string} documentoId
    * @param {unknown} error
@@ -202,6 +219,11 @@ class ProcesamientoService {
    */
   async manejarFallo(documentoId, error) {
     const fallo = ErrorProcesamiento.desde(error);
+
+    if (!fallo.permanente) {
+      await this.devolverACola(documentoId);
+      throw fallo;
+    }
 
     try {
       await this.documentoRepository.actualizarResultadoProcesamiento(documentoId, {
@@ -216,16 +238,31 @@ class ProcesamientoService {
       throw errorRegistro;
     }
 
-    if (fallo.permanente) {
-      return {
-        documentoId,
-        estado: 'error',
-        permanente: true,
-        motivo: fallo.message,
-      };
-    }
+    return {
+      documentoId,
+      estado: 'error',
+      permanente: true,
+      motivo: fallo.message,
+    };
+  }
 
-    throw fallo;
+  /**
+   * Devuelve el documento a `en_cola` sin ocultar el fallo temporal.
+   * Si el marcado tambien falla se registra y se relanza igual: SQS debe
+   * reintentar aunque la base de datos no responda en este instante.
+   *
+   * @param {string} documentoId
+   * @returns {Promise<void>}
+   */
+  async devolverACola(documentoId) {
+    try {
+      await this.documentoRepository.marcarReintento(documentoId);
+    } catch (errorRegistro) {
+      this.logger.error('No se pudo devolver el documento a la cola.', {
+        documentoId,
+        message: errorRegistro?.message,
+      });
+    }
   }
 
   /**

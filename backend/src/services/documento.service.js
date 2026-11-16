@@ -12,11 +12,11 @@ const {
   documentoFiltrosSchema,
   documentoIdSchema,
 } = require('../models/documento.model');
+const { calcularCorte, estaEnProceso, estaEstancado } = require('../utils/procesamiento-estado');
 
 const SEGUNDOS_EXPIRACION_URL = 900;
 const CARACTERES_NO_SEGUROS = /[^A-Za-z0-9._-]/g;
 const LARGO_MAXIMO_NOMBRE_SEGURO = 120;
-const ESTADOS_EN_PROCESO = ['en_cola', 'procesando'];
 
 /**
  * Valida con Zod y traduce un fallo al error estandar de la API.
@@ -193,6 +193,10 @@ class DocumentoService {
    * Encola el procesamiento de un documento propio.
    * La API responde 202: el trabajo real lo hace la Lambda procesadora.
    *
+   * Un documento en `en_cola` o `procesando` responde 409 para evitar un doble
+   * trabajo, salvo que haya quedado atascado (sin actualizaciones durante la
+   * ventana permitida); en ese caso se reencola.
+   *
    * @param {string} documentoId UUID del documento.
    * @returns {Promise<{ id: string, estado: string }>}
    */
@@ -207,7 +211,9 @@ class DocumentoService {
       throw ApiError.notFound('Documento no encontrado.');
     }
 
-    if (ESTADOS_EN_PROCESO.includes(documento.estado_procesamiento)) {
+    const debeReencolar = estaEstancado(documento);
+
+    if (estaEnProceso(documento.estado_procesamiento) && !debeReencolar) {
       throw ApiError.conflict('El documento ya esta en proceso. Espera a que termine.');
     }
 
@@ -223,7 +229,19 @@ class DocumentoService {
       forzar: true,
     });
 
-    await this.documentoRepository.marcarEnCola(this.usuarioActualId, documento.id);
+    const actualizado = await this.documentoRepository.marcarEnCola(
+      this.usuarioActualId,
+      documento.id,
+      {
+        reencolarEstancado: debeReencolar,
+        actualizadoAntesDe: debeReencolar ? calcularCorte() : null,
+      },
+    );
+
+    if (!actualizado) {
+      // Otro proceso cambio el estado entre la lectura y la actualizacion.
+      throw ApiError.conflict('El documento ya esta en proceso. Espera a que termine.');
+    }
 
     return { id: documento.id, estado: 'en_cola' };
   }

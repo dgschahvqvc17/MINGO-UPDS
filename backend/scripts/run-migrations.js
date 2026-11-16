@@ -69,6 +69,7 @@ async function runAllMigrations() {
       path.join('supabase', 'migrations', '0003_hu05_calendario.sql'),
       path.join('supabase', 'migrations', '0004_hu07_documentos.sql'),
       path.join('supabase', 'migrations', '0005_hu09_fragmentos.sql'),
+      path.join('supabase', 'migrations', '0006_hu09_reemplazo_fragmentos.sql'),
     ];
     
     for (const migrationFile of migrations) {

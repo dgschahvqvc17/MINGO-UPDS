@@ -1,5 +1,5 @@
 const { describe, it, expect, beforeEach, jest: j } = require('@jest/globals');
-const { crearHandler, extraerTareas, decodificarClave } = require('../src/lambda/procesador');
+const { crearHandler, extraerTareas, decodificarClave, esReintentoDeCola } = require('../src/lambda/procesador');
 
 const MENSAJE_INTERNO = JSON.stringify({
   tipo: 'procesar_documento',
@@ -17,6 +17,19 @@ describe('procesador (Lambda)', () => {
       expect(decodificarClave('usuarios/a/documentos/c%C3%A1lculo.pdf')).toBe(
         'usuarios/a/documentos/cálculo.pdf',
       );
+    });
+  });
+
+  describe('esReintentoDeCola', () => {
+    it('trata la primera entrega como intento inicial', () => {
+      expect(esReintentoDeCola({ attributes: { ApproximateReceiveCount: '1' } })).toBe(false);
+      expect(esReintentoDeCola({})).toBe(false);
+      expect(esReintentoDeCola({ attributes: {} })).toBe(false);
+    });
+
+    it('reconoce las entregas posteriores como reintento', () => {
+      expect(esReintentoDeCola({ attributes: { ApproximateReceiveCount: '2' } })).toBe(true);
+      expect(esReintentoDeCola({ attributes: { ApproximateReceiveCount: 4 } })).toBe(true);
     });
   });
 
@@ -102,8 +115,48 @@ describe('procesador (Lambda)', () => {
         documentoId: '9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d',
         usuarioId: '3f2b7e5c-1a4d-4c8e-9f10-2b6d8a7c9e01',
         forzar: true,
+        esReintento: false,
       });
       expect(resultado).toEqual({ batchItemFailures: [] });
+    });
+
+    it('marca como reintento el mensaje que SQS entrega por segunda vez', async () => {
+      const evento = {
+        Records: [
+          {
+            messageId: 'm-1',
+            body: MENSAJE_INTERNO,
+            attributes: { ApproximateReceiveCount: '2' },
+          },
+        ],
+      };
+
+      await handler(evento);
+
+      expect(servicio.procesarDocumento).toHaveBeenCalledWith(
+        expect.objectContaining({ esReintento: true }),
+      );
+    });
+
+    it('marca como reintento un evento de S3 que SQS entrega de nuevo', async () => {
+      const evento = {
+        Records: [
+          {
+            messageId: 'm-2',
+            attributes: { ApproximateReceiveCount: '3' },
+            body: JSON.stringify({
+              Records: [{ s3: { object: { key: 'usuarios/u/documentos/calculo.pdf' } } }],
+            }),
+          },
+        ],
+      };
+
+      await handler(evento);
+
+      expect(servicio.procesarPorRuta).toHaveBeenCalledWith(
+        'usuarios/u/documentos/calculo.pdf',
+        { forzar: false, esReintento: true },
+      );
     });
 
     it('procesa los eventos automáticos de S3', async () => {
@@ -124,7 +177,7 @@ describe('procesador (Lambda)', () => {
 
       expect(servicio.procesarPorRuta).toHaveBeenCalledWith(
         'usuarios/u/documentos/calculo.pdf',
-        { forzar: false },
+        { forzar: false, esReintento: false },
       );
       expect(resultado).toEqual({ batchItemFailures: [] });
     });

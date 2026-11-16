@@ -376,6 +376,7 @@ describe('DocumentoService', () => {
       estado_procesamiento: 'pendiente',
       motivo_error: null,
       numero_paginas: null,
+      fecha_actualizacion: new Date().toISOString(),
     };
 
     it('encola el documento y lo marca en cola', async () => {
@@ -393,7 +394,10 @@ describe('DocumentoService', () => {
         usuarioId: USUARIO_ID,
         forzar: true,
       });
-      expect(documentoRepository.marcarEnCola).toHaveBeenCalledWith(USUARIO_ID, DOCUMENTO_ID);
+      expect(documentoRepository.marcarEnCola).toHaveBeenCalledWith(USUARIO_ID, DOCUMENTO_ID, {
+        reencolarEstancado: false,
+        actualizadoAntesDe: null,
+      });
       expect(resultado).toEqual({ id: DOCUMENTO_ID, estado: 'en_cola' });
     });
 
@@ -416,6 +420,46 @@ describe('DocumentoService', () => {
         statusCode: 409,
       });
       expect(colaRepository.encolarProcesamiento).not.toHaveBeenCalled();
+    });
+
+    it('reencola un documento atascado sin esperar a que termine', async () => {
+      documentoRepository.obtenerDocumentoPorId.mockResolvedValue({
+        ...documentoPendiente,
+        estado_procesamiento: 'procesando',
+        fecha_actualizacion: '2026-01-01T00:00:00.000Z',
+      });
+      documentoRepository.marcarEnCola.mockResolvedValue({
+        ...documentoPendiente,
+        estado_procesamiento: 'en_cola',
+      });
+      colaRepository.estaDisponible.mockReturnValue(true);
+
+      const resultado = await service.procesarDocumento(DOCUMENTO_ID);
+
+      expect(colaRepository.encolarProcesamiento).toHaveBeenCalled();
+      expect(documentoRepository.marcarEnCola).toHaveBeenCalledWith(
+        USUARIO_ID,
+        DOCUMENTO_ID,
+        expect.objectContaining({
+          reencolarEstancado: true,
+          actualizadoAntesDe: expect.any(String),
+        }),
+      );
+      expect(resultado).toEqual({ id: DOCUMENTO_ID, estado: 'en_cola' });
+    });
+
+    it('responde 409 si otro proceso retoma el documento antes de reencolarlo', async () => {
+      documentoRepository.obtenerDocumentoPorId.mockResolvedValue({
+        ...documentoPendiente,
+        estado_procesamiento: 'en_cola',
+        fecha_actualizacion: '2026-01-01T00:00:00.000Z',
+      });
+      documentoRepository.marcarEnCola.mockResolvedValue(null);
+      colaRepository.estaDisponible.mockReturnValue(true);
+
+      await expect(service.procesarDocumento(DOCUMENTO_ID)).rejects.toMatchObject({
+        statusCode: 409,
+      });
     });
 
     it('responde 503 cuando SQS no está configurado', async () => {
