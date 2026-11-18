@@ -702,7 +702,8 @@ trabajo real lo ejecuta la Lambda procesadora.
 **Reglas**
 
 - Un documento ajeno o inexistente responde `404`; un identificador que no es UUID responde `400`.
-- Si el documento está en `en_cola` o `procesando`, responde `409` para evitar un doble trabajo.
+- Si el documento está en `en_cola` o `procesando` responde `409` para evitar un doble trabajo, **salvo** que haya quedado atascado: sin actualizaciones durante 15 minutos se considera abandonado y se reencola (`202`).
+- El reencolado de un documento atascado es condicional: si otro proceso lo actualizó entre la lectura y la escritura, responde `409` en lugar de pisarlo.
 - Si la cola no está configurada o no responde, responde `503` y no cambia el estado.
 - Los estados `pendiente`, `procesado` y `error` se pueden encolar; el reproceso de un documento ya procesado también responde `202` y vuelve a `en_cola`.
 - Al registrar un documento, si la cola está disponible se encola automáticamente; si falla, el registro sigue siendo válido y el usuario puede reintentar con este endpoint.
@@ -726,7 +727,10 @@ trabajo real lo ejecuta la Lambda procesadora.
 
 - Un documento ajeno o inexistente responde `404`.
 - El frontend consulta este endpoint mientras el estado es `en_cola` o `procesando`.
-- Los errores permanentes se guardan en `error` con `motivo_error`; un fallo temporal de la Lambda se relanza para que SQS reintente.
+- Los errores permanentes se guardan en `error` con `motivo_error`. Un fallo temporal (red, cuota del proveedor de IA, almacenamiento no disponible) devuelve el documento a `en_cola` sin `motivo_error` y relanza el error para que SQS lo reintente.
+- Si SQS agota los reintentos (`maxReceiveCount = 3`), el mensaje pasa a la DLQ y el documento queda en `en_cola`; tras 15 minutos el usuario puede reencolarlo con `POST /:id/procesar`.
+- El worker recupera un documento que sigue en `en_cola` o `procesando` cuando SQS lo entrega de nuevo (`ApproximateReceiveCount > 1`) o cuando detecta que está atascado.
+- Reemplazo de fragmentos: los nuevos se insertan con `numero_fragmento` desplazado y la función `public.confirmar_reemplazo_fragmentos` borra los anteriores y renumera en una sola transacción. Si el reemplazo falla, el documento conserva sus fragmentos previos y el fallo se registra como `error` (permanente) o `en_cola` (temporal).
 
 ### 10.6. Búsqueda semántica (HU11)
 

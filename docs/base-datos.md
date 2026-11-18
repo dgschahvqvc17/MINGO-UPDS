@@ -424,6 +424,22 @@ Reglas:
 - El worker escribe con `service_role`; el usuario autenticado solo puede leer sus fragmentos.
 - DDL: `supabase/migrations/0005_hu09_fragmentos.sql` (idempotente).
 
+**Reemplazo de fragmentos (reproceso).** Un documento reprocesado no puede
+borrar sus fragmentos antes de insertar los nuevos (un fallo a mitad lo dejaría
+sin contenido) ni insertar sobre la numeración anterior (choca con
+`unique (documento_id, numero_fragmento)`). El worker inserta los nuevos con
+`numero_fragmento + 1 000 000 000`, por lotes, y luego llama a
+`public.confirmar_reemplazo_fragmentos(documento_id, desplazamiento)`, que:
+
+1. Cuenta los fragmentos nuevos; si no hay ninguno, lanza una excepción y la
+   transacción revierte.
+2. Borra los fragmentos anteriores (`numero_fragmento <= desplazamiento`).
+3. Resta el desplazamiento a los nuevos, dejándolos en `1..n`.
+
+La función es `security definer`, fija `search_path = public, extensions, pg_temp`
+y solo concede `EXECUTE` a `service_role`. DDL:
+`supabase/migrations/0006_hu09_reemplazo_fragmentos.sql` (idempotente).
+
 ### 3.10. `conversaciones`
 
 Conversaciones del estudiante con el asistente.
@@ -1029,10 +1045,11 @@ El diagrama actual cubre el núcleo académico, documental, de IA y de evaluaci�
 | `supabase/migrations/0003_hu05_calendario.sql` | Tabla `eventos_calendario`, índices, trigger de actualización, RLS y RPC `obtener_eventos_proximos` y `crear_evento_desde_tarea` (HU05, idempotente). |
 | `supabase/migrations/0004_hu07_documentos.sql` | Tabla `documentos`, índices, trigger de actualización y RLS (HU07, idempotente). |
 | `supabase/migrations/0005_hu09_fragmentos.sql` | Tabla `fragmentos_documento`, extensión `pgvector`, índices y RLS (HU09, idempotente). |
+| `supabase/migrations/0006_hu09_reemplazo_fragmentos.sql` | RPC `confirmar_reemplazo_fragmentos`, reemplazo atómico de fragmentos en el reproceso (HU09, idempotente). |
 
 - El script `backend/scripts/run-migrations.js` (`npm run migrate`) aplica estas
-  migraciones en orden: identidad, materias, tareas, calendario, documentos y
-  fragmentos.
+  migraciones en orden: identidad, materias, tareas, calendario, documentos,
+  fragmentos y reemplazo de fragmentos.
 
 - Flujo:
 
@@ -1086,6 +1103,7 @@ on conflict (nombre) do nothing;
 
 | Fecha | Cambio |
 |---|---|
+| 2026-11-16 | HU09: RPC `confirmar_reemplazo_fragmentos` para reemplazar fragmentos de forma atómica en el reproceso. Cierra el hueco entre el borrado y la inserción. |
 | 2026-11-10 | HU05: `eventos_calendario` implementada con UUID, `materia_id`/`tarea_id` opcionales, `recordatorio`, `fecha_creacion`/`fecha_actualizacion`, RLS y RPC `obtener_eventos_proximos` y `crear_evento_desde_tarea`. `eventos_calendario.recordatorio` deja de estar pendiente. |
 | 2026-11-07 | HU04: `tareas` implementada con UUID, `tipo`, `fecha_asignacion`, `fecha_actualizacion`, RLS y RPC de estadísticas. `materias` documentada según la implementación real de HU03. |
 | 2026-11-07 | Versión 2.0: modelo reemplazado por el diagrama PlantUML del equipo (15 tablas, PK UUID en `perfiles` y `SERIAL` en dominio). |

@@ -145,7 +145,11 @@ Reglas:
 | Procesar documento sin texto | Estado `error` con motivo claro. |
 | Procesar documento en estado `en_cola` o `procesando` | 409, evita doble procesamiento. |
 | Procesar documento ya procesado | 202 y vuelve a `en_cola` (reproceso explícito). |
-| Reintentar procesamiento temporal | Se relanza error temporal; SQS reintenta. |
+| Procesar un documento atascado (sin cambios 15 min) | 202: se reencola. Si otro proceso lo retomó antes, 409. |
+| Reemplazar fragmentos en un reproceso | Los nuevos se insertan desplazados y la RPC confirma el reemplazo en una transacción; ante un fallo se conservan los anteriores. |
+| Reintentar procesamiento temporal | El documento vuelve a `en_cola` sin `motivo_error` y se relanza; SQS reintenta. |
+| Reintento de SQS (`ApproximateReceiveCount > 1`) | El worker recupera el documento aunque esté en `procesando`. |
+| Evento de S3 de un documento aún no registrado | Error temporal: SQS reintenta en lugar de descartar el mensaje. |
 | Error permanente | Se marca `error`, no se reintentará. |
 | Consultar estado (`GET /:id/estado`) | 200 con estado, motivo y número de páginas. |
 | Procesar documento ajeno o inexistente | 404. |
