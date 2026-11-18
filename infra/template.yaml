@@ -1,4 +1,5 @@
 AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
 Description: >-
   MINGO - HU07 y HU09. Bucket privado de documentos academicos y procesamiento
   asincrono serverless (S3 -> SQS -> Lambda). Sin servidores, sin VPC, sin
@@ -50,15 +51,28 @@ Parameters:
     NoEcho: true
     Description: Clave del proveedor de IA. Se inyecta desde el pipeline.
 
+  AiProvider:
+    Type: String
+    Default: openai
+    AllowedValues: [gemini, openai]
+    Description: >
+      Proveedor compatible con OpenAI. Produccion usa openai porque su politica
+      no entrena con los datos enviados; gemini se limita a desarrollo y demo
+      con el tier gratuito, cuyo uso si puede usarse para entrenar.
+
   AiBaseUrl:
     Type: String
     Default: ''
-    Description: URL base opcional del proveedor compatible con OpenAI.
+    Description: >
+      URL base opcional del proveedor compatible con OpenAI. En desarrollo con
+      Gemini: https://generativelanguage.googleapis.com/v1beta/openai/
 
   AiEmbeddingModel:
     Type: String
     Default: text-embedding-3-small
-    Description: Modelo de embeddings; debe producir 1536 dimensiones.
+    Description: >
+      Modelo de embeddings; debe producir 1536 dimensiones. Con Gemini en
+      desarrollo se usa gemini-embedding-001 con 1536 dimensiones de salida.
 
   AiEmbeddingDimensions:
     Type: Number
@@ -271,17 +285,17 @@ Resources:
           SUPABASE_URL: !Ref SupabaseUrl
           SUPABASE_SERVICE_ROLE_KEY: !Ref SupabaseServiceRoleKey
           AWS_S3_BUCKET: !Ref BucketName
-          AI_PROVIDER: openai
+          AI_PROVIDER: !Ref AiProvider
           AI_API_KEY: !Ref AiApiKey
           AI_BASE_URL: !Ref AiBaseUrl
           AI_EMBEDDING_MODEL: !Ref AiEmbeddingModel
           AI_EMBEDDING_DIMENSIONS: !Ref AiEmbeddingDimensions
       Tags:
-        - { Key: Project, Value: MINGO }
-        - { Key: Environment, Value: !Ref Environment }
-        - { Key: Owner, Value: equipo-mingo }
-        - { Key: ManagedBy, Value: cloudformation }
-        - { Key: CostCenter, Value: academico }
+        Project: MINGO
+        Environment: !Ref Environment
+        Owner: equipo-mingo
+        ManagedBy: sam
+        CostCenter: academico
 
   ProcesadorEventSource:
     Type: AWS::Lambda::EventSourceMapping
