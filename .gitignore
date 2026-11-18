@@ -29,6 +29,8 @@ Thumbs.db
 
 # AWS / Supabase
 .aws/
+.aws-sam/
+samconfig.toml
 supabase/.temp/
 
 # Credenciales y datos de prueba (nunca subir)
