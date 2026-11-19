@@ -21,12 +21,12 @@
 | Agente principal | `services/ia/agente.service.js` | Interpreta la intención, elige herramientas y compone la respuesta. |
 | RAG | `services/ia/rag.service.js` | Recupera fragmentos relevantes y arma el contexto. |
 | Embeddings | `services/ia/embeddings.service.js` | Genera y reutiliza vectores. |
-| Resumen | `services/ia/resumen.service.js` | Resume documentos con distinto nivel de profundidad. |
+| Resumen | `services/ia/resumen.ia.service.js`, `services/resumen.service.js` | Resume documentos con distinto nivel de profundidad. |
 | Tutor | `services/ia/tutor.service.js` | Explica conceptos y adapta el nivel. |
 | Evaluador | `services/ia/evaluador.service.js` | Genera y corrige cuestionarios. |
 | Planificador | `services/ia/planificador.service.js` | Propone planes y sesiones de estudio. |
 | Proveedor | `services/ia/provider/*.js` | Adaptador único hacia el proveedor externo. |
-| Control de consumo | `services/ia/consumo.service.js` | Cuotas, tokens, caché y registro. |
+| Control de consumo | `repositories/consumo-ia.repository.js` | Cuotas, tokens y registro (HU10). |
 
 ## 3. Pipeline de documentos (ingesta)
 
@@ -292,10 +292,23 @@ Agente: confirma la creación y muestra el enlace
 
 ### 8.2. Resúmenes (HU10)
 
-- Nivel `breve`, `media` o `detallada`.
-- Si el documento es largo, se resume por bloques y se combinan los resúmenes.
-- El resumen se guarda y se reutiliza si el documento no cambió (hash).
-- No se resume un documento que aún no está procesado.
+- Nivel `breve`, `media` o `detallada` (por defecto `media`).
+- Salida estructurada y validada en backend: `resumen_general`,
+  `temas_principales` y `conceptos_importantes` (`termino` + `descripcion`).
+- El prompt declara el contenido del documento como dato no confiable: no se
+  ejecutan instrucciones que aparezcan dentro de él.
+- Se envían como máximo 12 000 tokens por documento (≈ 48 000 caracteres).
+  Si se excede, se resume la parte inicial y la respuesta marca
+  `contenido_truncado: true`; no se envían más fragmentos para no subir el costo.
+- El resumen se guarda y se reutiliza si el documento no cambió: la clave de
+  caché es `documento_id` + hash de los fragmentos + `profundidad`.
+- Con `guardar: false` se devuelve el resumen sin persistirlo, pero la llamada
+  a la IA sí cuenta para la cuota y se registra en `consumo_ia`.
+- No se resume un documento que aún no está procesado (`422`).
+- Cuota efectiva: 20 resúmenes por usuario y día (`429 AI_QUOTA_EXCEEDED`).
+- Un reintento único ante error temporal del proveedor; nunca un bucle.
+- La UI de `/asistente-ia` permite elegir documento procesado, profundidad,
+  reconsultar el último resumen guardado y ver el documento de origen.
 
 ### 8.3. Búsqueda semántica (HU11)
 

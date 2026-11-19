@@ -132,6 +132,29 @@ class FragmentoRepository {
   }
 
   /**
+   * Lista el contenido de un documento para generar su resumen (HU10).
+   * Se lee con el cliente del usuario: RLS garantiza que sea su documento.
+   *
+   * @param {string} documentoId UUID del documento.
+   * @param {number} limite Maximo de fragmentos a recuperar.
+   * @returns {Promise<Array<{ numero_fragmento: number, numero_pagina: number | null, contenido: string, hash_contenido: string }>>}
+   */
+  async listarParaResumen(documentoId, limite) {
+    const { data, error } = await this.requireClient()
+      .from('fragmentos_documento')
+      .select('numero_fragmento, numero_pagina, contenido, hash_contenido')
+      .eq('documento_id', documentoId)
+      .order('numero_fragmento', { ascending: true })
+      .limit(limite);
+
+    if (error) {
+      throw error;
+    }
+
+    return data ?? [];
+  }
+
+  /**
    * @param {unknown} error
    * @param {string} documentoId
    * @returns {void}
