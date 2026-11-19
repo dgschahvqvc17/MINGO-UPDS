@@ -155,6 +155,58 @@ class FragmentoRepository {
   }
 
   /**
+   * Lista el contenido de un documento para generar un cuestionario (HU13).
+   * Se lee con el cliente del usuario: RLS garantiza que sea su documento.
+   *
+   * @param {string} documentoId UUID del documento.
+   * @param {number} limite Maximo de fragmentos a recuperar.
+   * @returns {Promise<Array<{ id: string, numero_fragmento: number, numero_pagina: number | null, contenido: string }>>}
+   */
+  async listarParaCuestionario(documentoId, limite) {
+    const { data, error } = await this.requireClient()
+      .from('fragmentos_documento')
+      .select('id, numero_fragmento, numero_pagina, contenido')
+      .eq('documento_id', documentoId)
+      .order('numero_fragmento', { ascending: true })
+      .limit(limite);
+
+    if (error) {
+      throw error;
+    }
+
+    return data ?? [];
+  }
+
+  /**
+   * Lista el contenido de todos los documentos procesados de una materia para
+   * generar un cuestionario sin elegir un documento concreto (HU13).
+   * Se lee con el cliente del usuario: RLS garantiza que sean documentos suyos.
+   *
+   * @param {string} materiaId UUID de la materia.
+   * @param {number} limite Maximo de fragmentos a recuperar.
+   * @returns {Promise<Array<{ numero_fragmento: number, numero_pagina: number | null, contenido: string }>>}
+   */
+  async listarPorMateriaParaCuestionario(materiaId, limite) {
+    const { data, error } = await this.requireClient()
+      .from('fragmentos_documento')
+      .select('numero_fragmento, numero_pagina, contenido, documentos!inner(materia_id, estado_procesamiento)')
+      .eq('documentos.materia_id', materiaId)
+      .eq('documentos.estado_procesamiento', 'procesado')
+      .order('numero_fragmento', { ascending: true })
+      .limit(limite);
+
+    if (error) {
+      throw error;
+    }
+
+    return (data ?? []).map((fragmento) => ({
+      numero_fragmento: fragmento.numero_fragmento,
+      numero_pagina: fragmento.numero_pagina,
+      contenido: fragmento.contenido,
+    }));
+  }
+
+  /**
    * Recupera los fragmentos mas similares a un vector de consulta (HU11).
    * La funcion RPC filtra por propietario con `auth.uid()`, ademas de aplicar
    * RLS. Nunca se busca sin ese filtro.

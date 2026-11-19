@@ -61,6 +61,7 @@ describe('rutas del chat academico (HU12)', () => {
       materiaId: undefined,
       documentoIds: [],
       usarDocumentos: true,
+      idempotencyKey: null,
     });
   });
 
@@ -127,6 +128,46 @@ describe('rutas del chat academico (HU12)', () => {
       .post('/api/asistente/chat')
       .send({ mensaje: 'Hola' })
       .expect(503);
+  });
+
+  it('POST /api/asistente/chat propaga una Idempotency-Key valida', async () => {
+    await request(app)
+      .post('/api/asistente/chat')
+      .set('Idempotency-Key', 'chat-12345678')
+      .send({ mensaje: 'Hola' })
+      .expect(200);
+
+    expect(mockChatService.enviar).toHaveBeenCalledWith(
+      expect.objectContaining({ idempotencyKey: 'chat-12345678' }),
+    );
+  });
+
+  it('POST /api/asistente/chat rechaza una Idempotency-Key invalida', async () => {
+    const response = await request(app)
+      .post('/api/asistente/chat')
+      .set('Idempotency-Key', 'clave con espacios')
+      .send({ mensaje: 'Hola' })
+      .expect(400);
+
+    expect(response.body.success).toBe(false);
+    expect(response.body.error.details.source).toBe('headers');
+    expect(mockChatService.enviar).not.toHaveBeenCalled();
+  });
+
+  it('POST /api/asistente/chat devuelve 409 si la clave ya se uso con otro cuerpo', async () => {
+    mockChatService.enviar.mockRejectedValue(
+      ApiError.conflict('La cabecera Idempotency-Key ya se uso con otra solicitud.'),
+    );
+
+    const response = await request(app)
+      .post('/api/asistente/chat')
+      .set('Idempotency-Key', 'chat-12345678')
+      .send({ mensaje: 'Hola' })
+      .expect(409);
+
+    expect(response.body.error.message).toBe(
+      'La cabecera Idempotency-Key ya se uso con otra solicitud.',
+    );
   });
 
   it('GET /api/asistente/conversaciones devuelve la lista con metadatos', async () => {

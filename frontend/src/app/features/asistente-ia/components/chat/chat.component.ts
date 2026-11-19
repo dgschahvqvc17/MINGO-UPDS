@@ -18,6 +18,7 @@ import type {
 import { ChatService } from '../../../../core/services/chat.service';
 import { DocumentoService, type Documento } from '../../../../core/services/documento.service';
 import { mensajeDeErrorHttp } from '../../../../core/utils/http-error';
+import { crearClaveIdempotencia } from '../../../../core/utils/idempotency-key';
 
 const LIMITE_DOCUMENTOS = 100;
 const MAXIMO_DOCUMENTOS_CHAT = 5;
@@ -38,6 +39,10 @@ export class ChatComponent {
   private readonly chatService = inject(ChatService);
   private readonly documentoService = inject(DocumentoService);
   private readonly destroyRef = inject(DestroyRef);
+
+  /** Clave del envio pendiente: se reutiliza al reintentar la misma solicitud. */
+  private claveIdempotenciaPendiente: string | null = null;
+  private firmaPendiente: string | null = null;
 
   readonly mensajeControl = new FormControl('', {
     nonNullable: true,
@@ -199,20 +204,33 @@ export class ChatComponent {
     this.mensajes.update((mensajes) => [...mensajes, mensajeLocal]);
     this.mensajeControl.reset();
 
+    const solicitud = {
+      conversacion_id: this.conversacionActualId(),
+      mensaje: contenido,
+      materia_id: null,
+      documento_ids: this.documentoIds(),
+      usar_documentos: this.usarDocumentos(),
+    };
+    const firma = JSON.stringify(solicitud);
+
+    const claveIdempotencia =
+      this.firmaPendiente === firma && this.claveIdempotenciaPendiente
+        ? this.claveIdempotenciaPendiente
+        : crearClaveIdempotencia();
+
+    this.claveIdempotenciaPendiente = claveIdempotencia;
+    this.firmaPendiente = firma;
+
     this.chatService
-      .enviar({
-        conversacion_id: this.conversacionActualId(),
-        mensaje: contenido,
-        materia_id: null,
-        documento_ids: this.documentoIds(),
-        usar_documentos: this.usarDocumentos(),
-      })
+      .enviar(solicitud, claveIdempotencia)
       .pipe(
         takeUntilDestroyed(this.destroyRef),
         finalize(() => this.enviando.set(false)),
       )
       .subscribe({
         next: (respuesta) => {
+          this.claveIdempotenciaPendiente = null;
+          this.firmaPendiente = null;
           this.conversacionActualId.set(respuesta.conversacion_id);
           this.cargarHistorial(respuesta.conversacion_id);
           this.cargarConversaciones();

@@ -1,0 +1,11 @@
+.cuestionario-resolver {
+  max-width: 900px;
+}
+
+.cuestionario-resolver textarea {
+  resize: vertical;
+}
+
+.progress {
+  height: 0.5rem;
+}

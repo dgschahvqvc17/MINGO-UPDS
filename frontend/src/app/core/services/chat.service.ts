@@ -49,8 +49,10 @@ export interface MetaConversaciones {
 export class ChatService {
   private readonly api = inject(ApiService);
 
-  enviar(solicitud: SolicitudChat): Observable<RespuestaChat> {
-    return this.api.post<RespuestaChat>('/asistente/chat', solicitud);
+  enviar(solicitud: SolicitudChat, idempotencyKey?: string): Observable<RespuestaChat> {
+    return this.api.post<RespuestaChat>('/asistente/chat', solicitud, {
+      headers: idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : undefined,
+    });
   }
 
   listar(

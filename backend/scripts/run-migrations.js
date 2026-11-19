@@ -61,8 +61,9 @@ async function runAllMigrations() {
   
   try {
     // Orden de migraciones: identidad, materias, tareas, calendario,
-    // documentos, fragmentos, resumenes, busqueda semantica y chat. Las
-    // dependencias entre tablas exigen este orden.
+    // documentos, fragmentos, resumenes, busqueda semantica, chat,
+    // cuestionarios e idempotencia. Las dependencias entre tablas exigen
+    // este orden.
     const migrations = [
       path.join('supabase', 'migrations', '0001_hu01_auth.sql'),
       path.join('backend', 'sql', 'materias.sql'),
@@ -74,6 +75,8 @@ async function runAllMigrations() {
       path.join('supabase', 'migrations', '0007_hu10_resumenes.sql'),
       path.join('supabase', 'migrations', '0008_hu11_busqueda_semantica.sql'),
       path.join('supabase', 'migrations', '0009_hu12_chat.sql'),
+      path.join('supabase', 'migrations', '0010_hu13_cuestionarios.sql'),
+      path.join('supabase', 'migrations', '0011_hu12_idempotencia_chat.sql'),
     ];
     
     for (const migrationFile of migrations) {

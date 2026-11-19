@@ -1,0 +1,282 @@
+<section class="centro-estudio">
+  @if (resolviendo(); as actual) {
+    <app-cuestionario-resolver
+      [cuestionarioId]="actual.id"
+      [titulo]="actual.titulo"
+      (volver)="cerrarResolver()"
+      (completado)="alCompletar()"
+    />
+  } @else {
+    <header class="mb-4">
+      <h1 class="h3 mb-1">Centro de estudio</h1>
+      <p class="text-muted mb-0">
+        Genera cuestionarios con IA a partir de tus documentos y evalúa lo que aprendiste.
+      </p>
+    </header>
+
+    @if (mensajeExito()) {
+      <div class="alert alert-success alert-dismissible d-flex align-items-center" role="status">
+        <i class="bi bi-check-circle me-2" aria-hidden="true"></i>
+        <span class="flex-grow-1">{{ mensajeExito() }}</span>
+        <button
+          type="button"
+          class="btn-close"
+          aria-label="Cerrar mensaje"
+          (click)="cerrarMensaje()"
+        ></button>
+      </div>
+    }
+
+    @if (errorAccion()) {
+      <div class="alert alert-danger alert-dismissible d-flex align-items-center" role="alert">
+        <i class="bi bi-exclamation-triangle me-2" aria-hidden="true"></i>
+        <span class="flex-grow-1">{{ errorAccion() }}</span>
+        <button
+          type="button"
+          class="btn-close"
+          aria-label="Cerrar mensaje de error"
+          (click)="cerrarErrorAccion()"
+        ></button>
+      </div>
+    }
+
+    <div class="row g-4">
+      <div class="col-12 col-lg-4">
+        <div class="card border-0 shadow-sm h-100">
+          <div class="card-body">
+            <h2 class="h5 mb-3">
+              <i class="bi bi-magic me-2 text-primary" aria-hidden="true"></i>
+              Generar cuestionario
+            </h2>
+
+            @if (sinMaterias()) {
+              <div class="alert alert-info" role="status">
+                Necesitas registrar una materia para generar cuestionarios.
+                <a routerLink="/materias/nueva" class="alert-link">Crear materia</a>
+              </div>
+            }
+
+            <form (submit)="$event.preventDefault(); generar()">
+              <div class="mb-3">
+                <label for="materia" class="form-label">Materia</label>
+                <select
+                  id="materia"
+                  class="form-select"
+                  [value]="materiaId()"
+                  (change)="cambiarMateria($any($event.target).value)"
+                >
+                  <option value="">Selecciona una materia</option>
+                  @for (materia of materiasActivas(); track materia.id) {
+                    <option [value]="materia.id">{{ materia.nombre }}</option>
+                  }
+                </select>
+              </div>
+
+              <div class="mb-3">
+                <label for="documento" class="form-label">
+                  Documento <span class="text-muted fw-normal">(opcional)</span>
+                </label>
+                <select
+                  id="documento"
+                  class="form-select"
+                  [value]="documentoId()"
+                  [disabled]="!materiaId() || cargandoDocumentos()"
+                  (change)="cambiarDocumento($any($event.target).value)"
+                >
+                  <option value="">
+                    {{ cargandoDocumentos() ? 'Cargando documentos...' : 'Todos los documentos procesados' }}
+                  </option>
+                  @for (documento of documentos(); track documento.id) {
+                    <option [value]="documento.id">{{ documento.nombre }}</option>
+                  }
+                </select>
+                <div class="form-text">
+                  Sin documento, se usan todos los apuntes procesados de la materia.
+                </div>
+              </div>
+
+              <div class="row g-3 mb-3">
+                <div class="col-6">
+                  <label for="cantidad" class="form-label">Preguntas</label>
+                  <input
+                    id="cantidad"
+                    type="number"
+                    class="form-control"
+                    min="5"
+                    max="20"
+                    step="1"
+                    [value]="cantidadPreguntas()"
+                    (input)="cambiarCantidad($any($event.target).value)"
+                  />
+                </div>
+                <div class="col-6">
+                  <label for="dificultad" class="form-label">Dificultad</label>
+                  <select
+                    id="dificultad"
+                    class="form-select"
+                    [value]="dificultad()"
+                    (change)="cambiarDificultad($any($event.target).value)"
+                  >
+                    @for (opcion of dificultades; track opcion.valor) {
+                      <option [value]="opcion.valor">{{ opcion.etiqueta }}</option>
+                    }
+                  </select>
+                </div>
+              </div>
+
+              <fieldset class="mb-3">
+                <legend class="form-label fs-6">Tipos de pregunta</legend>
+                @for (tipo of tiposDisponibles; track tipo.valor) {
+                  <div class="form-check">
+                    <input
+                      class="form-check-input"
+                      type="checkbox"
+                      [id]="'tipo-' + tipo.valor"
+                      [checked]="tipoSeleccionado(tipo.valor)"
+                      (change)="alternarTipo(tipo.valor)"
+                    />
+                    <label class="form-check-label" [for]="'tipo-' + tipo.valor">
+                      {{ tipo.etiqueta }}
+                    </label>
+                  </div>
+                }
+                @if (tipos().length === 0) {
+                  <p class="text-danger small mb-0" role="alert">
+                    Selecciona al menos un tipo de pregunta.
+                  </p>
+                }
+              </fieldset>
+
+              @if (error()) {
+                <div class="alert alert-danger" role="alert">{{ error() }}</div>
+              }
+
+              <button type="submit" class="btn btn-primary w-100" [disabled]="!puedeGenerar()">
+                @if (generando()) {
+                  <span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
+                  Generando cuestionario...
+                } @else {
+                  <i class="bi bi-stars me-1" aria-hidden="true"></i>
+                  Generar cuestionario
+                }
+              </button>
+              <p class="text-muted small text-center mt-2 mb-0">
+                Puedes generar hasta 10 cuestionarios por día.
+              </p>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-12 col-lg-8">
+        <div class="card border-0 shadow-sm h-100">
+          <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+              <h2 class="h5 mb-0">
+                <i class="bi bi-journal-check me-2 text-primary" aria-hidden="true"></i>
+                Mis cuestionarios
+              </h2>
+              <span class="badge text-bg-light border">{{ totalCuestionarios() }}</span>
+            </div>
+
+            @if (cargandoCuestionarios() && cuestionarios().length === 0) {
+              <div class="text-center py-5" role="status">
+                <div class="spinner-border text-primary" aria-hidden="true"></div>
+                <p class="text-muted mt-3 mb-0">Cargando cuestionarios...</p>
+              </div>
+            } @else if (mostrarListaVacia()) {
+              <div class="alert alert-info mb-0" role="status">
+                Todavía no tienes cuestionarios. Genera el primero con el formulario de la izquierda.
+              </div>
+            } @else {
+              <div class="d-flex flex-column gap-3">
+                @for (cuestionario of cuestionarios(); track cuestionario.id) {
+                  <article class="card border">
+                    <div class="card-body">
+                      <div class="d-flex flex-wrap justify-content-between align-items-start gap-2">
+                        <div>
+                          <h3 class="h6 mb-1">{{ cuestionario.titulo }}</h3>
+                          <p class="text-muted small mb-2">
+                            @if (cuestionario.materia_nombre) {
+                              {{ cuestionario.materia_nombre }} ·
+                            }
+                            {{ cuestionario.fecha_creacion | date: 'dd/MM/yyyy' }}
+                          </p>
+                        </div>
+                        <div class="d-flex flex-wrap gap-1">
+                          <span class="badge text-bg-light border">
+                            {{ cuestionario.cantidad_preguntas }} preguntas
+                          </span>
+                          <span class="badge text-bg-light border">
+                            {{ etiquetaDificultad(cuestionario) }}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div class="d-flex flex-wrap gap-2 mt-3">
+                        <button
+                          type="button"
+                          class="btn btn-sm btn-primary"
+                          (click)="resolver(cuestionario)"
+                        >
+                          <i class="bi bi-play-fill me-1" aria-hidden="true"></i>
+                          Resolver
+                        </button>
+
+                        @if (confirmandoEliminar() === cuestionario.id) {
+                          <button
+                            type="button"
+                            class="btn btn-sm btn-danger"
+                            [disabled]="eliminandoId() === cuestionario.id"
+                            (click)="eliminar(cuestionario)"
+                          >
+                            @if (eliminandoId() === cuestionario.id) {
+                              <span class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span>
+                            }
+                            Confirmar eliminación
+                          </button>
+                          <button
+                            type="button"
+                            class="btn btn-sm btn-outline-secondary"
+                            (click)="cancelarEliminar()"
+                          >
+                            Cancelar
+                          </button>
+                        } @else {
+                          <button
+                            type="button"
+                            class="btn btn-sm btn-outline-danger"
+                            (click)="solicitarEliminar(cuestionario)"
+                          >
+                            <i class="bi bi-trash me-1" aria-hidden="true"></i>
+                            Eliminar
+                          </button>
+                        }
+                      </div>
+                    </div>
+                  </article>
+                }
+              </div>
+
+              @if (hayMasCuestionarios()) {
+                <div class="text-center mt-3">
+                  <button
+                    type="button"
+                    class="btn btn-outline-primary btn-sm"
+                    [disabled]="cargandoCuestionarios()"
+                    (click)="cargarMas()"
+                  >
+                    @if (cargandoCuestionarios()) {
+                      <span class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span>
+                    }
+                    Cargar más
+                  </button>
+                </div>
+              }
+            }
+          </div>
+        </div>
+      </div>
+    </div>
+  }
+</section>

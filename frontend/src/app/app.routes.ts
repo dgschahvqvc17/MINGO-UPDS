@@ -133,6 +133,7 @@ export const routes: Routes = [
 
       {
         path: 'centro-estudio',
+        title: 'Centro de estudio | MINGO',
         loadComponent: () =>
           import('./features/centro-estudio/centro-estudio').then((m) => m.CentroEstudioPage),
       },

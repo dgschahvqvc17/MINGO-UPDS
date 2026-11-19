@@ -1,5 +1,6 @@
 const { Router } = require('express');
 const authMiddleware = require('../middlewares/auth.middleware');
+const idempotencyMiddleware = require('../middlewares/idempotency.middleware');
 const validationMiddleware = require('../middlewares/validation.middleware');
 const asyncHandler = require('../utils/asyncHandler');
 const {
@@ -7,6 +8,8 @@ const {
   createResumenController,
   createChatService,
   createChatController,
+  createCuestionarioService,
+  createCuestionarioController,
 } = require('../container');
 const {
   resumenGenerarSchema,
@@ -17,6 +20,12 @@ const {
   conversacionParamSchema,
   conversacionListarQuerySchema,
 } = require('../models/chat.model');
+const {
+  cuestionarioGenerarSchema,
+  cuestionarioParamSchema,
+  cuestionarioListarQuerySchema,
+  intentoResponderSchema,
+} = require('../models/cuestionario.model');
 
 const router = Router();
 
@@ -64,6 +73,21 @@ function atenderChat(accion) {
 }
 
 /**
+ * Construye un handler que delega en el controlador de cuestionarios.
+ * El servicio se compone por peticion para usar el cliente JWT del usuario.
+ *
+ * @param {'generar' | 'listar' | 'obtener' | 'eliminar' | 'iniciarIntento' | 'responder' | 'obtenerIntento'} accion
+ * @returns {import('express').RequestHandler}
+ */
+function atenderCuestionario(accion) {
+  return asyncHandler((req, res) => {
+    const cuestionarioService = createCuestionarioService(req.user.id, req.accessToken);
+    const controller = createCuestionarioController(cuestionarioService);
+    return controller[accion](req, res);
+  });
+}
+
+/**
  * POST /asistente/resumen
  * Genera un resumen estructurado del documento, reutilizando la cache si aplica.
  */
@@ -86,9 +110,11 @@ router.get(
 /**
  * POST /asistente/chat
  * Envia un mensaje al asistente y devuelve la respuesta con sus citas.
+ * Acepta la cabecera opcional Idempotency-Key para reintentos seguros.
  */
 router.post(
   '/chat',
+  idempotencyMiddleware,
   validationMiddleware({ body: chatEnviarSchema }),
   atenderChat('enviar'),
 );
@@ -123,6 +149,79 @@ router.delete(
   atenderChat('eliminar'),
 );
 
-// TODO Sprint 2-3 (HU13-HU16): cuestionarios, tarjetas, planes y evaluador.
+// TODO Sprint 2-3 (HU14-HU16): tarjetas, planes y evaluador.
+
+/**
+ * POST /asistente/cuestionario
+ * Genera y guarda un cuestionario a partir de un documento o de una materia.
+ */
+router.post(
+  '/cuestionario',
+  validationMiddleware({ body: cuestionarioGenerarSchema }),
+  atenderCuestionario('generar'),
+);
+
+/**
+ * GET /asistente/cuestionarios
+ * Lista los cuestionarios propios paginados.
+ */
+router.get(
+  '/cuestionarios',
+  validationMiddleware({ query: cuestionarioListarQuerySchema }),
+  atenderCuestionario('listar'),
+);
+
+/**
+ * GET /asistente/cuestionarios/:id
+ * Devuelve un cuestionario propio con sus preguntas y opciones.
+ */
+router.get(
+  '/cuestionarios/:id',
+  validationMiddleware({ params: cuestionarioParamSchema }),
+  atenderCuestionario('obtener'),
+);
+
+/**
+ * DELETE /asistente/cuestionarios/:id
+ * Elimina un cuestionario propio y, en cascada, sus preguntas e intentos.
+ */
+router.delete(
+  '/cuestionarios/:id',
+  validationMiddleware({ params: cuestionarioParamSchema }),
+  atenderCuestionario('eliminar'),
+);
+
+/**
+ * POST /asistente/cuestionarios/:id/intentos
+ * Inicia un intento de resolucion del cuestionario.
+ */
+router.post(
+  '/cuestionarios/:id/intentos',
+  validationMiddleware({ params: cuestionarioParamSchema }),
+  atenderCuestionario('iniciarIntento'),
+);
+
+/**
+ * GET /asistente/intentos/:id
+ * Devuelve el intento con sus respuestas; oculta la correccion si sigue en progreso.
+ */
+router.get(
+  '/intentos/:id',
+  validationMiddleware({ params: cuestionarioParamSchema }),
+  atenderCuestionario('obtenerIntento'),
+);
+
+/**
+ * POST /asistente/intentos/:id/responder
+ * Registra las respuestas, corrige las objetivas y finaliza el intento.
+ */
+router.post(
+  '/intentos/:id/responder',
+  validationMiddleware({
+    params: cuestionarioParamSchema,
+    body: intentoResponderSchema,
+  }),
+  atenderCuestionario('responder'),
+);
 
 module.exports = router;

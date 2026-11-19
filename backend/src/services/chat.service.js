@@ -3,6 +3,7 @@
  * Orquesta intencion, recuperacion de fragmentos propios, prompt, persistencia
  * y cuota. No conoce req ni res y nunca usa service_role para datos privados.
  */
+const { createHash } = require('node:crypto');
 const config = require('../config/environment');
 const ApiError = require('../utils/ApiError');
 const {
@@ -15,6 +16,11 @@ const { TOP_K_BUSQUEDA } = require('../models/documento.model');
 const OPERACION = 'chat';
 const LIMITE_CHAT_POR_HORA = 30;
 const LIMITE_CHAT_POR_DIA = 200;
+
+/** Idempotencia de POST /asistente/chat. */
+const ENDPOINT_IDEMPOTENCIA = '/asistente/chat';
+const HORAS_RETENCION_IDEMPOTENCIA = 24;
+const ESTADO_IDEMPOTENCIA_COMPLETADO = 'completado';
 
 /** Aproximacion de tokens para texto en espanol, alineada con HU11. */
 const CARACTERES_POR_TOKEN = 4;
@@ -125,6 +131,24 @@ function crearTitulo(mensaje) {
 }
 
 /**
+ * Huella estable del cuerpo que define una solicitud de chat.
+ *
+ * @param {{ conversacionId: string | null, mensaje: string, materiaId: string | null, documentoIds: string[], usarDocumentos: boolean }} entrada
+ * @returns {string}
+ */
+function crearHuellaSolicitud({ conversacionId, mensaje, materiaId, documentoIds, usarDocumentos }) {
+  const normalizada = JSON.stringify({
+    conversacionId: conversacionId ?? null,
+    mensaje: mensaje.trim(),
+    materiaId: materiaId ?? null,
+    documentoIds: [...documentoIds],
+    usarDocumentos,
+  });
+
+  return createHash('sha256').update(normalizada).digest('hex');
+}
+
+/**
  * Deduplica, ordena por similitud y acota el contexto al presupuesto de tokens.
  *
  * @param {object[]} filas
@@ -181,6 +205,7 @@ class ChatService {
    *   materiaRepository: object,
    *   fragmentoRepository: object,
    *   consumoRepository: object,
+   *   idempotenciaRepository: object,
    *   embeddingsService: object,
    *   agenteIaService: object,
    *   usuarioActualId: string
@@ -192,6 +217,7 @@ class ChatService {
     materiaRepository,
     fragmentoRepository,
     consumoRepository,
+    idempotenciaRepository,
     embeddingsService,
     agenteIaService,
     usuarioActualId,
@@ -201,6 +227,7 @@ class ChatService {
     this.materiaRepository = materiaRepository;
     this.fragmentoRepository = fragmentoRepository;
     this.consumoRepository = consumoRepository;
+    this.idempotenciaRepository = idempotenciaRepository;
     this.embeddingsService = embeddingsService;
     this.agenteIaService = agenteIaService;
     this.usuarioActualId = usuarioActualId;
@@ -208,13 +235,16 @@ class ChatService {
 
   /**
    * Envia un mensaje y devuelve la respuesta del asistente con sus citas.
+   * Si llega una Idempotency-Key, un reintento con el mismo cuerpo devuelve la
+   * respuesta original sin crear turnos duplicados.
    *
    * @param {{
    *   conversacionId?: string | null,
    *   mensaje: string,
    *   materiaId?: string | null,
    *   documentoIds?: string[],
-   *   usarDocumentos?: boolean
+   *   usarDocumentos?: boolean,
+   *   idempotencyKey?: string | null
    * }} entrada
    * @returns {Promise<object>}
    */
@@ -224,6 +254,113 @@ class ChatService {
     materiaId = null,
     documentoIds = [],
     usarDocumentos = true,
+    idempotencyKey = null,
+  }) {
+    const solicitud = { conversacionId, mensaje, materiaId, documentoIds, usarDocumentos };
+
+    if (!idempotencyKey) {
+      return this.procesarEnvio(solicitud);
+    }
+
+    const reserva = await this.reservarIdempotencia(
+      idempotencyKey,
+      crearHuellaSolicitud(solicitud),
+    );
+
+    if (reserva.reutilizada) {
+      return reserva.respuesta;
+    }
+
+    let respuesta;
+
+    try {
+      respuesta = await this.procesarEnvio(solicitud);
+    } catch (error) {
+      // La solicitud no produjo respuesta: se libera la clave para permitir
+      // que el cliente reintente con la misma Idempotency-Key.
+      await this.idempotenciaRepository.liberar(reserva.id);
+      throw error;
+    }
+
+    await this.idempotenciaRepository.completar(reserva.id, respuesta);
+    return respuesta;
+  }
+
+  /**
+   * Reserva la clave o recupera la respuesta ya emitida.
+   * Una clave reutilizada con otro cuerpo o todavia en curso se rechaza con 409.
+   *
+   * @param {string} clave
+   * @param {string} huella
+   * @returns {Promise<{ reutilizada: false, id: string } | { reutilizada: true, respuesta: object }>}
+   */
+  async reservarIdempotencia(clave, huella) {
+    const fechaLimite = new Date(
+      Date.now() - HORAS_RETENCION_IDEMPOTENCIA * 3_600_000,
+    ).toISOString();
+
+    await this.idempotenciaRepository.limpiarAntiguas(
+      this.usuarioActualId,
+      ENDPOINT_IDEMPOTENCIA,
+      fechaLimite,
+    );
+
+    const creada = await this.idempotenciaRepository.reservar({
+      usuarioId: this.usuarioActualId,
+      endpoint: ENDPOINT_IDEMPOTENCIA,
+      clave,
+      huella,
+    });
+
+    if (creada) {
+      return { reutilizada: false, id: creada.id };
+    }
+
+    const existente = await this.idempotenciaRepository.buscar(
+      this.usuarioActualId,
+      ENDPOINT_IDEMPOTENCIA,
+      clave,
+    );
+
+    if (!existente) {
+      throw ApiError.conflict(
+        'No se pudo registrar la clave de idempotencia. Intentalo de nuevo.',
+      );
+    }
+
+    if (existente.huella !== huella) {
+      throw ApiError.conflict(
+        'La cabecera Idempotency-Key ya se uso con otra solicitud.',
+      );
+    }
+
+    if (existente.estado === ESTADO_IDEMPOTENCIA_COMPLETADO && existente.respuesta) {
+      return { reutilizada: true, respuesta: existente.respuesta };
+    }
+
+    throw ApiError.conflict(
+      'Ya hay una solicitud en curso con esta Idempotency-Key. Espera la respuesta antes de reintentar.',
+    );
+  }
+
+  /**
+   * Flujo normal del chat, sin idempotencia.
+   *
+   * @param {{
+   *   conversacionId: string | null,
+   *   mensaje: string,
+   *   materiaId: string | null,
+   *   documentoIds: string[],
+   *   usarDocumentos: boolean
+   * }} entrada
+   * @returns {Promise<object>}
+   */
+  async procesarEnvio({
+    conversacionId,
+    mensaje,
+    materiaId,
+    documentoIds,
+    usarDocumentos,
   }) {
     const conversacion = conversacionId
       ? await this.obtenerOMostrar404(conversacionId)
@@ -526,5 +663,8 @@ module.exports.LIMITE_CHAT_POR_HORA = LIMITE_CHAT_POR_HORA;
 module.exports.LIMITE_CHAT_POR_DIA = LIMITE_CHAT_POR_DIA;
 module.exports.UMBRAL_SIMILITUD = UMBRAL_SIMILITUD;
 module.exports.MENSAJE_SIN_INFORMACION = MENSAJE_SIN_INFORMACION;
+module.exports.ENDPOINT_IDEMPOTENCIA = ENDPOINT_IDEMPOTENCIA;
+module.exports.HORAS_RETENCION_IDEMPOTENCIA = HORAS_RETENCION_IDEMPOTENCIA;
 module.exports.crearTitulo = crearTitulo;
+module.exports.crearHuellaSolicitud = crearHuellaSolicitud;
 module.exports.seleccionarFragmentos = seleccionarFragmentos;

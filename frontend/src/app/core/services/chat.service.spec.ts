@@ -68,6 +68,41 @@ describe('ChatService (HU12)', () => {
     req.flush({ success: true, data: respuesta });
   });
 
+  it('envia una Idempotency-Key cuando el llamador la provee', () => {
+    service
+      .enviar(
+        {
+          conversacion_id: null,
+          mensaje: '¿Qué es una derivada?',
+          materia_id: null,
+          documento_ids: [],
+          usar_documentos: true,
+        },
+        'chat-12345678',
+      )
+      .subscribe();
+
+    const req = httpMock.expectOne('/api/asistente/chat');
+    expect(req.request.headers.get('Idempotency-Key')).toBe('chat-12345678');
+    req.flush({ success: true, data: respuesta });
+  });
+
+  it('no envia la cabecera Idempotency-Key si no se indica', () => {
+    service
+      .enviar({
+        conversacion_id: null,
+        mensaje: '¿Qué es una derivada?',
+        materia_id: null,
+        documento_ids: [],
+        usar_documentos: true,
+      })
+      .subscribe();
+
+    const req = httpMock.expectOne('/api/asistente/chat');
+    expect(req.request.headers.has('Idempotency-Key')).toBe(false);
+    req.flush({ success: true, data: respuesta });
+  });
+
   it('lista las conversaciones con paginacion y metadatos', () => {
     service.listar(5, 10).subscribe((resultado) => {
       expect(resultado.data).toEqual([]);
