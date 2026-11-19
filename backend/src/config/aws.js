@@ -10,17 +10,11 @@ const { SchedulerClient } = require('@aws-sdk/client-scheduler');
 const { SQSClient } = require('@aws-sdk/client-sqs');
 const config = require('./environment');
 
-const credentials =
-  config.aws.accessKeyId && config.aws.secretAccessKey
-    ? {
-        accessKeyId: config.aws.accessKeyId,
-        secretAccessKey: config.aws.secretAccessKey,
-      }
-    : undefined;
-
+// La cadena por defecto del SDK resuelve credenciales locales (.env) y el rol
+// de Lambda. Construir credenciales manuales descartaria AWS_SESSION_TOKEN y
+// S3 rechazaria las peticiones del worker con InvalidAccessKeyId.
 const clientConfig = {
   region: config.aws.region,
-  ...(credentials ? { credentials } : {}),
 };
 
 const s3Client = new S3Client(clientConfig);
