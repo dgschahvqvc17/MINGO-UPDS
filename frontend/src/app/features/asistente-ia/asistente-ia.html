@@ -1,181 +1,211 @@
 <section class="container-xxl py-4">
   <header class="mb-4">
     <p class="text-uppercase text-secondary small fw-semibold mb-1">Asistente MINGO</p>
-    <h1 class="h3 mb-1">Resúmenes inteligentes</h1>
-    <p class="text-secondary mb-0">
-      Elige un documento procesado y obtén un resumen estructurado con temas y conceptos clave.
+    <h1 class="h3 mb-1">Asistente académico</h1>
+    <p class="text-secondary mb-3">
+      Pregunta sobre tus apuntes con citas de origen o genera resúmenes estructurados de tus documentos.
     </p>
+    <ul class="nav nav-pills" role="tablist" aria-label="Herramientas del asistente">
+      <li class="nav-item" role="presentation">
+        <button
+          type="button"
+          class="nav-link"
+          role="tab"
+          [class.active]="pestana() === 'chat'"
+          [attr.aria-selected]="pestana() === 'chat'"
+          (click)="cambiarPestana('chat')"
+        >
+          Chat con mis documentos
+        </button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button
+          type="button"
+          class="nav-link"
+          role="tab"
+          [class.active]="pestana() === 'resumenes'"
+          [attr.aria-selected]="pestana() === 'resumenes'"
+          (click)="cambiarPestana('resumenes')"
+        >
+          Resúmenes inteligentes
+        </button>
+      </li>
+    </ul>
   </header>
 
-  <div class="row g-4">
-    <div class="col-12 col-lg-4">
-      <div class="card shadow-sm h-100">
-        <div class="card-body">
-          <h2 class="h6 card-title mb-3">1. Documento de origen</h2>
+  @if (pestana() === 'chat') {
+    <app-chat />
+  } @else {
+    <div class="row g-4">
+      <div class="col-12 col-lg-4">
+        <div class="card shadow-sm h-100">
+          <div class="card-body">
+            <h2 class="h6 card-title mb-3">1. Documento de origen</h2>
 
-          @if (cargandoDocumentos()) {
-            <div class="text-center text-secondary py-4" role="status">Cargando documentos…</div>
-          } @else if (errorDocumentos()) {
-            <div class="alert alert-danger" role="alert">{{ errorDocumentos() }}</div>
-          } @else if (sinDocumentos()) {
-            <div class="alert alert-info mb-0">
-              Solo puedes resumir documentos procesados.
-              <a routerLink="/biblioteca" class="alert-link">Ir a la biblioteca</a>.
+            @if (cargandoDocumentos()) {
+              <div class="text-center text-secondary py-4" role="status">Cargando documentos…</div>
+            } @else if (errorDocumentos()) {
+              <div class="alert alert-danger" role="alert">{{ errorDocumentos() }}</div>
+            } @else if (sinDocumentos()) {
+              <div class="alert alert-info mb-0">
+                Solo puedes resumir documentos procesados.
+                <a routerLink="/biblioteca" class="alert-link">Ir a la biblioteca</a>.
+              </div>
+            } @else {
+              <label for="documento-resumen" class="form-label">Documento</label>
+              <select
+                id="documento-resumen"
+                class="form-select"
+                [value]="documentoId()"
+                (change)="alCambiarDocumento($event)"
+              >
+                @for (documento of documentos(); track documento.id) {
+                  <option [value]="documento.id">{{ documento.nombre }}</option>
+                }
+              </select>
+
+              @if (documentoSeleccionado(); as documento) {
+                <p class="small text-secondary mt-2 mb-1">
+                  {{ formatoDocumento(documento) }}
+                  @if (documento.numero_paginas) {
+                    · {{ documento.numero_paginas }} páginas
+                  }
+                </p>
+                <a class="small link-primary" [routerLink]="['/biblioteca', documento.id]">
+                  Ver documento original
+                </a>
+              }
+            }
+
+            <hr />
+
+            <h2 class="h6 card-title mb-3">2. Profundidad del resumen</h2>
+            <div class="d-grid gap-2">
+              @for (opcion of opcionesProfundidad; track opcion.valor) {
+                <div class="form-check">
+                  <input
+                    class="form-check-input"
+                    type="radio"
+                    name="profundidad"
+                    [id]="'profundidad-' + opcion.valor"
+                    [value]="opcion.valor"
+                    [checked]="profundidad() === opcion.valor"
+                    (change)="alCambiarProfundidad($event)"
+                  />
+                  <label class="form-check-label" [for]="'profundidad-' + opcion.valor">
+                    <span class="fw-semibold">{{ opcion.etiqueta }}</span>
+                    <span class="d-block small text-secondary">{{ opcion.descripcion }}</span>
+                  </label>
+                </div>
+              }
             </div>
-          } @else {
-            <label for="documento-resumen" class="form-label">Documento</label>
-            <select
-              id="documento-resumen"
-              class="form-select"
-              [value]="documentoId()"
-              (change)="alCambiarDocumento($event)"
+
+            <button
+              type="button"
+              class="btn btn-primary w-100 mt-4"
+              [disabled]="!documentoId() || cargandoResumen()"
+              (click)="generar()"
             >
-              @for (documento of documentos(); track documento.id) {
-                <option [value]="documento.id">{{ documento.nombre }}</option>
+              @if (cargandoResumen()) {
+                <span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
+                Generando…
+              } @else {
+                Generar resumen
               }
-            </select>
+            </button>
 
-            @if (documentoSeleccionado(); as documento) {
-              <p class="small text-secondary mt-2 mb-1">
-                {{ formatoDocumento(documento) }}
-                @if (documento.numero_paginas) {
-                  · {{ documento.numero_paginas }} páginas
-                }
-              </p>
-              <a class="small link-primary" [routerLink]="['/biblioteca', documento.id]">
-                Ver documento original
-              </a>
+            @if (mensaje() && !errorResumen()) {
+              <div class="alert alert-success small mt-3 mb-0" role="status">{{ mensaje() }}</div>
             }
-          }
-
-          <hr />
-
-          <h2 class="h6 card-title mb-3">2. Profundidad del resumen</h2>
-          <div class="d-grid gap-2">
-            @for (opcion of opcionesProfundidad; track opcion.valor) {
-              <div class="form-check">
-                <input
-                  class="form-check-input"
-                  type="radio"
-                  name="profundidad"
-                  [id]="'profundidad-' + opcion.valor"
-                  [value]="opcion.valor"
-                  [checked]="profundidad() === opcion.valor"
-                  (change)="alCambiarProfundidad($event)"
-                />
-                <label class="form-check-label" [for]="'profundidad-' + opcion.valor">
-                  <span class="fw-semibold">{{ opcion.etiqueta }}</span>
-                  <span class="d-block small text-secondary">{{ opcion.descripcion }}</span>
-                </label>
-              </div>
+            @if (errorResumen()) {
+              <div class="alert alert-danger small mt-3 mb-0" role="alert">{{ errorResumen() }}</div>
             }
           </div>
+        </div>
+      </div>
 
-          <button
-            type="button"
-            class="btn btn-primary w-100 mt-4"
-            [disabled]="!documentoId() || cargandoResumen()"
-            (click)="generar()"
-          >
+      <div class="col-12 col-lg-8">
+        <div class="card shadow-sm h-100">
+          <div class="card-body">
+            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+              <h2 class="h6 card-title mb-0">Resumen</h2>
+              @if (resumen(); as resumenActual) {
+                <span class="badge text-bg-primary">
+                  {{ etiquetaProfundidad(resumenActual.profundidad) }}
+                </span>
+              }
+            </div>
+
             @if (cargandoResumen()) {
-              <span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
-              Generando…
+              <div class="text-center text-secondary py-5" role="status">
+                <span class="spinner-border d-block mx-auto mb-3" aria-hidden="true"></span>
+                Analizando el documento…
+              </div>
+            } @else if (errorResumen()) {
+              <div class="alert alert-danger" role="alert">{{ errorResumen() }}</div>
+            } @else if (resumen(); as resumenActual) {
+              <p class="small text-secondary mb-3">
+                Documento de origen: <strong>{{ resumenActual.documento_nombre }}</strong>
+                @if (resumenActual.fecha_creacion) {
+                  · {{ resumenActual.fecha_creacion | date: 'dd/MM/yyyy HH:mm' }}
+                }
+              </p>
+
+              @if (resumenActual.contenido_truncado) {
+                <div class="alert alert-warning small" role="status">
+                  El documento supera el límite de análisis; el resumen se basa en la parte inicial.
+                </div>
+              }
+
+              <h3 class="h6 mt-4">Resumen general</h3>
+              <p class="resumen-texto mb-0">{{ resumenActual.resumen_general }}</p>
+
+              <h3 class="h6 mt-4">Temas principales</h3>
+              @if (resumenActual.temas_principales.length > 0) {
+                <ol class="mb-0">
+                  @for (tema of resumenActual.temas_principales; track $index) {
+                    <li>{{ tema }}</li>
+                  }
+                </ol>
+              } @else {
+                <p class="text-secondary small mb-0">No se identificaron temas principales.</p>
+              }
+
+              <h3 class="h6 mt-4">Conceptos importantes</h3>
+              @if (resumenActual.conceptos_importantes.length > 0) {
+                <div class="row g-3">
+                  @for (concepto of resumenActual.conceptos_importantes; track concepto.termino) {
+                    <div class="col-12 col-md-6">
+                      <div class="border rounded p-3 h-100">
+                        <h4 class="h6 mb-1">{{ concepto.termino }}</h4>
+                        <p class="small text-secondary mb-0">{{ concepto.descripcion }}</p>
+                      </div>
+                    </div>
+                  }
+                </div>
+              } @else {
+                <p class="text-secondary small mb-0">No se identificaron conceptos importantes.</p>
+              }
+
+              <footer class="small text-secondary border-top pt-3 mt-4">
+                Generado con {{ resumenActual.modelo }} ·
+                {{ resumenActual.tokens_entrada }} tokens de entrada ·
+                {{ resumenActual.tokens_salida }} tokens de salida
+                @if (!resumenActual.guardado) {
+                  · No guardado
+                }
+              </footer>
             } @else {
-              Generar resumen
-            }
-          </button>
-
-          @if (mensaje() && !errorResumen()) {
-            <div class="alert alert-success small mt-3 mb-0" role="status">{{ mensaje() }}</div>
-          }
-          @if (errorResumen()) {
-            <div class="alert alert-danger small mt-3 mb-0" role="alert">{{ errorResumen() }}</div>
-          }
-        </div>
-      </div>
-    </div>
-
-    <div class="col-12 col-lg-8">
-      <div class="card shadow-sm h-100">
-        <div class="card-body">
-          <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
-            <h2 class="h6 card-title mb-0">Resumen</h2>
-            @if (resumen(); as resumenActual) {
-              <span class="badge text-bg-primary">
-                {{ etiquetaProfundidad(resumenActual.profundidad) }}
-              </span>
+              <div class="text-center text-secondary py-5">
+                <p class="mb-1">Selecciona un documento y genera un resumen para verlo aquí.</p>
+                <p class="small mb-0">
+                  Si ya generaste uno, se mostrará automáticamente al elegir el documento.
+                </p>
+              </div>
             }
           </div>
-
-          @if (cargandoResumen()) {
-            <div class="text-center text-secondary py-5" role="status">
-              <span class="spinner-border d-block mx-auto mb-3" aria-hidden="true"></span>
-              Analizando el documento…
-            </div>
-          } @else if (errorResumen()) {
-            <div class="alert alert-danger" role="alert">{{ errorResumen() }}</div>
-          } @else if (resumen(); as resumenActual) {
-            <p class="small text-secondary mb-3">
-              Documento de origen: <strong>{{ resumenActual.documento_nombre }}</strong>
-              @if (resumenActual.fecha_creacion) {
-                · {{ resumenActual.fecha_creacion | date: 'dd/MM/yyyy HH:mm' }}
-              }
-            </p>
-
-            @if (resumenActual.contenido_truncado) {
-              <div class="alert alert-warning small" role="status">
-                El documento supera el límite de análisis; el resumen se basa en la parte inicial.
-              </div>
-            }
-
-            <h3 class="h6 mt-4">Resumen general</h3>
-            <p class="resumen-texto mb-0">{{ resumenActual.resumen_general }}</p>
-
-            <h3 class="h6 mt-4">Temas principales</h3>
-            @if (resumenActual.temas_principales.length > 0) {
-              <ol class="mb-0">
-                @for (tema of resumenActual.temas_principales; track $index) {
-                  <li>{{ tema }}</li>
-                }
-              </ol>
-            } @else {
-              <p class="text-secondary small mb-0">No se identificaron temas principales.</p>
-            }
-
-            <h3 class="h6 mt-4">Conceptos importantes</h3>
-            @if (resumenActual.conceptos_importantes.length > 0) {
-              <div class="row g-3">
-                @for (concepto of resumenActual.conceptos_importantes; track concepto.termino) {
-                  <div class="col-12 col-md-6">
-                    <div class="border rounded p-3 h-100">
-                      <h4 class="h6 mb-1">{{ concepto.termino }}</h4>
-                      <p class="small text-secondary mb-0">{{ concepto.descripcion }}</p>
-                    </div>
-                  </div>
-                }
-              </div>
-            } @else {
-              <p class="text-secondary small mb-0">No se identificaron conceptos importantes.</p>
-            }
-
-            <footer class="small text-secondary border-top pt-3 mt-4">
-              Generado con {{ resumenActual.modelo }} ·
-              {{ resumenActual.tokens_entrada }} tokens de entrada ·
-              {{ resumenActual.tokens_salida }} tokens de salida
-              @if (!resumenActual.guardado) {
-                · No guardado
-              }
-            </footer>
-          } @else {
-            <div class="text-center text-secondary py-5">
-              <p class="mb-1">Selecciona un documento y genera un resumen para verlo aquí.</p>
-              <p class="small mb-0">
-                Si ya generaste uno, se mostrará automáticamente al elegir el documento.
-              </p>
-            </div>
-          }
         </div>
       </div>
     </div>
-  </div>
+  }
 </section>

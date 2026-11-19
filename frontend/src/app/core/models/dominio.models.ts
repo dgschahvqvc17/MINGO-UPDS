@@ -143,14 +143,17 @@ export interface Mensaje {
   contenido: string;
   modelo_utilizado: string | null;
   fecha_creacion: string;
+  referencias?: ReferenciaRespuesta[];
 }
 
 export interface ReferenciaRespuesta {
-  id: string;
-  mensaje_id: string;
+  id?: string;
+  mensaje_id?: string;
   fragmento_id: string;
   documento_id: string;
+  documento_nombre?: string;
   numero_pagina: number | null;
+  extracto?: string;
 }
 
 export interface PlanEstudio {

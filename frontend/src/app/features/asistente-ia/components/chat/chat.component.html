@@ -1,0 +1,210 @@
+<div class="row g-4">
+  <div class="col-12 col-lg-4">
+    <div class="card shadow-sm h-100">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center gap-2 mb-3">
+          <h2 class="h6 card-title mb-0">Conversaciones</h2>
+          <button
+            type="button"
+            class="btn btn-sm btn-outline-primary"
+            (click)="nuevaConversacion()"
+          >
+            Nueva
+          </button>
+        </div>
+
+        @if (cargandoConversaciones()) {
+          <div class="text-center text-secondary py-4" role="status">Cargando conversaciones…</div>
+        } @else if (errorConversaciones()) {
+          <div class="alert alert-danger small" role="alert">{{ errorConversaciones() }}</div>
+        } @else if (sinConversaciones()) {
+          <div class="alert alert-info small mb-0">
+            Todavía no tienes conversaciones. Escribe tu primera pregunta para empezar.
+          </div>
+        } @else {
+          <div class="list-group list-group-flush" role="list">
+            @for (conversacion of conversaciones(); track conversacion.id) {
+              <div
+                class="list-group-item list-group-item-action"
+                role="button"
+                tabindex="0"
+                [class.active]="conversacion.id === conversacionActualId()"
+                (click)="seleccionarConversacion(conversacion)"
+                (keydown.enter)="seleccionarConversacion(conversacion)"
+              >
+                <div class="d-flex justify-content-between align-items-start gap-2">
+                  <span class="small fw-semibold text-truncate">{{ conversacion.titulo }}</span>
+                  <button
+                    type="button"
+                    class="btn btn-link btn-sm text-danger p-0"
+                    [attr.aria-label]="'Eliminar conversación ' + conversacion.titulo"
+                    (click)="eliminarConversacion(conversacion, $event)"
+                  >
+                    <span aria-hidden="true">✕</span>
+                  </button>
+                </div>
+                <span class="small text-secondary">
+                  {{ conversacion.fecha_actualizacion | date: 'dd/MM/yyyy HH:mm' }}
+                </span>
+              </div>
+            }
+          </div>
+        }
+
+        <hr />
+
+        <h2 class="h6 card-title mb-3">Fuentes de la conversación</h2>
+        <div class="form-check mb-3">
+          <input
+            id="usar-documentos"
+            class="form-check-input"
+            type="checkbox"
+            [checked]="usarDocumentos()"
+            (change)="alCambiarUsoDocumentos($event)"
+          />
+          <label for="usar-documentos" class="form-check-label small">
+            Responder con mis documentos (RAG)
+          </label>
+        </div>
+
+        @if (usarDocumentos()) {
+          @if (cargandoDocumentos()) {
+            <div class="text-center text-secondary py-3 small" role="status">
+              Cargando documentos…
+            </div>
+          } @else if (errorDocumentos()) {
+            <div class="alert alert-danger small" role="alert">{{ errorDocumentos() }}</div>
+          } @else {
+            <label for="documentos-chat" class="form-label small">Documentos (máximo 5)</label>
+            <select
+              id="documentos-chat"
+              class="form-select form-select-sm"
+              multiple
+              size="5"
+              (change)="alCambiarDocumentos($event)"
+            >
+              @for (documento of documentos(); track documento.id) {
+                <option [value]="documento.id">{{ documento.nombre }}</option>
+              }
+            </select>
+            <p class="form-text small mb-0">
+              Sin selección, el asistente busca en todos tus documentos procesados.
+            </p>
+            @if (avisoDocumentos()) {
+              <p class="small text-warning mt-1 mb-0" role="status">{{ avisoDocumentos() }}</p>
+            }
+          }
+        }
+      </div>
+    </div>
+  </div>
+
+  <div class="col-12 col-lg-8">
+    <div class="card shadow-sm h-100">
+      <div class="card-body d-flex flex-column">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+          <div>
+            <h2 class="h6 card-title mb-0">
+              {{ conversacionActual()?.titulo ?? 'Nueva conversación' }}
+            </h2>
+            <p class="small text-secondary mb-0">
+              Las respuestas se basan solo en los documentos que tú puedes consultar.
+            </p>
+          </div>
+          @if (conversacionActual(); as conversacion) {
+            <span class="badge text-bg-light">
+              {{ conversacion.fecha_creacion | date: 'dd/MM/yyyy' }}
+            </span>
+          }
+        </div>
+
+        <div class="chat-mensajes border rounded p-3 mb-3" aria-live="polite">
+          @if (cargandoMensajes()) {
+            <div class="text-center text-secondary py-5" role="status">
+              Cargando mensajes…
+            </div>
+          } @else if (errorMensajes()) {
+            <div class="alert alert-danger" role="alert">{{ errorMensajes() }}</div>
+          } @else if (sinMensajes()) {
+            <div class="text-center text-secondary py-5">
+              <p class="mb-1">Haz una pregunta sobre tus apuntes.</p>
+              <p class="small mb-0">El asistente citará las páginas que use para responderte.</p>
+            </div>
+          } @else {
+            @for (mensaje of mensajes(); track mensaje.id) {
+              <div
+                class="chat-fila d-flex mb-3"
+                [class.justify-content-end]="!esAsistente(mensaje)"
+              >
+                <div
+                  class="chat-burbuja"
+                  [class.chat-burbuja-usuario]="!esAsistente(mensaje)"
+                  [class.chat-burbuja-asistente]="esAsistente(mensaje)"
+                >
+                  <span class="d-block small fw-semibold mb-1">
+                    {{ esAsistente(mensaje) ? 'Asistente MINGO' : 'Tú' }}
+                  </span>
+                  <p class="chat-texto mb-0">{{ mensaje.contenido }}</p>
+
+                  @if (mensaje.referencias.length > 0) {
+                    <div class="chat-referencias mt-2 pt-2">
+                      <span class="d-block small fw-semibold mb-1">Fuentes</span>
+                      @for (referencia of mensaje.referencias; track referencia.fragmento_id) {
+                        <div class="small">
+                          <span class="fw-semibold">{{ etiquetaReferencia(referencia) }}</span>
+                          @if (referencia.extracto) {
+                            <span class="text-secondary"> — {{ referencia.extracto }}</span>
+                          }
+                        </div>
+                      }
+                    </div>
+                  }
+                </div>
+              </div>
+            }
+          }
+
+          @if (enviando()) {
+            <div class="text-center text-secondary py-2" role="status">
+              <span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
+              El asistente está pensando…
+            </div>
+          }
+        </div>
+
+        @if (errorEnvio()) {
+          <div class="alert alert-danger small" role="alert">{{ errorEnvio() }}</div>
+        }
+
+        <form (ngSubmit)="enviar()">
+          <label for="mensaje-chat" class="form-label small fw-semibold">Tu mensaje</label>
+          <textarea
+            id="mensaje-chat"
+            class="form-control"
+            rows="3"
+            maxlength="4000"
+            placeholder="Por ejemplo: ¿Qué dice el documento sobre la regla de la cadena?"
+            [formControl]="mensajeControl"
+          ></textarea>
+          <div class="d-flex justify-content-between align-items-center gap-2 mt-2">
+            <span class="small text-secondary">
+              {{ mensajeControl.value.length }}/4000 caracteres
+            </span>
+            <button
+              type="submit"
+              class="btn btn-primary"
+              [disabled]="!puedeEnviar()"
+            >
+              @if (enviando()) {
+                <span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
+                Enviando…
+              } @else {
+                Enviar pregunta
+              }
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>

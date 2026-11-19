@@ -174,17 +174,32 @@ Reglas:
 
 ### 4.9. Chat y RAG (HU12)
 
+**Cobertura automática añadida**
+
+| Archivo | Nivel | Casos |
+|---|---|---|
+| `backend/tests/chat.service.test.js` | Unitario (servicio) | Umbral y cuotas; creación de conversación con mensaje, cita y consumo; historial y contexto; documento ajeno (`404`); sin información (sin llamar al modelo); modo sin documentos; cuota por hora y por día (`429`); fallos de embeddings y agente (`503`); conversación ajena e inexistente (`404`); mapeo de roles; deduplicación y límite de fragmentos. |
+| `backend/tests/agente.service.test.js` | Unitario (prompt) | Contexto marcado como no confiable; escape de delimitadores y atributos; historial en el prompt; descarte de citas inventadas; un solo reintento temporal; error permanente sin reintento; cliente no configurado; respuesta vacía. |
+| `backend/tests/chat.modelos.test.js` | Unitario (Zod) | Valores por defecto; UUIDs; mensaje vacío o largo; exceso de documentos; IDs inválidos; paginación. |
+| `backend/tests/chat.routes.test.js` | Integración (Supertest) | `POST /chat` con valores por defecto y filtros; validación `400`; cuota `429`; IA caída `503`; listado con `meta`; detalle y borrado de conversación; UUID inválido `400`. |
+| `frontend/src/app/core/services/chat.service.spec.ts` | Unitario (servicio HTTP) | Contrato de envío, listado paginado, historial y borrado. |
+| `frontend/src/app/features/asistente-ia/components/chat/chat.spec.ts` | Componente | Carga inicial; estado vacío; historial con citas; envío con filtros; error sin perder el mensaje; nueva conversación. |
+
+**Casos funcionales**
+
 | Caso | Resultado esperado |
 |---|---|
 | Pregunta con contexto | Respuesta con al menos una cita válida. |
-| Pregunta fuera del documento | Reconoce que no hay información suficiente. |
-| Pregunta sobre documento de otro usuario | No lo usa. |
-| Prompt injection en documento | No obedece; responde como material de estudio. |
-| Conversación nueva | Se crea y se lista. |
-| Historial | Se recupera en orden. |
-| Cuota agotada | 429 `AI_QUOTA_EXCEEDED`. |
-| Proveedor caído | 503 controlado, sin reintentos infinitos. |
+| Pregunta fuera del documento | `MENSAJE_SIN_INFORMACION`, `modelo: null`, sin citas y sin llamada al modelo. |
+| Pregunta sobre documento de otro usuario | `404`; no se usa ni se revela su existencia. |
+| Prompt injection en documento | No obedece; los delimitadores del contexto se escapen. |
+| Conversación nueva | Se crea y se lista con título derivado de la pregunta. |
+| Pregunta de seguimiento | Incluye hasta 6 turnos previos en el prompt. |
+| Historial | Se recupera en orden con roles `user`/`assistant`/`system`. |
+| Cuota agotada | `429` con `error.details.code = "AI_QUOTA_EXCEEDED"`. |
+| Proveedor caído | `503` controlado, con un solo reintento temporal. |
 | Respuesta del modelo con cita inventada | La cita se descarta. |
+| Eliminar conversación | Cascada de mensajes y referencias; la UI vuelve a "Nueva conversación". |
 
 ### 4.10. Resúmenes (HU10)
 

@@ -793,11 +793,14 @@ GET /api/documentos/buscar?q=derivadas%20de%20funciones&materia_id=6d1c2a53-4f7e
 {
   "conversacion_id": null,
   "mensaje": "Explícame la regla de la cadena con un ejemplo.",
-  "materia_id": 1,
-  "documento_ids": [1],
+  "materia_id": null,
+  "documento_ids": ["9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d"],
   "usar_documentos": true
 }
 ```
+
+`conversacion_id` y `materia_id` son UUID o `null`; `documento_ids` es una lista
+de como máximo 5 UUID. `usar_documentos` vale `true` por defecto.
 
 **Respuesta `200`**
 
@@ -805,15 +808,15 @@ GET /api/documentos/buscar?q=derivadas%20de%20funciones&materia_id=6d1c2a53-4f7e
 {
   "success": true,
   "data": {
-    "conversacion_id": 1,
-    "mensaje_id": 1,
+    "conversacion_id": "c1d2e3f4-5a6b-4c7d-8e9f-0a1b2c3d4e5f",
+    "mensaje_id": "f1e2d3c4-b5a6-4c7d-8e9f-0a1b2c3d4e5f",
     "respuesta": "La regla de la cadena permite derivar funciones compuestas...",
     "modelo": "gpt-4o-mini",
     "referencias": [
       {
-        "documento_id": 1,
+        "documento_id": "9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d",
         "documento_nombre": "Cálculo Diferencial - Unidad 1",
-        "fragmento_id": 1,
+        "fragmento_id": "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d",
         "numero_pagina": 12,
         "extracto": "Si f y g son diferenciables..."
       }
@@ -826,13 +829,38 @@ GET /api/documentos/buscar?q=derivadas%20de%20funciones&materia_id=6d1c2a53-4f7e
 }
 ```
 
+Cuando `usar_documentos` es `true` y no hay fragmentos sobre el umbral, la
+respuesta usa `MENSAJE_SIN_INFORMACION`, `modelo: null` y `referencias: []`: no se
+llama al proveedor de IA ni se inventa contenido. Con `usar_documentos: false`
+se responde desde conocimiento general sin citas.
+
 **Reglas**
 
-- `mensaje`: 1–4000 caracteres.
-- El agente solo usa documentos del usuario autenticado.
+- `mensaje`: 1–4000 caracteres; todos los identificadores son UUID.
+- El agente solo usa documentos del usuario autenticado; un recurso ajeno responde `404`.
+- Se conservan hasta 6 turnos previos para preguntas de seguimiento.
 - Si no hay contexto suficiente, debe decirlo explícitamente; no inventar.
-- Se aplica cuota por usuario (ver [ia-rag.md](ia-rag.md)).
-- Si se agota la cuota: `429 RATE_LIMITED` con `error.code = "AI_QUOTA_EXCEEDED"`.
+- Se aplica cuota por usuario: 30 mensajes/hora y 200/día (ver [ia-rag.md](ia-rag.md)).
+- Si se agota la cuota: `429` con `error.details.code = "AI_QUOTA_EXCEEDED"`.
+- Fallos del proveedor de IA o embeddings: `503` con mensaje claro.
+
+**`GET /api/asistente/conversaciones`**
+
+Acepta `limit` (1–100, por defecto 20) y `offset` (por defecto 0). Devuelve
+`data` con `id`, `titulo`, `tipo_conversacion`, `fecha_creacion` y
+`fecha_actualizacion`, más `meta` con `page`, `limit`, `total` y `totalPages`.
+
+**`GET /api/asistente/conversaciones/:id`**
+
+Devuelve la conversación propia con `mensajes`. Cada mensaje incluye
+`rol_mensaje` (`user`, `assistant` o `system`), `contenido`, `modelo_utilizado`,
+`fecha_creacion` y `referencias`. Un ID inválido responde `400`; uno ajeno o
+inexistente, `404`.
+
+**`DELETE /api/asistente/conversaciones/:id`**
+
+Elimina la conversación propia y, en cascada, sus mensajes y referencias.
+Devuelve `data: { "id": "<uuid>" }`. Un ID ajeno o inexistente responde `404`.
 
 **Body `POST /api/asistente/resumen`**
 
@@ -1068,8 +1096,7 @@ GET /api/tareas?estado=pendiente&prioridad=alta&sort=fecha_entrega&order=asc&lim
 ## 17. Idempotencia
 
 - `POST /api/documentos/:id/procesar` no es idempotente: cada llamada aceptada encola un trabajo nuevo y responde `202`. Mientras el documento está `en_cola` o `procesando` responde `409` y no duplica el trabajo. Un documento ya `procesado` se puede reprocesar y vuelve a `en_cola`.
-- `POST /api/asistente/chat` acepta `Idempotency-Key` opcional para evitar respuestas duplicadas por reintentos.
-- Los reintentos desde Angular deben usar el mismo `Idempotency-Key`.
+- `POST /api/asistente/chat` **aún no** implementa `Idempotency-Key`; los reintentos del cliente pueden crear turnos duplicados. El frontend deshabilita el botón de envío mientras la petición está en curso para mitigarlo. Queda pendiente para una entrega posterior.
 
 ## 18. Rate limiting
 
