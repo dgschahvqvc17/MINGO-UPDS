@@ -186,8 +186,10 @@
             [documento]="documento"
             [descargando]="descargandoId() === documento.id"
             [eliminando]="eliminandoId() === documento.id"
+            [procesando]="procesandoId() === documento.id"
             (descargar)="descargar($event)"
             (eliminar)="eliminar($event)"
+            (procesar)="procesar($event)"
           />
         </div>
       }

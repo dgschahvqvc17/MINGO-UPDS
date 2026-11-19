@@ -109,13 +109,11 @@ const config = {
     maxFileSizeBytes: Math.floor(env.MAX_UPLOAD_MB * 1024 * 1024),
     allowedMimeTypes: [
       'application/pdf',
-      'application/msword',
       'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-      'application/vnd.ms-powerpoint',
       'application/vnd.openxmlformats-officedocument.presentationml.presentation',
       'text/plain',
     ],
-    allowedExtensions: ['.pdf', '.doc', '.docx', '.ppt', '.pptx', '.txt'],
+    allowedExtensions: ['.pdf', '.docx', '.pptx', '.txt'],
   },
 
   rateLimit: {

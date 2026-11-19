@@ -50,6 +50,27 @@ class DocumentoController {
     });
   };
 
+  procesarDocumento = async (req, res) => {
+    const resultado = await this.documentoService.procesarDocumento(req.validated.params.id);
+
+    res.status(202).json({
+      success: true,
+      message: 'Documento encolado para procesamiento.',
+      data: resultado,
+    });
+  };
+
+  obtenerEstadoProcesamiento = async (req, res) => {
+    const estado = await this.documentoService.obtenerEstadoProcesamiento(
+      req.validated.params.id,
+    );
+
+    res.status(200).json({
+      success: true,
+      data: estado,
+    });
+  };
+
   obtenerUrlDescarga = async (req, res) => {
     const descarga = await this.documentoService.obtenerUrlDescarga(req.validated.params.id);
 

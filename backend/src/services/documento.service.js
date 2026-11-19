@@ -12,6 +12,7 @@ const {
   documentoFiltrosSchema,
   documentoIdSchema,
 } = require('../models/documento.model');
+const { calcularCorte, estaEnProceso, estaEstancado } = require('../utils/procesamiento-estado');
 
 const SEGUNDOS_EXPIRACION_URL = 900;
 const CARACTERES_NO_SEGUROS = /[^A-Za-z0-9._-]/g;
@@ -48,14 +49,25 @@ class DocumentoService {
    *   documentoRepository: import('../repositories/documento.repository'),
    *   materiaRepository: import('../repositories/materia.repository'),
    *   almacenamientoRepository: import('../repositories/almacenamiento.repository'),
-   *   usuarioActualId: string
+   *   colaRepository?: import('../repositories/cola.repository') | null,
+   *   usuarioActualId: string,
+   *   logger?: Pick<Console, 'warn'>
    * }} dependencies
    */
-  constructor({ documentoRepository, materiaRepository, almacenamientoRepository, usuarioActualId }) {
+  constructor({
+    documentoRepository,
+    materiaRepository,
+    almacenamientoRepository,
+    colaRepository = null,
+    usuarioActualId,
+    logger = console,
+  }) {
     this.documentoRepository = documentoRepository;
     this.materiaRepository = materiaRepository;
     this.almacenamientoRepository = almacenamientoRepository;
+    this.colaRepository = colaRepository;
     this.usuarioActualId = usuarioActualId;
+    this.logger = logger;
   }
 
   /**
@@ -133,7 +145,7 @@ class DocumentoService {
     this.verificarTamanoReal(metadatos.tamano);
 
     try {
-      return await this.documentoRepository.crearDocumento(this.usuarioActualId, {
+      const documento = await this.documentoRepository.crearDocumento(this.usuarioActualId, {
         materia_id: datosValidados.materia_id,
         unidad_id: datosValidados.unidad_id,
         nombre: datosValidados.nombre,
@@ -142,6 +154,11 @@ class DocumentoService {
         tipo_archivo: metadatos.tipoArchivo,
         tamano: metadatos.tamano,
       });
+
+      // El evento de S3 puede haber llegado antes del registro de metadatos.
+      // Se encola de nuevo sin bloquear el registro si la cola no responde.
+      await this.encolarTrasRegistro(documento);
+      return documento;
     } catch (error) {
       if (error.code === '23505') {
         throw ApiError.conflict('Este archivo ya fue registrado en la biblioteca.');
@@ -170,6 +187,109 @@ class DocumentoService {
     }
 
     return documento;
+  }
+
+  /**
+   * Encola el procesamiento de un documento propio.
+   * La API responde 202: el trabajo real lo hace la Lambda procesadora.
+   *
+   * Un documento en `en_cola` o `procesando` responde 409 para evitar un doble
+   * trabajo, salvo que haya quedado atascado (sin actualizaciones durante la
+   * ventana permitida); en ese caso se reencola.
+   *
+   * @param {string} documentoId UUID del documento.
+   * @returns {Promise<{ id: string, estado: string }>}
+   */
+  async procesarDocumento(documentoId) {
+    const id = validarEntrada(documentoIdSchema, documentoId);
+    const documento = await this.documentoRepository.obtenerDocumentoPorId(
+      this.usuarioActualId,
+      id,
+    );
+
+    if (!documento) {
+      throw ApiError.notFound('Documento no encontrado.');
+    }
+
+    const debeReencolar = estaEstancado(documento);
+
+    if (estaEnProceso(documento.estado_procesamiento) && !debeReencolar) {
+      throw ApiError.conflict('El documento ya esta en proceso. Espera a que termine.');
+    }
+
+    if (!this.colaRepository?.estaDisponible()) {
+      throw ApiError.serviceUnavailable(
+        'El servicio de procesamiento no esta disponible en este momento.',
+      );
+    }
+
+    await this.colaRepository.encolarProcesamiento({
+      documentoId: documento.id,
+      usuarioId: this.usuarioActualId,
+      forzar: true,
+    });
+
+    const actualizado = await this.documentoRepository.marcarEnCola(
+      this.usuarioActualId,
+      documento.id,
+      {
+        reencolarEstancado: debeReencolar,
+        actualizadoAntesDe: debeReencolar ? calcularCorte() : null,
+      },
+    );
+
+    if (!actualizado) {
+      // Otro proceso cambio el estado entre la lectura y la actualizacion.
+      throw ApiError.conflict('El documento ya esta en proceso. Espera a que termine.');
+    }
+
+    return { id: documento.id, estado: 'en_cola' };
+  }
+
+  /**
+   * Devuelve el estado de procesamiento de un documento propio.
+   * Es el endpoint que consulta el frontend para refrescar la tarjeta.
+   *
+   * @param {string} documentoId UUID del documento.
+   * @returns {Promise<object>}
+   */
+  async obtenerEstadoProcesamiento(documentoId) {
+    const documento = await this.obtenerDocumento(documentoId);
+
+    return {
+      id: documento.id,
+      estado_procesamiento: documento.estado_procesamiento,
+      motivo_error: documento.motivo_error,
+      numero_paginas: documento.numero_paginas,
+      fecha_actualizacion: documento.fecha_actualizacion,
+    };
+  }
+
+  /**
+   * Encola sin propagar el fallo: el registro del documento no depende de SQS.
+   * El usuario conserva el boton de reproceso manual si la cola falla.
+   *
+   * @param {object} documento Documento recien registrado.
+   * @returns {Promise<void>}
+   */
+  async encolarTrasRegistro(documento) {
+    if (!this.colaRepository?.estaDisponible()) {
+      return;
+    }
+
+    try {
+      await this.colaRepository.encolarProcesamiento({
+        documentoId: documento.id,
+        usuarioId: this.usuarioActualId,
+        forzar: false,
+      });
+      await this.documentoRepository.marcarEnCola(this.usuarioActualId, documento.id);
+    } catch (error) {
+      this.logger.warn('No se pudo encolar el documento recien registrado.', {
+        documentoId: documento.id,
+        message: error?.message,
+      });
+    }
   }
 
   /**

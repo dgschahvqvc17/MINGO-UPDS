@@ -58,11 +58,23 @@
         type="button"
         class="btn btn-sm btn-outline-primary"
         (click)="descargar.emit(documento())"
-        [disabled]="descargando() || eliminando()"
+        [disabled]="descargando() || eliminando() || procesando()"
       >
         <i class="bi bi-download me-1" aria-hidden="true"></i>
         {{ descargando() ? 'Descargando...' : 'Descargar' }}
       </button>
+
+      @if (puedeProcesar()) {
+        <button
+          type="button"
+          class="btn btn-sm btn-outline-info"
+          (click)="solicitarProcesamiento()"
+          [disabled]="procesando() || descargando() || eliminando()"
+        >
+          <i class="bi bi-cpu me-1" aria-hidden="true"></i>
+          {{ procesando() ? 'Enviando...' : textoProcesar() }}
+        </button>
+      }
 
       @if (confirmandoEliminar()) {
         <span class="doc-confirm" role="group" aria-label="Confirmar eliminación del documento">

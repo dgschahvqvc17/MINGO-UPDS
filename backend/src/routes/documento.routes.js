@@ -73,6 +73,26 @@ router.get(
 );
 
 /**
+ * POST /documentos/:id/procesar
+ * Encola el procesamiento del documento en SQS y responde 202.
+ */
+router.post(
+  '/:id/procesar',
+  validationMiddleware({ params: documentoIdParamSchema }),
+  atender('procesarDocumento'),
+);
+
+/**
+ * GET /documentos/:id/estado
+ * Devuelve el estado de procesamiento para refrescar la UI.
+ */
+router.get(
+  '/:id/estado',
+  validationMiddleware({ params: documentoIdParamSchema }),
+  atender('obtenerEstadoProcesamiento'),
+);
+
+/**
  * GET /documentos/:id
  * Devuelve el detalle de un documento propio.
  */

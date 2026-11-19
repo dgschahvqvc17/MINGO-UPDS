@@ -66,11 +66,11 @@ Reglas:
 
 | Parámetro | Valor inicial |
 |---|---|
-| Tamaño objetivo | 800–1000 tokens |
-| Solapamiento | 100–150 tokens |
-| Unidad mínima | 300 tokens (no fragmentos huérfanos) |
-| Corte | Por párrafos; respetar límites de página cuando sea posible |
-| Máximo de fragmentos por documento | 2000 (límite interno del MVP) |
+| Tamaño objetivo | 1200 caracteres (≈ 250–300 tokens) |
+| Solapamiento | 200 caracteres |
+| Unidad mínima | ~300 caracteres (no fragmentos huérfanos) |
+| Corte | Por párrafos; si un párrafo supera el límite, se divide por oraciones; respetar límites de página cuando sea posible |
+| Máximo de fragmentos por documento | 1500 (límite interno del MVP) |
 
 Reglas:
 
@@ -81,13 +81,36 @@ Reglas:
 
 ### 3.3. Embeddings
 
-- Modelo configurable con `AI_EMBEDDING_MODEL`.
-- Dimensión configurable con `AI_EMBEDDING_DIMENSIONS` (por defecto 1536).
+| Entorno | Proveedor | Modelo | Dimensiones | Costo |
+|---|---|---|---|---|
+| Desarrollo y demo | Google Gemini (tier gratuito) | `gemini-embedding-001` | 1536 | $0 con límites de RPM/RPD |
+| Producción | OpenAI | `text-embedding-3-small` | 1536 | ≈ $0.02 por millón de tokens |
+
+```bash
+# Desarrollo: Gemini (sin tarjeta, endpoint compatible con OpenAI)
+AI_PROVIDER=gemini
+AI_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai/
+AI_EMBEDDING_MODEL=gemini-embedding-001
+AI_EMBEDDING_DIMENSIONS=1536
+
+# Producción: OpenAI
+AI_PROVIDER=openai
+AI_BASE_URL=
+AI_EMBEDDING_MODEL=text-embedding-3-small
+AI_EMBEDDING_DIMENSIONS=1536
+```
+
+Reglas:
+
+- `AI_EMBEDDING_MODEL` define el modelo y `AI_EMBEDDING_DIMENSIONS` la dimensión (1536 por defecto). El servicio envía ambos al proveedor y rechaza cualquier vector cuya longitud no coincida con la configuración.
 - **La dimensión debe coincidir con la columna `vector(n)`.** Cambiar el modelo exige migración y reprocesamiento.
-- Generar en lotes pequeños (por ejemplo, 32–64 fragmentos).
+- **Prohibido mezclar modelos en un corpus.** Los vectores de proveedores distintos viven en espacios diferentes y su similitud no es comparable. Al cambiar de proveedor se borran los fragmentos y se reprocesa.
+- El índice HNSW de pgvector admite hasta 2000 dimensiones: un vector de 3072 no se puede indexar.
+- Generar en lotes de 64 fragmentos.
 - Guardar hash del contenido del fragmento para no regenerar si no cambió.
 - No generar embeddings de documentos eliminados.
-- Registrar el costo estimado por documento.
+- Un `429` del proveedor es un error temporal: SQS reintenta. Nunca se guarda un vector parcial ni se reintenta en bucle.
+- Antes de procesar documentos, verificar el proveedor con `npm run verificar:embeddings` (ver [entornos-y-despliegue.md](entornos-y-despliegue.md)).
 
 ## 4. Pipeline de consulta (RAG)
 
@@ -376,6 +399,7 @@ Reglas:
 - Enviar al proveedor solo lo necesario.
 - No enviar correos, nombres completos ni identificadores internos si no aportan.
 - No usar conversaciones para entrenamiento cuando el proveedor lo permita configurar.
+- El **tier gratuito de Google Gemini** usa el contenido enviado para mejorar sus productos. Por eso en desarrollo solo se procesan documentos de prueba o autorizados; producción exige un plan de pago con entrenamiento desactivado.
 - Permitir eliminar conversaciones y documentos.
 - Al eliminar un documento, eliminar sus fragmentos y embeddings.
 - Documentar qué proveedor se usa y qué datos se envían.

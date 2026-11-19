@@ -136,16 +136,26 @@ Reglas:
 | Caso | Resultado esperado |
 |---|---|
 | Solicitar URL válida | 200 con URL y expiración 15 min. |
-| Tipo no permitido | 415. |
-| Tamaño mayor a 20 MB | 413. |
-| `objectKey` fuera de la ruta del usuario | 403/400. |
-| Registrar metadatos válidos | 201 con estado `pendiente`. |
-| Procesar documento | Estado pasa a `procesado`. |
-| Procesar dos veces | Idempotente; no duplica fragmentos. |
-| Documento sin texto | Estado `error` con motivo claro. |
-| Archivo corrupto | `error`, sin bucle de reintentos. |
+| Tipo no permitido (DOC, PPT u otro) | 400 con mensaje de formatos aceptados (PDF, DOCX, PPTX, TXT). |
+| Extensión que no coincide con el MIME | 400. |
+| Tamaño mayor a 20 MB | 400. |
+| `objectKey` fuera de la ruta del usuario | 403. |
+| Registrar metadatos válidos | 201; el documento queda `en_cola` si la cola responde o `pendiente` si no. |
+| Procesar documento | 202 con estado `en_cola`; la Lambda lo pasa a `procesado` con fragmentos y embeddings. |
+| Procesar documento sin texto | Estado `error` con motivo claro. |
+| Procesar documento en estado `en_cola` o `procesando` | 409, evita doble procesamiento. |
+| Procesar documento ya procesado | 202 y vuelve a `en_cola` (reproceso explícito). |
+| Procesar un documento atascado (sin cambios 15 min) | 202: se reencola. Si otro proceso lo retomó antes, 409. |
+| Reemplazar fragmentos en un reproceso | Los nuevos se insertan desplazados y la RPC confirma el reemplazo en una transacción; ante un fallo se conservan los anteriores. |
+| Reintentar procesamiento temporal | El documento vuelve a `en_cola` sin `motivo_error` y se relanza; SQS reintenta. |
+| Reintento de SQS (`ApproximateReceiveCount > 1`) | El worker recupera el documento aunque esté en `procesando`. |
+| Evento de S3 de un documento aún no registrado | Error temporal: SQS reintenta en lugar de descartar el mensaje. |
+| Error permanente | Se marca `error`, no se reintentará. |
+| Consultar estado (`GET /:id/estado`) | 200 con estado, motivo y número de páginas. |
+| Procesar documento ajeno o inexistente | 404. |
+| Procesar documento sin SQS configurado | 503 sin cambiar el estado. |
+| Encolar al registrar | El documento queda `en_cola` o `pendiente` si la cola no responde. |
 | Eliminar documento | Se borran metadatos, fragmentos y objeto S3. |
-| Descargar documento ajeno | 404. |
 
 ### 4.8. Búsqueda semántica (HU11)
 

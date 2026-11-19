@@ -22,6 +22,28 @@ const DOCUMENTO_COLUMNS = `
 `;
 
 /**
+ * Columnas que necesita el worker de procesamiento.
+ * No incluye la relacion con materias: el worker solo usa datos del archivo.
+ */
+const DOCUMENTO_PROCESAMIENTO_COLUMNS = `
+  id,
+  usuario_id,
+  nombre_archivo,
+  ruta_almacenamiento,
+  tipo_archivo,
+  estado_procesamiento,
+  motivo_error,
+  numero_paginas,
+  fecha_actualizacion
+`;
+
+/** Estados desde los que se puede iniciar un procesamiento. */
+const ESTADOS_INICIABLES = ['pendiente', 'en_cola', 'error'];
+
+/** Estados que indican un trabajo pendiente o en ejecucion. */
+const ESTADOS_EN_PROCESO = ['en_cola', 'procesando'];
+
+/**
  * Limpia el termino de busqueda para que no se interprete como sintaxis
  * del filtro `or` ni como comodines de ILIKE.
  *
@@ -173,6 +195,211 @@ class DocumentoRepository {
       .eq('id', documentoId)
       .select('id, ruta_almacenamiento')
       .maybeSingle();
+
+    if (error) {
+      throw error;
+    }
+
+    return data;
+  }
+
+  /**
+   * Marca un documento como encolado para su procesamiento.
+   * Solo aplica desde estados iniciales para no pisar un procesamiento activo.
+   *
+   * Con `reencolarEstancado` se permite reencolar un documento que quedo en
+   * `en_cola` o `procesando` sin avanzar. La condicion sobre
+   * `fecha_actualizacion` es la que evita pisar un trabajo realmente activo:
+   * si otro proceso lo actualizo despues del corte, la fila no coincide y se
+   * devuelve null.
+   *
+   * @param {string} usuarioId UUID del usuario.
+   * @param {string} documentoId UUID del documento.
+   * @param {{ reencolarEstancado?: boolean, actualizadoAntesDe?: string | null }} [opciones]
+   * @returns {Promise<object | null>} Fila actualizada o null si el estado no lo permite.
+   */
+  async marcarEnCola(
+    usuarioId,
+    documentoId,
+    { reencolarEstancado = false, actualizadoAntesDe = null } = {},
+  ) {
+    let consulta = this.requireClient()
+      .from('documentos')
+      .update({
+        estado_procesamiento: 'en_cola',
+        motivo_error: null,
+        fecha_actualizacion: new Date().toISOString(),
+      })
+      .eq('usuario_id', usuarioId)
+      .eq('id', documentoId);
+
+    if (reencolarEstancado && actualizadoAntesDe) {
+      consulta = consulta
+        .in('estado_procesamiento', ESTADOS_EN_PROCESO)
+        .or(
+          `fecha_actualizacion.is.null,fecha_actualizacion.lte."${actualizadoAntesDe}"`,
+        );
+    } else {
+      consulta = consulta.in('estado_procesamiento', ESTADOS_INICIABLES);
+    }
+
+    const { data, error } = await consulta
+      .select(DOCUMENTO_PROCESAMIENTO_COLUMNS)
+      .maybeSingle();
+
+    if (error) {
+      throw error;
+    }
+
+    return data;
+  }
+
+  /**
+   * Obtiene un documento sin filtrar por usuario.
+   * Solo para el worker con service_role, que valida la propiedad por su cuenta.
+   *
+   * @param {string} documentoId UUID del documento.
+   * @returns {Promise<object | null>}
+   */
+  async obtenerPorIdSinUsuario(documentoId) {
+    const { data, error } = await this.requireClient()
+      .from('documentos')
+      .select(DOCUMENTO_PROCESAMIENTO_COLUMNS)
+      .eq('id', documentoId)
+      .maybeSingle();
+
+    if (error) {
+      throw error;
+    }
+
+    return data;
+  }
+
+  /**
+   * Obtiene un documento por la clave del objeto en S3, sin filtrar por usuario.
+   * Sirve para resolver los eventos automaticos de S3.
+   *
+   * @param {string} rutaAlmacenamiento Clave del objeto en S3.
+   * @returns {Promise<object | null>}
+   */
+  async obtenerPorRutaSinUsuario(rutaAlmacenamiento) {
+    const { data, error } = await this.requireClient()
+      .from('documentos')
+      .select(DOCUMENTO_PROCESAMIENTO_COLUMNS)
+      .eq('ruta_almacenamiento', rutaAlmacenamiento)
+      .maybeSingle();
+
+    if (error) {
+      throw error;
+    }
+
+    return data;
+  }
+
+  /**
+   * Cambia el documento a `procesando` de forma condicional.
+   * La actualizacion condicional evita procesar dos veces el mismo documento
+   * cuando coinciden el evento de S3 y el encolado manual.
+   *
+   * Con `incluirEnProceso` el worker puede recuperar un documento que quedo en
+   * `en_cola` o `procesando`: lo usa cuando SQS lo entrega de nuevo o cuando el
+   * trabajo esta atascado. La condicion sobre `fecha_actualizacion` impide
+   * arrebatar un trabajo que sigue avanzando.
+   *
+   * @param {string} documentoId UUID del documento.
+   * @param {{ incluirProcesado?: boolean, incluirEnProceso?: boolean, actualizadoAntesDe?: string | null }} [opciones]
+   * @returns {Promise<object | null>} Fila actualizada o null si otro proceso se adelanto.
+   */
+  async marcarProcesando(
+    documentoId,
+    { incluirProcesado = false, incluirEnProceso = false, actualizadoAntesDe = null } = {},
+  ) {
+    const estados = new Set(ESTADOS_INICIABLES);
+
+    if (incluirProcesado) {
+      estados.add('procesado');
+    }
+
+    if (incluirEnProceso) {
+      ESTADOS_EN_PROCESO.forEach((estado) => estados.add(estado));
+    }
+
+    let consulta = this.requireClient()
+      .from('documentos')
+      .update({
+        estado_procesamiento: 'procesando',
+        motivo_error: null,
+        fecha_actualizacion: new Date().toISOString(),
+      })
+      .eq('id', documentoId)
+      .in('estado_procesamiento', [...estados]);
+
+    if (incluirEnProceso && actualizadoAntesDe) {
+      consulta = consulta.or(
+        `fecha_actualizacion.is.null,fecha_actualizacion.lte."${actualizadoAntesDe}"`,
+      );
+    }
+
+    const { data, error } = await consulta
+      .select(DOCUMENTO_PROCESAMIENTO_COLUMNS)
+      .maybeSingle();
+
+    if (error) {
+      throw error;
+    }
+
+    return data;
+  }
+
+  /**
+   * Devuelve el documento a `en_cola` despues de un fallo temporal.
+   * No marca `error`: SQS reintenta el mensaje y el estado debe reflejar que
+   * el trabajo sigue pendiente.
+   *
+   * @param {string} documentoId UUID del documento.
+   * @returns {Promise<object | null>}
+   */
+  async marcarReintento(documentoId) {
+    const { data, error } = await this.requireClient()
+      .from('documentos')
+      .update({
+        estado_procesamiento: 'en_cola',
+        motivo_error: null,
+        fecha_actualizacion: new Date().toISOString(),
+      })
+      .eq('id', documentoId)
+      .select(DOCUMENTO_PROCESAMIENTO_COLUMNS)
+      .maybeSingle();
+
+    if (error) {
+      throw error;
+    }
+
+    return data;
+  }
+
+  /**
+   * Guarda el resultado final del procesamiento.
+   *
+   * @param {string} documentoId UUID del documento.
+   * @param {{ estado: 'procesado' | 'error', motivoError?: string | null, numeroPaginas?: number | null }} resultado
+   * @returns {Promise<object>}
+   */
+  async actualizarResultadoProcesamiento(
+    documentoId,
+    { estado, motivoError = null, numeroPaginas = null },
+  ) {
+    const { data, error } = await this.requireClient()
+      .from('documentos')
+      .update({
+        estado_procesamiento: estado,
+        motivo_error: estado === 'error' ? motivoError : null,
+        numero_paginas: numeroPaginas,
+        fecha_actualizacion: new Date().toISOString(),
+      })
+      .eq('id', documentoId)
+      .select(DOCUMENTO_PROCESAMIENTO_COLUMNS)
+      .single();
 
     if (error) {
       throw error;

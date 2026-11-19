@@ -86,7 +86,7 @@ const materiaBusquedaSchema = z.object({
   query: z.string().min(1).max(100).optional(),
   periodo_academico: z.string().optional(),
   estado: z.enum(['activo', 'archivado']).optional(),
-  limit: z.coerce.number().int().positive().max(50).default(20),
+  limit: z.coerce.number().int().positive().max(100).default(20),
   offset: z.coerce.number().int().nonnegative().default(0),
 });
 

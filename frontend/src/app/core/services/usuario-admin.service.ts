@@ -51,6 +51,8 @@ export interface UsuarioListadoResponse {
   };
 }
 
+type UsuarioListadoMeta = Omit<UsuarioListadoResponse, 'usuarios'>;
+
 export interface ActualizarRolesRequest {
   roles: Array<'administrador' | 'estudiante'>;
 }
@@ -67,13 +69,20 @@ export class UsuarioAdminService {
    * Lista usuarios con opciones de búsqueda y paginación
    */
   listarUsuarios(params: UsuarioBusquedaParams = {}): Observable<UsuarioListadoResponse> {
-    return this.api.get<UsuarioListadoResponse>('usuarios', {
-      query: params.query,
-      estado: params.estado,
-      rol: params.rol,
-      limit: params.limit,
-      offset: params.offset,
-    });
+    return this.api
+      .getWithMeta<UsuarioListado[], UsuarioListadoMeta>('usuarios', {
+        query: params.query,
+        estado: params.estado,
+        rol: params.rol,
+        limit: params.limit,
+        offset: params.offset,
+      })
+      .pipe(
+        map(({ data, meta }) => ({
+          usuarios: data ?? [],
+          ...meta,
+        })),
+      );
   }
 
   /**

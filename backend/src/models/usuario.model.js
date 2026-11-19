@@ -31,8 +31,8 @@ const usuarioBusquedaSchema = z.object({
   query: z.string().min(1).max(100).optional(),
   estado: z.enum(['activo', 'inactivo']).optional(),
   rol: z.enum(['administrador', 'estudiante']).optional(),
-  limit: z.number().int().positive().max(100).default(50),
-  offset: z.number().int().nonnegative().default(0),
+  limit: z.coerce.number().int().positive().max(100).default(50),
+  offset: z.coerce.number().int().nonnegative().default(0),
 });
 
 // Esquema para actualización de roles

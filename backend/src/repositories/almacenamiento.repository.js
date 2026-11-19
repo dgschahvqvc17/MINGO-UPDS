@@ -98,6 +98,35 @@ class AlmacenamientoRepository {
   }
 
   /**
+   * Descarga un objeto de S3 como Buffer.
+   * Lo usa el worker de procesamiento, no la API: la API nunca mueve los bytes.
+   * Devuelve null si el objeto ya no existe.
+   *
+   * @param {string} ruta Clave del objeto en S3.
+   * @returns {Promise<Buffer | null>}
+   */
+  async obtenerObjeto(ruta) {
+    try {
+      const respuesta = await this.requireClient().send(
+        new GetObjectCommand({ Bucket: this.bucket, Key: ruta }),
+      );
+
+      if (!respuesta.Body) {
+        return null;
+      }
+
+      const bytes = await respuesta.Body.transformToByteArray();
+      return Buffer.from(bytes);
+    } catch (error) {
+      if (error.name === 'NoSuchKey' || error.$metadata?.httpStatusCode === 404) {
+        return null;
+      }
+
+      throw error;
+    }
+  }
+
+  /**
    * Elimina un objeto de S3. Es idempotente: un objeto inexistente no es error.
    *
    * @param {string} ruta Clave del objeto en S3.

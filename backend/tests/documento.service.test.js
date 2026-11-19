@@ -27,6 +27,8 @@ describe('DocumentoService', () => {
   let documentoRepository;
   let materiaRepository;
   let almacenamientoRepository;
+  let colaRepository;
+  let logger;
   let service;
 
   beforeEach(() => {
@@ -36,6 +38,7 @@ describe('DocumentoService', () => {
       listarDocumentos: j.fn(),
       obtenerDocumentoPorId: j.fn(),
       eliminarDocumento: j.fn(),
+      marcarEnCola: j.fn(),
     };
 
     materiaRepository = {
@@ -53,11 +56,20 @@ describe('DocumentoService', () => {
       estaDisponible: j.fn().mockReturnValue(true),
     };
 
+    colaRepository = {
+      estaDisponible: j.fn().mockReturnValue(false),
+      encolarProcesamiento: j.fn().mockResolvedValue({ messageId: 'mensaje-1' }),
+    };
+
+    logger = { warn: j.fn(), error: j.fn() };
+
     service = new DocumentoService({
       documentoRepository,
       materiaRepository,
       almacenamientoRepository,
+      colaRepository,
       usuarioActualId: USUARIO_ID,
+      logger,
     });
   });
 
@@ -355,6 +367,190 @@ describe('DocumentoService', () => {
         statusCode: 503,
       });
       expect(documentoRepository.eliminarDocumento).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('procesarDocumento', () => {
+    const documentoPendiente = {
+      id: DOCUMENTO_ID,
+      estado_procesamiento: 'pendiente',
+      motivo_error: null,
+      numero_paginas: null,
+      fecha_actualizacion: new Date().toISOString(),
+    };
+
+    it('encola el documento y lo marca en cola', async () => {
+      documentoRepository.obtenerDocumentoPorId.mockResolvedValue(documentoPendiente);
+      documentoRepository.marcarEnCola.mockResolvedValue({
+        ...documentoPendiente,
+        estado_procesamiento: 'en_cola',
+      });
+      colaRepository.estaDisponible.mockReturnValue(true);
+
+      const resultado = await service.procesarDocumento(DOCUMENTO_ID);
+
+      expect(colaRepository.encolarProcesamiento).toHaveBeenCalledWith({
+        documentoId: DOCUMENTO_ID,
+        usuarioId: USUARIO_ID,
+        forzar: true,
+      });
+      expect(documentoRepository.marcarEnCola).toHaveBeenCalledWith(USUARIO_ID, DOCUMENTO_ID, {
+        reencolarEstancado: false,
+        actualizadoAntesDe: null,
+      });
+      expect(resultado).toEqual({ id: DOCUMENTO_ID, estado: 'en_cola' });
+    });
+
+    it('responde 404 cuando el documento no es del usuario', async () => {
+      documentoRepository.obtenerDocumentoPorId.mockResolvedValue(null);
+
+      await expect(service.procesarDocumento(DOCUMENTO_ID)).rejects.toMatchObject({
+        statusCode: 404,
+      });
+      expect(colaRepository.encolarProcesamiento).not.toHaveBeenCalled();
+    });
+
+    it('responde 409 cuando el documento ya está en cola o procesándose', async () => {
+      documentoRepository.obtenerDocumentoPorId.mockResolvedValue({
+        ...documentoPendiente,
+        estado_procesamiento: 'procesando',
+      });
+
+      await expect(service.procesarDocumento(DOCUMENTO_ID)).rejects.toMatchObject({
+        statusCode: 409,
+      });
+      expect(colaRepository.encolarProcesamiento).not.toHaveBeenCalled();
+    });
+
+    it('reencola un documento atascado sin esperar a que termine', async () => {
+      documentoRepository.obtenerDocumentoPorId.mockResolvedValue({
+        ...documentoPendiente,
+        estado_procesamiento: 'procesando',
+        fecha_actualizacion: '2026-01-01T00:00:00.000Z',
+      });
+      documentoRepository.marcarEnCola.mockResolvedValue({
+        ...documentoPendiente,
+        estado_procesamiento: 'en_cola',
+      });
+      colaRepository.estaDisponible.mockReturnValue(true);
+
+      const resultado = await service.procesarDocumento(DOCUMENTO_ID);
+
+      expect(colaRepository.encolarProcesamiento).toHaveBeenCalled();
+      expect(documentoRepository.marcarEnCola).toHaveBeenCalledWith(
+        USUARIO_ID,
+        DOCUMENTO_ID,
+        expect.objectContaining({
+          reencolarEstancado: true,
+          actualizadoAntesDe: expect.any(String),
+        }),
+      );
+      expect(resultado).toEqual({ id: DOCUMENTO_ID, estado: 'en_cola' });
+    });
+
+    it('responde 409 si otro proceso retoma el documento antes de reencolarlo', async () => {
+      documentoRepository.obtenerDocumentoPorId.mockResolvedValue({
+        ...documentoPendiente,
+        estado_procesamiento: 'en_cola',
+        fecha_actualizacion: '2026-01-01T00:00:00.000Z',
+      });
+      documentoRepository.marcarEnCola.mockResolvedValue(null);
+      colaRepository.estaDisponible.mockReturnValue(true);
+
+      await expect(service.procesarDocumento(DOCUMENTO_ID)).rejects.toMatchObject({
+        statusCode: 409,
+      });
+    });
+
+    it('responde 503 cuando SQS no está configurado', async () => {
+      documentoRepository.obtenerDocumentoPorId.mockResolvedValue(documentoPendiente);
+
+      await expect(service.procesarDocumento(DOCUMENTO_ID)).rejects.toMatchObject({
+        statusCode: 503,
+      });
+      expect(documentoRepository.marcarEnCola).not.toHaveBeenCalled();
+    });
+
+    it('responde 400 cuando el identificador no es un UUID', async () => {
+      await expect(service.procesarDocumento('no-es-uuid')).rejects.toMatchObject({
+        statusCode: 400,
+      });
+    });
+  });
+
+  describe('obtenerEstadoProcesamiento', () => {
+    it('devuelve solo los campos de estado del documento propio', async () => {
+      documentoRepository.obtenerDocumentoPorId.mockResolvedValue({
+        id: DOCUMENTO_ID,
+        nombre: 'Cálculo',
+        estado_procesamiento: 'procesado',
+        motivo_error: null,
+        numero_paginas: 12,
+        fecha_actualizacion: '2026-11-13T10:00:00.000Z',
+      });
+
+      const estado = await service.obtenerEstadoProcesamiento(DOCUMENTO_ID);
+
+      expect(estado).toEqual({
+        id: DOCUMENTO_ID,
+        estado_procesamiento: 'procesado',
+        motivo_error: null,
+        numero_paginas: 12,
+        fecha_actualizacion: '2026-11-13T10:00:00.000Z',
+      });
+      expect(estado.nombre).toBeUndefined();
+    });
+
+    it('responde 404 cuando el documento es de otro usuario', async () => {
+      documentoRepository.obtenerDocumentoPorId.mockResolvedValue(null);
+
+      await expect(service.obtenerEstadoProcesamiento(DOCUMENTO_ID)).rejects.toMatchObject({
+        statusCode: 404,
+      });
+    });
+  });
+
+  describe('encolado tras el registro', () => {
+    beforeEach(() => {
+      documentoRepository.crearDocumento.mockResolvedValue({
+        id: DOCUMENTO_ID,
+        ruta_almacenamiento: OBJECT_KEY,
+      });
+      documentoRepository.marcarEnCola.mockResolvedValue({ id: DOCUMENTO_ID });
+    });
+
+    it('marca el documento en cola cuando SQS está disponible', async () => {
+      colaRepository.estaDisponible.mockReturnValue(true);
+
+      await service.registrarDocumento(DATOS_REGISTRO);
+
+      expect(colaRepository.encolarProcesamiento).toHaveBeenCalledWith({
+        documentoId: DOCUMENTO_ID,
+        usuarioId: USUARIO_ID,
+        forzar: false,
+      });
+      expect(documentoRepository.marcarEnCola).toHaveBeenCalledWith(USUARIO_ID, DOCUMENTO_ID);
+    });
+
+    it('no falla el registro cuando la cola no responde', async () => {
+      colaRepository.estaDisponible.mockReturnValue(true);
+      colaRepository.encolarProcesamiento.mockRejectedValue(new Error('SQS caido'));
+
+      const resultado = await service.registrarDocumento(DATOS_REGISTRO);
+
+      expect(resultado.id).toBe(DOCUMENTO_ID);
+      expect(documentoRepository.marcarEnCola).not.toHaveBeenCalled();
+      expect(logger.warn).toHaveBeenCalledWith(
+        'No se pudo encolar el documento recien registrado.',
+        expect.objectContaining({ documentoId: DOCUMENTO_ID }),
+      );
+    });
+
+    it('no intenta encolar cuando la cola no está configurada', async () => {
+      await service.registrarDocumento(DATOS_REGISTRO);
+
+      expect(colaRepository.encolarProcesamiento).not.toHaveBeenCalled();
+      expect(documentoRepository.marcarEnCola).not.toHaveBeenCalled();
     });
   });
 

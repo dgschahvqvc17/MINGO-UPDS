@@ -25,13 +25,11 @@ export interface FormatoDocumento {
  */
 export const FORMATOS_DOCUMENTO: FormatoDocumento[] = [
   { mime: 'application/pdf', extensiones: ['.pdf'], etiqueta: 'PDF' },
-  { mime: 'application/msword', extensiones: ['.doc'], etiqueta: 'DOC' },
   {
     mime: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
     extensiones: ['.docx'],
     etiqueta: 'DOCX',
   },
-  { mime: 'application/vnd.ms-powerpoint', extensiones: ['.ppt'], etiqueta: 'PPT' },
   {
     mime: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
     extensiones: ['.pptx'],
@@ -113,6 +111,19 @@ export interface RespuestaDescarga {
   expiresInSeconds: number;
 }
 
+export interface EstadoProcesamiento {
+  id: string;
+  estado_procesamiento: EstadoDocumento;
+  motivo_error: string | null;
+  numero_paginas: number | null;
+  fecha_actualizacion: string | null;
+}
+
+export interface RespuestaProcesar {
+  id: string;
+  estado: EstadoDocumento;
+}
+
 /**
  * Servicio de documentos academicos (HU07 y HU08).
  * La subida va directo del navegador a S3 con una URL prefirmada; la API solo
@@ -158,6 +169,21 @@ export class DocumentoService {
 
   registrar(datos: RegistroDocumento): Observable<Documento> {
     return this.api.post<Documento>('/documentos', datos);
+  }
+
+  /**
+   * Encola el procesamiento del documento (HU09).
+   * El backend responde 202: el trabajo real lo hace la Lambda procesadora.
+   */
+  procesar(id: string): Observable<RespuestaProcesar> {
+    return this.api.post<RespuestaProcesar>(`/documentos/${encodeURIComponent(id)}/procesar`, {});
+  }
+
+  /**
+   * Consulta el estado de procesamiento para refrescar la tarjeta o el detalle.
+   */
+  obtenerEstado(id: string): Observable<EstadoProcesamiento> {
+    return this.api.get<EstadoProcesamiento>(`/documentos/${encodeURIComponent(id)}/estado`);
   }
 
   /**
@@ -217,6 +243,20 @@ export class DocumentoService {
     };
 
     return clases[estado];
+  }
+
+  /** Estados en los que el worker todavía tiene trabajo pendiente. */
+  estaEnProceso(estado: EstadoDocumento): boolean {
+    return estado === 'en_cola' || estado === 'procesando';
+  }
+
+  /** Un documento se puede encolar salvo que ya haya un trabajo en curso. */
+  puedeProcesar(estado: EstadoDocumento): boolean {
+    return !this.estaEnProceso(estado);
+  }
+
+  textoProcesar(estado: EstadoDocumento): string {
+    return estado === 'procesado' ? 'Reprocesar' : 'Procesar';
   }
 
   formatoTexto(tipoArchivo: string, nombreArchivo: string): string {

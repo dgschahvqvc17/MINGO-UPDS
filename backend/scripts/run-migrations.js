@@ -60,11 +60,16 @@ async function runAllMigrations() {
   const repositoryRoot = path.join(__dirname, '..', '..');
   
   try {
-    // Orden de migraciones: identidad, materias y tareas.
+    // Orden de migraciones: identidad, materias, tareas, calendario,
+    // documentos y fragmentos. Las dependencias entre tablas exigen este orden.
     const migrations = [
       path.join('supabase', 'migrations', '0001_hu01_auth.sql'),
       path.join('backend', 'sql', 'materias.sql'),
       path.join('supabase', 'migrations', '0002_hu04_tareas.sql'),
+      path.join('supabase', 'migrations', '0003_hu05_calendario.sql'),
+      path.join('supabase', 'migrations', '0004_hu07_documentos.sql'),
+      path.join('supabase', 'migrations', '0005_hu09_fragmentos.sql'),
+      path.join('supabase', 'migrations', '0006_hu09_reemplazo_fragmentos.sql'),
     ];
     
     for (const migrationFile of migrations) {

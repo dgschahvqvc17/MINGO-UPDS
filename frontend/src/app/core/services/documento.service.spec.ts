@@ -141,6 +141,51 @@ describe('DocumentoService', () => {
     req.flush({ success: true, data: respuesta });
   });
 
+  it('encola el procesamiento del documento', () => {
+    const respuesta = { id: mockDocumento.id, estado: 'en_cola' as const };
+
+    service
+      .procesar(mockDocumento.id)
+      .subscribe((datos) => expect(datos.estado).toBe('en_cola'));
+
+    const req = httpMock.expectOne(`/api/documentos/${mockDocumento.id}/procesar`);
+    expect(req.request.method).toBe('POST');
+    expect(req.request.body).toEqual({});
+    req.flush({ success: true, data: respuesta });
+  });
+
+  it('consulta el estado de procesamiento del documento', () => {
+    const estado = {
+      id: mockDocumento.id,
+      estado_procesamiento: 'procesado' as const,
+      motivo_error: null,
+      numero_paginas: 12,
+      fecha_actualizacion: '2026-11-13T10:00:00.000Z',
+    };
+
+    service
+      .obtenerEstado(mockDocumento.id)
+      .subscribe((datos) => expect(datos.numero_paginas).toBe(12));
+
+    const req = httpMock.expectOne(`/api/documentos/${mockDocumento.id}/estado`);
+    expect(req.request.method).toBe('GET');
+    req.flush({ success: true, data: estado });
+  });
+
+  it('decide cuándo se puede procesar y el texto del botón', () => {
+    expect(service.puedeProcesar('pendiente')).toBe(true);
+    expect(service.puedeProcesar('error')).toBe(true);
+    expect(service.puedeProcesar('procesado')).toBe(true);
+    expect(service.puedeProcesar('en_cola')).toBe(false);
+    expect(service.puedeProcesar('procesando')).toBe(false);
+
+    expect(service.estaEnProceso('en_cola')).toBe(true);
+    expect(service.estaEnProceso('procesado')).toBe(false);
+
+    expect(service.textoProcesar('procesado')).toBe('Reprocesar');
+    expect(service.textoProcesar('error')).toBe('Procesar');
+  });
+
   it('elimina el documento por su identificador', () => {
     service
       .eliminar(mockDocumento.id)

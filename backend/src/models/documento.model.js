@@ -9,9 +9,7 @@ const config = require('../config/environment');
 
 const EXTENSIONES_POR_MIME = {
   'application/pdf': ['.pdf'],
-  'application/msword': ['.doc'],
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'],
-  'application/vnd.ms-powerpoint': ['.ppt'],
   'application/vnd.openxmlformats-officedocument.presentationml.presentation': ['.pptx'],
   'text/plain': ['.txt'],
 };
@@ -41,7 +39,7 @@ const tipoArchivoSchema = z
   .string()
   .trim()
   .refine((tipo) => config.uploads.allowedMimeTypes.includes(tipo), {
-    message: 'Formato no permitido. Se aceptan PDF, DOC, DOCX, PPT, PPTX y TXT',
+    message: 'Formato no permitido. Se aceptan PDF, DOCX, PPTX y TXT',
   });
 
 const tamanoSchema = z.coerce
