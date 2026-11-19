@@ -546,7 +546,7 @@ Parámetros `dias` (1–30, por defecto 7) y `limit` (1–50, por defecto 10). D
 {
   "success": true,
   "data": {
-    "uploadUrl": "https://mingo-documentos.s3.us-east-1.amazonaws.com/...&X-Amz-Expires=900",
+    "uploadUrl": "https://mingo-documentos-dev-591015654164.s3.us-east-1.amazonaws.com/...&X-Amz-Expires=900",
     "objectKey": "usuarios/3f2b7e5c-1a4d-4c8e-9f10-2b6d8a7c9e01/documentos/9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d/calculo.pdf",
     "expiresInSeconds": 900,
     "maxSizeBytes": 20971520
@@ -645,7 +645,7 @@ Devuelve el documento con el resumen de su materia embebido (`materias`). Un doc
 {
   "success": true,
   "data": {
-    "downloadUrl": "https://mingo-documentos.s3.us-east-1.amazonaws.com/...&X-Amz-Expires=900",
+    "downloadUrl": "https://mingo-documentos-dev-591015654164.s3.us-east-1.amazonaws.com/...&X-Amz-Expires=900",
     "nombreArchivo": "calculo.pdf",
     "tipoArchivo": "application/pdf",
     "expiresInSeconds": 900
