@@ -789,7 +789,11 @@ GET /api/documentos/buscar?q=derivadas%20de%20funciones&materia_id=6d1c2a53-4f7e
 | POST | `/api/asistente/cuestionarios/:id/intentos` | HU13 | Inicia un intento del cuestionario. |
 | GET | `/api/asistente/intentos/:id` | HU13 | Devuelve el intento con sus respuestas. |
 | POST | `/api/asistente/intentos/:id/responder` | HU13 | Registra respuestas y finaliza el intento. |
-| POST | `/api/asistente/tarjetas` | HU14 | Genera flashcards. |
+| POST | `/api/asistente/tarjetas` | HU14 | Genera y guarda un conjunto de tarjetas. |
+| GET | `/api/asistente/tarjetas/conjuntos` | HU14 | Lista los conjuntos propios. |
+| GET | `/api/asistente/tarjetas/conjuntos/:id` | HU14 | Detalle con tarjetas y filtro `estado`. |
+| DELETE | `/api/asistente/tarjetas/conjuntos/:id` | HU14 | Elimina un conjunto propio. |
+| PATCH | `/api/asistente/tarjetas/:id/estado` | HU14 | Registra el avance de estudio de una tarjeta. |
 | POST | `/api/asistente/plan` | HU15 | Propone plan de estudio. |
 | POST | `/api/asistente/evaluar` | HU16 | Evalúa respuestas abiertas. |
 
@@ -1087,10 +1091,79 @@ resto de endpoints de IA no la usan. Ver la sección 17.
 
 ```json
 {
-  "documento_id": 1,
-  "cantidad": 15
+  "materia_id": "3f6a1c9e-8b2d-4f5a-9c7e-1d2b3a4c5e6f",
+  "documento_id": "9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d",
+  "cantidad_tarjetas": 10
 }
 ```
+
+`materia_id` es obligatorio. `documento_id` es opcional: si se omite o es `null`,
+se usan los fragmentos de todos los documentos procesados de la materia. La
+cantidad va de 5 a 30 (por defecto `10`). Un documento ajeno responde `404` y la
+falta de material procesado responde `422`.
+
+**Respuesta `201`**
+
+```json
+{
+  "success": true,
+  "data": {
+    "id": "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d",
+    "usuario_id": "c1d2e3f4-5a6b-4c7d-8e9f-0a1b2c3d4e5f",
+    "materia_id": "3f6a1c9e-8b2d-4f5a-9c7e-1d2b3a4c5e6f",
+    "materia_nombre": "Cálculo Diferencial",
+    "documento_id": null,
+    "titulo": "Tarjetas de Cálculo Diferencial",
+    "cantidad_tarjetas": 5,
+    "cantidad_conocidas": 0,
+    "cantidad_pendientes": 5,
+    "modelo": "gemini-3.5-flash-lite",
+    "tokens_entrada": 2400,
+    "tokens_salida": 600,
+    "fecha_creacion": "2026-11-19T20:00:00.000Z",
+    "tarjetas": [
+      {
+        "id": "9b8c7d6e-5f4a-4b3c-8d2e-1f0a9b8c7d6e",
+        "conjunto_id": "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d",
+        "orden": 1,
+        "frente": "¿Qué mide la derivada?",
+        "reverso": "La tasa de cambio instantánea.",
+        "estado": "sin_revisar",
+        "fecha_actualizacion": "2026-11-19T20:00:00.000Z"
+      }
+    ]
+  }
+}
+```
+
+**`GET /api/asistente/tarjetas/conjuntos`**
+
+Acepta `limit` (1–50, por defecto 20) y `offset` (por defecto 0). Devuelve
+resúmenes sin tarjetas y `meta` con `page`, `limit`, `total` y `totalPages`.
+
+**`GET /api/asistente/tarjetas/conjuntos/:id`**
+
+Acepta `estado=todas|pendientes` (por defecto `todas`). Devuelve el conjunto
+propio con sus tarjetas ordenadas por `orden`; `pendientes` excluye las marcadas
+`conocida`. Un ID inválido responde `400`; uno ajeno o inexistente, `404`.
+
+**`PATCH /api/asistente/tarjetas/:id/estado`**
+
+```json
+{ "estado": "conocida" }
+```
+
+Estados permitidos: `sin_revisar`, `conocida` y `repaso`. Devuelve la tarjeta
+actualizada; una tarjeta ajena responde `404`.
+
+**`DELETE /api/asistente/tarjetas/conjuntos/:id`**
+
+Elimina el conjunto y sus tarjetas en cascada. Responde
+`data: { "id": "<uuid>" }`; un ID ajeno o inexistente devuelve `404`.
+
+Cuota: 10 generaciones por usuario y día, registradas en `consumo_ia` con
+`operacion = 'tarjeta'` (`429 AI_QUOTA_EXCEEDED`). La interfaz está en
+`/tarjetas-memoria`.
 
 **Body `POST /api/asistente/plan`**
 

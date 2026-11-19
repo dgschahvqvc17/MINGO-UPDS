@@ -137,6 +137,14 @@ export const routes: Routes = [
         loadComponent: () =>
           import('./features/centro-estudio/centro-estudio').then((m) => m.CentroEstudioPage),
       },
+      {
+        path: 'tarjetas-memoria',
+        title: 'Tarjetas de memoria | MINGO',
+        loadComponent: () =>
+          import('./features/tarjetas-memoria/tarjetas-memoria').then(
+            (m) => m.TarjetasMemoriaPage,
+          ),
+      },
 
       {
         path: 'asistente-ia',

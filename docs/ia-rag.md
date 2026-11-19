@@ -378,11 +378,26 @@ Agente: confirma la creación y muestra el enlace
 - UI: `/centro-estudio` permite generar, listar, resolver y revisar
   cuestionarios, con estados de carga, vacío y error.
 
-### 8.5. Flashcards (HU14)
+### 8.5. Tarjetas de memoria (HU14)
 
-- Cantidad entre 5 y 30.
-- Frente y reverso cortos.
-- Se guardan para repaso posterior.
+- Endpoints: `POST /api/asistente/tarjetas`; listado, detalle y borrado en
+  `/api/asistente/tarjetas/conjuntos`; marcas en
+  `PATCH /api/asistente/tarjetas/:id/estado`.
+- Selección: materia obligatoria y documento opcional. Sin documento se usan
+  los fragmentos de todos los documentos procesados de la materia; si no hay
+  material suficiente, `422`.
+- Cantidad entre 5 y 30 (por defecto 10). Frente y reverso cortos.
+- El prompt pide pares pregunta/respuesta basados solo en el contexto; la
+  respuesta se valida con Zod, se descarta lo duplicado o vacío y se reintenta
+  una sola vez antes de responder `503`.
+- El conjunto y sus tarjetas se persisten en `conjuntos_tarjetas` y `tarjetas`.
+  Cada tarjeta empieza en `sin_revisar` y puede marcarse `conocida` o `repaso`.
+- El filtro `estado=pendientes` devuelve las que no están `conocida`, para
+  repetir solo el material pendiente.
+- Cuota: 10 conjuntos por usuario y día, registrados en `consumo_ia` con
+  `operacion = 'tarjeta'` (`429 AI_QUOTA_EXCEEDED` al agotarla).
+- UI: `/tarjetas-memoria` permite generar, consultar el historial, estudiar,
+  marcar avance y eliminar conjuntos, con estados de carga, vacío y error.
 
 ### 8.6. Plan de estudio (HU15)
 

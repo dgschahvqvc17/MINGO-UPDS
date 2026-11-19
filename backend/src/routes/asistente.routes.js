@@ -10,6 +10,8 @@ const {
   createChatController,
   createCuestionarioService,
   createCuestionarioController,
+  createTarjetaService,
+  createTarjetaController,
 } = require('../container');
 const {
   resumenGenerarSchema,
@@ -26,6 +28,13 @@ const {
   cuestionarioListarQuerySchema,
   intentoResponderSchema,
 } = require('../models/cuestionario.model');
+const {
+  tarjetaGenerarSchema,
+  tarjetaParamSchema,
+  conjuntoListarQuerySchema,
+  conjuntoDetalleQuerySchema,
+  tarjetaEstadoSchema,
+} = require('../models/tarjeta.model');
 
 const router = Router();
 
@@ -83,6 +92,21 @@ function atenderCuestionario(accion) {
   return asyncHandler((req, res) => {
     const cuestionarioService = createCuestionarioService(req.user.id, req.accessToken);
     const controller = createCuestionarioController(cuestionarioService);
+    return controller[accion](req, res);
+  });
+}
+
+/**
+ * Construye un handler que delega en el controlador de tarjetas de memoria.
+ * El servicio se compone por peticion para usar el cliente JWT del usuario.
+ *
+ * @param {'generar' | 'listar' | 'obtener' | 'eliminar' | 'actualizarEstado'} accion
+ * @returns {import('express').RequestHandler}
+ */
+function atenderTarjeta(accion) {
+  return asyncHandler((req, res) => {
+    const tarjetaService = createTarjetaService(req.user.id, req.accessToken);
+    const controller = createTarjetaController(tarjetaService);
     return controller[accion](req, res);
   });
 }
@@ -149,7 +173,7 @@ router.delete(
   atenderChat('eliminar'),
 );
 
-// TODO Sprint 2-3 (HU14-HU16): tarjetas, planes y evaluador.
+// TODO Sprint 2-3 (HU15-HU16): planes y evaluador.
 
 /**
  * POST /asistente/cuestionario
@@ -222,6 +246,63 @@ router.post(
     body: intentoResponderSchema,
   }),
   atenderCuestionario('responder'),
+);
+
+/**
+ * POST /asistente/tarjetas
+ * Genera y guarda un conjunto de tarjetas a partir de un documento o materia.
+ */
+router.post(
+  '/tarjetas',
+  validationMiddleware({ body: tarjetaGenerarSchema }),
+  atenderTarjeta('generar'),
+);
+
+/**
+ * GET /asistente/tarjetas/conjuntos
+ * Lista los conjuntos propios paginados con su avance de estudio.
+ */
+router.get(
+  '/tarjetas/conjuntos',
+  validationMiddleware({ query: conjuntoListarQuerySchema }),
+  atenderTarjeta('listar'),
+);
+
+/**
+ * GET /asistente/tarjetas/conjuntos/:id
+ * Devuelve un conjunto propio con sus tarjetas. `estado=pendientes` excluye
+ * las ya marcadas como conocidas.
+ */
+router.get(
+  '/tarjetas/conjuntos/:id',
+  validationMiddleware({
+    params: tarjetaParamSchema,
+    query: conjuntoDetalleQuerySchema,
+  }),
+  atenderTarjeta('obtener'),
+);
+
+/**
+ * DELETE /asistente/tarjetas/conjuntos/:id
+ * Elimina un conjunto propio y, en cascada, sus tarjetas.
+ */
+router.delete(
+  '/tarjetas/conjuntos/:id',
+  validationMiddleware({ params: tarjetaParamSchema }),
+  atenderTarjeta('eliminar'),
+);
+
+/**
+ * PATCH /asistente/tarjetas/:id/estado
+ * Registra el avance de estudio de una tarjeta propia.
+ */
+router.patch(
+  '/tarjetas/:id/estado',
+  validationMiddleware({
+    params: tarjetaParamSchema,
+    body: tarjetaEstadoSchema,
+  }),
+  atenderTarjeta('actualizarEstado'),
 );
 
 module.exports = router;

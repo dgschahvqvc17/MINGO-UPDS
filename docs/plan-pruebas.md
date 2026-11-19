@@ -217,7 +217,7 @@ Reglas:
 | Documento ya resumido | Se reutiliza el resumen si no cambió. |
 | Documento de otro usuario | 404. |
 
-### 4.11. Cuestionarios, flashcards y evaluación (HU13, HU14, HU16)
+### 4.11. Cuestionarios, tarjetas de memoria y evaluación (HU13, HU14, HU16)
 
 | Caso | Resultado esperado |
 |---|---|
@@ -226,7 +226,10 @@ Reglas:
 | Preguntas objetivas | Corrección determinista correcta. |
 | Respuesta abierta | Retroalimentación con criterios. |
 | Intento guardado | Historial y puntuación correctos. |
-| Flashcards | Frente y reverso, sin texto truncado. |
+| Generar tarjetas con cantidad válida | Conjunto con frente/reverso y estado inicial `sin_revisar`. |
+| Cantidad de tarjetas fuera de rango | 400. |
+| Tarjetas con frente o reverso vacíos o duplicados | Se descartan antes de persistir. |
+| Salida del modelo con JSON inválido | Se reintenta una vez; si sigue fallando, 503. |
 | Cuestionario de otro usuario | 404. |
 | Generar sin documento con varios documentos procesados | Usa fragmentos de la materia y guarda el cuestionario. |
 | Generar sin material procesado | `422`. |
@@ -237,6 +240,12 @@ Reglas:
 | Responder dos veces el mismo intento | `409`. |
 | Respuesta de una pregunta de otro cuestionario | `400`. |
 | Cuota de cuestionarios agotada | `429` con `AI_QUOTA_EXCEEDED`. |
+| Generar tarjetas sin documento con varios documentos procesados | Usa fragmentos de la materia y guarda el conjunto. |
+| Generar tarjetas sin material procesado | `422`. |
+| Detalle o borrado de un conjunto ajeno | `404`. |
+| Marcar una tarjeta ajena | `404`. |
+| Marcar `conocida` y repetir pendientes | La tarjeta conocida no aparece en `pendientes`. |
+| Cuota de tarjetas agotada | `429` con `AI_QUOTA_EXCEEDED`. |
 
 ### 4.12. Planes y progreso (HU15, HU17)
 
@@ -324,6 +333,8 @@ Crear un documento de prueba con temas conocidos y un conjunto de preguntas con 
 | Servicios | URL y método correctos con `HttpTestingController`. |
 | Formularios | Validaciones visibles y mensajes claros. |
 | Listas | Estados de carga, vacío y error. |
+| Tarjetas de memoria | El reverso no se muestra hasta revelarlo; avanzar/retroceder lo oculta. |
+| Tarjetas de memoria | Marcar avance actualiza el progreso y «repetir pendientes» filtra las conocidas. |
 | Componentes | Renderizan datos sin errores. |
 | Accesibilidad | Navegación por teclado y `label` asociados. |
 
@@ -336,8 +347,9 @@ Flujos mínimos:
 3. Subir documento → esperar procesamiento → buscar.
 4. Preguntar al chat → recibir respuesta con cita.
 5. Generar cuestionario → responder → ver resultado.
-6. Crear plan → confirmar → ver sesiones.
-7. Administrador desactiva usuario → el usuario no puede entrar.
+6. Generar tarjetas → estudiar → marcar conocidas → repetir pendientes.
+7. Crear plan → confirmar → ver sesiones.
+8. Administrador desactiva usuario → el usuario no puede entrar.
 
 Usar Playwright con un entorno de prueba y datos semilla.
 

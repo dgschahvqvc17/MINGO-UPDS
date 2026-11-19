@@ -47,6 +47,12 @@ describe('ShellComponent', () => {
     expect(navigationPaths(shell)).toContain('/administracion');
   });
 
+  it('muestra las tarjetas de memoria en el area de aprendizaje', () => {
+    const shell = createShell('estudiante');
+
+    expect(navigationPaths(shell)).toContain('/tarjetas-memoria');
+  });
+
   it('calcula las iniciales con las dos primeras palabras del nombre', () => {
     const shell = createShell('estudiante', 'Ana Maria Perez');
 
