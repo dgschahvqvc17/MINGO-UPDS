@@ -46,6 +46,13 @@ Parameters:
       Clave service_role para el worker. Se inyecta desde el pipeline o desde
       un parametro seguro; nunca se versiona en el repositorio.
 
+  SupabaseAnonKey:
+    Type: String
+    NoEcho: true
+    Description: >
+      Clave anon de Supabase. El worker no la usa, pero la validacion de
+      configuracion del backend la exige cuando NODE_ENV=production.
+
   AiApiKey:
     Type: String
     NoEcho: true
@@ -277,13 +284,17 @@ Resources:
       Architectures: [arm64]
       MemorySize: 512
       Timeout: 300
-      ReservedConcurrentExecutions: !Ref ProcessorConcurrency
+      # La cuenta compartida no puede reservar concurrencia en dev: AWS exige
+      # dejar al menos 10 ejecuciones sin reservar y solo quedan 10. Ver
+      # docs/excepciones-aws.md (aprobada 2026-11-18, revision 2027-02-18).
+      ReservedConcurrentExecutions: !If [IsProd, !Ref ProcessorConcurrency, !Ref AWS::NoValue]
       Role: !GetAtt ProcesadorRole.Arn
       Environment:
         Variables:
           NODE_ENV: production
           SUPABASE_URL: !Ref SupabaseUrl
           SUPABASE_SERVICE_ROLE_KEY: !Ref SupabaseServiceRoleKey
+          SUPABASE_ANON_KEY: !Ref SupabaseAnonKey
           AWS_S3_BUCKET: !Ref BucketName
           AI_PROVIDER: !Ref AiProvider
           AI_API_KEY: !Ref AiApiKey

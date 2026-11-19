@@ -610,7 +610,7 @@ Retención de logs: 7 días en desarrollo, 30 días en producción.
 - [ ] Proyecto Supabase de producción creado.
 - [ ] Migraciones aplicadas y RLS verificado.
 - [ ] Bucket S3 privado con lifecycle.
-- [ ] Lambda con concurrencia reservada y sin concurrencia provisionada.
+- [ ] Lambda sin concurrencia provisionada; reservada en prod y, en dev, según `docs/excepciones-aws.md` (EXC-001).
 - [ ] API Gateway con throttling y sin caché.
 - [ ] Logs con retención configurada.
 - [ ] Frontend apuntando a la API de producción.
