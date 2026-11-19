@@ -1,0 +1,11 @@
+.centro-estudio header h1 {
+  letter-spacing: -0.01em;
+}
+
+.centro-estudio .card {
+  border-radius: 0.75rem;
+}
+
+.centro-estudio article.card {
+  background-color: var(--bs-body-bg);
+}

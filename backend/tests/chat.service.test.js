@@ -77,6 +77,13 @@ function crearServicio({
       contar: jest.fn().mockImplementation(() => Promise.resolve(consumos.shift() ?? 0)),
       registrar: jest.fn().mockResolvedValue({ id: 'consumo-id' }),
     },
+    idempotenciaRepository: {
+      limpiarAntiguas: jest.fn().mockResolvedValue(undefined),
+      reservar: jest.fn().mockResolvedValue({ id: 'reserva-1', estado: 'en_proceso' }),
+      buscar: jest.fn().mockResolvedValue(null),
+      completar: jest.fn().mockResolvedValue(undefined),
+      liberar: jest.fn().mockResolvedValue(undefined),
+    },
     embeddingsService: {
       generarEmbeddings: jest.fn().mockImplementation(() =>
         embeddingError ? Promise.reject(embeddingError) : Promise.resolve([EMBEDDING]),
@@ -330,5 +337,131 @@ describe('ChatService (HU12)', () => {
     expect(new Set(resultado.map((fragmento) => fragmento.fragmento_id)).size).toBe(
       TOP_K_BUSQUEDA,
     );
+  });
+
+  describe('Idempotency-Key', () => {
+    const CLAVE = 'chat-12345678';
+    const RESPUESTA_GUARDADA = {
+      conversacion_id: CONVERSACION_ID,
+      mensaje_id: 'mensaje-previo',
+      respuesta: 'Respuesta original.',
+      modelo: 'gpt-4o-mini',
+      referencias: [],
+      consumo: { tokens_entrada: 10, tokens_salida: 5 },
+    };
+
+    it('completa la reserva con la respuesta emitida', async () => {
+      const { servicio, dependencias } = crearServicio();
+
+      const resultado = await servicio.enviar({
+        mensaje: '¿Qué es una derivada?',
+        documentoIds: [DOCUMENTO_ID],
+        idempotencyKey: CLAVE,
+      });
+
+      expect(dependencias.idempotenciaRepository.limpiarAntiguas).toHaveBeenCalledWith(
+        USUARIO_ID,
+        '/asistente/chat',
+        expect.any(String),
+      );
+      expect(dependencias.idempotenciaRepository.reservar).toHaveBeenCalledWith({
+        usuarioId: USUARIO_ID,
+        endpoint: '/asistente/chat',
+        clave: CLAVE,
+        huella: expect.stringMatching(/^[a-f0-9]{64}$/),
+      });
+      expect(dependencias.idempotenciaRepository.completar).toHaveBeenCalledWith(
+        'reserva-1',
+        resultado,
+      );
+      expect(dependencias.idempotenciaRepository.liberar).not.toHaveBeenCalled();
+    });
+
+    it('replica la respuesta guardada sin volver a llamar al modelo', async () => {
+      const { servicio, dependencias } = crearServicio();
+      let huellaReservada;
+
+      dependencias.idempotenciaRepository.reservar.mockImplementation(({ huella }) => {
+        huellaReservada = huella;
+        return Promise.resolve(null);
+      });
+      dependencias.idempotenciaRepository.buscar.mockImplementation(() =>
+        Promise.resolve({
+          id: 'reserva-1',
+          huella: huellaReservada,
+          estado: 'completado',
+          respuesta: RESPUESTA_GUARDADA,
+        }),
+      );
+
+      const resultado = await servicio.enviar({
+        mensaje: '¿Qué es una derivada?',
+        documentoIds: [DOCUMENTO_ID],
+        idempotencyKey: CLAVE,
+      });
+
+      expect(resultado).toEqual(RESPUESTA_GUARDADA);
+      expect(huellaReservada).toMatch(/^[a-f0-9]{64}$/);
+      expect(dependencias.agenteIaService.responder).not.toHaveBeenCalled();
+      expect(dependencias.conversacionRepository.guardarMensajes).not.toHaveBeenCalled();
+      expect(dependencias.idempotenciaRepository.buscar).toHaveBeenCalledWith(
+        USUARIO_ID,
+        '/asistente/chat',
+        CLAVE,
+      );
+    });
+
+    it('rechaza la misma clave con un cuerpo distinto', async () => {
+      const { servicio, dependencias } = crearServicio();
+      dependencias.idempotenciaRepository.reservar.mockResolvedValue(null);
+      dependencias.idempotenciaRepository.buscar.mockResolvedValue({
+        id: 'reserva-1',
+        huella: 'otra-huella',
+        estado: 'completado',
+        respuesta: RESPUESTA_GUARDADA,
+      });
+
+      await expect(
+        servicio.enviar({ mensaje: 'Otra pregunta', idempotencyKey: CLAVE }),
+      ).rejects.toMatchObject({ statusCode: 409 });
+
+      expect(dependencias.agenteIaService.responder).not.toHaveBeenCalled();
+    });
+
+    it('responde 409 mientras la clave sigue en proceso', async () => {
+      const { servicio, dependencias } = crearServicio();
+      dependencias.idempotenciaRepository.reservar.mockResolvedValue(null);
+      dependencias.idempotenciaRepository.buscar.mockResolvedValue({
+        id: 'reserva-1',
+        huella: 'pendiente',
+        estado: 'en_proceso',
+        respuesta: null,
+      });
+
+      await expect(
+        servicio.enviar({ mensaje: 'Hola', idempotencyKey: CLAVE }),
+      ).rejects.toMatchObject({ statusCode: 409 });
+    });
+
+    it('libera la reserva si el modelo falla y permite reintentar', async () => {
+      const { servicio, dependencias } = crearServicio({
+        respuestaError: new AgenteIaError('El proveedor de IA no respondio a tiempo.'),
+      });
+
+      await expect(
+        servicio.enviar({ mensaje: 'Hola', idempotencyKey: CLAVE }),
+      ).rejects.toMatchObject({ statusCode: 503 });
+
+      expect(dependencias.idempotenciaRepository.liberar).toHaveBeenCalledWith('reserva-1');
+      expect(dependencias.idempotenciaRepository.completar).not.toHaveBeenCalled();
+    });
+
+    it('no toca la idempotencia cuando no llega la cabecera', async () => {
+      const { servicio, dependencias } = crearServicio();
+
+      await servicio.enviar({ mensaje: 'Hola' });
+
+      expect(dependencias.idempotenciaRepository.reservar).not.toHaveBeenCalled();
+    });
   });
 });

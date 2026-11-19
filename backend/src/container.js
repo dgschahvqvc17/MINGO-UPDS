@@ -11,6 +11,8 @@ const DocumentoRepository = require('./repositories/documento.repository');
 const FragmentoRepository = require('./repositories/fragmento.repository');
 const ResumenRepository = require('./repositories/resumen.repository');
 const ConversacionRepository = require('./repositories/conversacion.repository');
+const CuestionarioRepository = require('./repositories/cuestionario.repository');
+const IdempotenciaRepository = require('./repositories/idempotencia.repository');
 const ConsumoIaRepository = require('./repositories/consumo-ia.repository');
 const AlmacenamientoRepository = require('./repositories/almacenamiento.repository');
 const ColaRepository = require('./repositories/cola.repository');
@@ -28,6 +30,8 @@ const ResumenIaService = require('./services/ia/resumen.ia.service');
 const AgenteIaService = require('./services/ia/agente.service');
 const ResumenService = require('./services/resumen.service');
 const ChatService = require('./services/chat.service');
+const CuestionarioService = require('./services/cuestionario.service');
+const CuestionarioIaService = require('./services/ia/cuestionario.ia.service');
 const AuthController = require('./controllers/auth.controller');
 const UsuarioAdminController = require('./controllers/usuario-admin.controller');
 const MateriaController = require('./controllers/materia.controller');
@@ -38,11 +42,13 @@ const DocumentoController = require('./controllers/documento.controller');
 const BusquedaController = require('./controllers/busqueda.controller');
 const ResumenController = require('./controllers/resumen.controller');
 const ChatController = require('./controllers/chat.controller');
+const CuestionarioController = require('./controllers/cuestionario.controller');
 const { s3Client, sqsClient } = require('./config/aws');
 
 // Clientes de IA compartidos: no guardan estado por petición.
 const embeddingsServiceCompartido = new EmbeddingsService();
 const agenteIaServiceCompartido = new AgenteIaService();
+const cuestionarioIaServiceCompartido = new CuestionarioIaService();
 const {
   createSupabaseClient,
   createSupabaseServiceRoleClient,
@@ -256,6 +262,7 @@ function createChatService(usuarioActualId, accessToken) {
     materiaRepository: new MateriaRepository({ supabase: supabaseClient }),
     fragmentoRepository: new FragmentoRepository({ supabase: supabaseClient }),
     consumoRepository: new ConsumoIaRepository({ supabase: supabaseClient }),
+    idempotenciaRepository: new IdempotenciaRepository({ supabase: supabaseClient }),
     embeddingsService: embeddingsServiceCompartido,
     agenteIaService: agenteIaServiceCompartido,
     usuarioActualId,
@@ -264,6 +271,33 @@ function createChatService(usuarioActualId, accessToken) {
 
 function createChatController(chatService) {
   return new ChatController({ chatService });
+}
+
+/**
+ * Crea el servicio de cuestionarios de HU13.
+ * Usa el cliente del usuario: materias, documentos, fragmentos, cuestionarios,
+ * intentos y consumo quedan limitados por RLS. Reutiliza el cliente de IA.
+ *
+ * @param {string} usuarioActualId - ID del usuario autenticado.
+ * @param {string} accessToken - JWT del usuario autenticado.
+ * @returns {CuestionarioService}
+ */
+function createCuestionarioService(usuarioActualId, accessToken) {
+  const supabaseClient = createSupabaseClient(accessToken);
+
+  return new CuestionarioService({
+    materiaRepository: new MateriaRepository({ supabase: supabaseClient }),
+    documentoRepository: new DocumentoRepository({ supabase: supabaseClient }),
+    fragmentoRepository: new FragmentoRepository({ supabase: supabaseClient }),
+    cuestionarioRepository: new CuestionarioRepository({ supabase: supabaseClient }),
+    consumoRepository: new ConsumoIaRepository({ supabase: supabaseClient }),
+    iaService: cuestionarioIaServiceCompartido,
+    usuarioActualId,
+  });
+}
+
+function createCuestionarioController(cuestionarioService) {
+  return new CuestionarioController({ cuestionarioService });
 }
 
 /**
@@ -302,6 +336,7 @@ module.exports = {
   createBusquedaService,
   createResumenService,
   createChatService,
+  createCuestionarioService,
   createProcesamientoService,
   createTareaController,
   createCalendarioController,
@@ -310,6 +345,7 @@ module.exports = {
   createBusquedaController,
   createResumenController,
   createChatController,
+  createCuestionarioController,
   authController,
   usuarioAdminController: new UsuarioAdminController(),
   materiaController: new MateriaController(),

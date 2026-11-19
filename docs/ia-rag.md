@@ -314,6 +314,12 @@ Agente: confirma la creación y muestra el enlace
 - Historial y borrado: `GET/DELETE /api/asistente/conversaciones/:id`. Un recurso
   ajeno responde `404` para no revelar su existencia.
 - Cuota: 30 mensajes/hora y 200/día por usuario, con `429 AI_QUOTA_EXCEEDED`.
+- `POST /api/asistente/chat` acepta la cabecera opcional `Idempotency-Key`: la
+  reserva se guarda en `solicitudes_idempotentes` con una huella SHA-256 del
+  cuerpo. Un reintento con la misma clave y el mismo cuerpo devuelve la
+  respuesta original sin llamar a la IA; otra huella o una clave en proceso
+  responde `409`. Si el envío falla, la reserva se libera. Las claves se purgan
+  después de 24 horas (ver `docs/api.md` §17).
 - UI: `/asistente-ia` → pestaña "Chat con mis documentos", con conversaciones,
   nuevas conversaciones, selección de documentos y citas por página. Sin
   `innerHTML`; estados de carga, vacío y error en todas las listas.
@@ -349,10 +355,28 @@ Agente: confirma la creación y muestra el enlace
 
 ### 8.4. Cuestionarios (HU13)
 
-- Cantidad entre 5 y 20.
-- Tipos: opción múltiple, verdadero/falso, respuesta abierta.
-- Cada pregunta incluye explicación y respuesta correcta.
-- El backend valida el esquema de salida; si el modelo devuelve JSON inválido, se descarta y se informa.
+- Endpoint: `POST /api/asistente/cuestionario`; listado, detalle, borrado e
+  intentos en `/api/asistente/cuestionarios` y `/api/asistente/intentos`.
+- Selección: materia obligatoria y documento opcional. Sin documento se usan
+  los fragmentos de todos los documentos procesados de la materia; si no hay
+  material suficiente, `422`.
+- Cantidad entre 5 y 20 (por defecto 10).
+- Tipos: `opcion_multiple`, `verdadero_falso` y `abierta`, sin repetir; por
+  defecto los tres.
+- Dificultad: `basica`, `intermedia` o `avanzada`.
+- Cada pregunta incluye `respuesta_correcta` y `explicacion`, pero no se
+  exponen al cliente hasta finalizar el intento.
+- El backend valida el esquema de salida; si el modelo devuelve JSON inválido o
+  menos preguntas de las pedidas, se descarta y se responde `422`.
+- Corrección de preguntas objetivas determinista, comparando el texto
+  normalizado con `respuesta_correcta`. Las abiertas quedan con
+  `es_correcta: null` hasta HU16.
+- `puntuacion` es el porcentaje de aciertos sobre las preguntas objetivas y es
+  `null` cuando no hay objetivas o el intento sigue en progreso.
+- Cuota: 10 cuestionarios por usuario y día, registrados en `consumo_ia` con
+  `operacion = 'cuestionario'` (`429 AI_QUOTA_EXCEEDED` al agotarla).
+- UI: `/centro-estudio` permite generar, listar, resolver y revisar
+  cuestionarios, con estados de carga, vacío y error.
 
 ### 8.5. Flashcards (HU14)
 

@@ -782,7 +782,13 @@ GET /api/documentos/buscar?q=derivadas%20de%20funciones&materia_id=6d1c2a53-4f7e
 | DELETE | `/api/asistente/conversaciones/:id` | HU12 | Elimina una conversación. |
 | POST | `/api/asistente/resumen` | HU10 | Genera resumen de un documento. |
 | GET | `/api/asistente/resumen/:documento_id` | HU10 | Recupera el último resumen guardado del documento. |
-| POST | `/api/asistente/cuestionario` | HU13 | Genera cuestionario. |
+| POST | `/api/asistente/cuestionario` | HU13 | Genera y guarda un cuestionario. |
+| GET | `/api/asistente/cuestionarios` | HU13 | Lista los cuestionarios propios. |
+| GET | `/api/asistente/cuestionarios/:id` | HU13 | Detalle con preguntas e intentos. |
+| DELETE | `/api/asistente/cuestionarios/:id` | HU13 | Elimina un cuestionario propio. |
+| POST | `/api/asistente/cuestionarios/:id/intentos` | HU13 | Inicia un intento del cuestionario. |
+| GET | `/api/asistente/intentos/:id` | HU13 | Devuelve el intento con sus respuestas. |
+| POST | `/api/asistente/intentos/:id/responder` | HU13 | Registra respuestas y finaliza el intento. |
 | POST | `/api/asistente/tarjetas` | HU14 | Genera flashcards. |
 | POST | `/api/asistente/plan` | HU15 | Propone plan de estudio. |
 | POST | `/api/asistente/evaluar` | HU16 | Evalúa respuestas abiertas. |
@@ -801,6 +807,12 @@ GET /api/documentos/buscar?q=derivadas%20de%20funciones&materia_id=6d1c2a53-4f7e
 
 `conversacion_id` y `materia_id` son UUID o `null`; `documento_ids` es una lista
 de como máximo 5 UUID. `usar_documentos` vale `true` por defecto.
+
+La cabecera opcional `Idempotency-Key` permite reintentar la misma solicitud sin
+crear turnos duplicados. Si se envía, debe tener entre 8 y 100 caracteres y solo
+admite letras, números y `. _ : -`. Un reintento con la misma clave y el mismo
+cuerpo devuelve la respuesta original; la misma clave con otro cuerpo responde
+`409`. Ver la sección 17.
 
 **Respuesta `200`**
 
@@ -921,15 +933,155 @@ identificadores de documento son UUID.
 
 ```json
 {
-  "materia_id": 1,
+  "materia_id": "3f6a1c9e-8b2d-4f5a-9c7e-1d2b3a4c5e6f",
   "documento_id": null,
   "cantidad_preguntas": 10,
   "dificultad": "intermedia",
-  "tipos": ["opcion_multiple", "verdadero_falso"]
+  "tipos": ["opcion_multiple", "verdadero_falso", "abierta"]
 }
 ```
 
-Límites: 5–20 preguntas, 2–4 opciones por pregunta.
+- `materia_id`: UUID obligatorio y propio del usuario.
+- `documento_id`: UUID opcional. Si se omite, se usan los fragmentos de todos
+  los documentos procesados de la materia; si no hay material, responde `422`.
+- `cantidad_preguntas`: 5–20 (por defecto 10).
+- `dificultad`: `basica` \| `intermedia` \| `avanzada` (por defecto `intermedia`).
+- `tipos`: 1–3 valores entre `opcion_multiple`, `verdadero_falso` y `abierta`,
+  sin repetir (por defecto los tres).
+
+La generación se apoya en los fragmentos de los documentos procesados del
+usuario, aplica cuota de 10 cuestionarios por día y registra el consumo en
+`consumo_ia` con `operacion = 'cuestionario'`. Si se agota: `429` con
+`error.details.code = "AI_QUOTA_EXCEEDED"`. Un fallo del proveedor responde
+`503` y un cuestionario inválido descartado por el modelo, `422`.
+
+**Respuesta `201`**
+
+```json
+{
+  "success": true,
+  "data": {
+    "id": "8a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d",
+    "usuario_id": "c1d2e3f4-5a6b-4c7d-8e9f-0a1b2c3d4e5f",
+    "materia_id": "3f6a1c9e-8b2d-4f5a-9c7e-1d2b3a4c5e6f",
+    "materia_nombre": "Cálculo Diferencial",
+    "documento_id": null,
+    "titulo": "Cuestionario de Cálculo Diferencial",
+    "dificultad": "intermedia",
+    "cantidad_preguntas": 10,
+    "tipos": ["opcion_multiple", "abierta"],
+    "modelo": "gemini-3.5-flash-lite",
+    "tokens_entrada": 2400,
+    "tokens_salida": 900,
+    "fecha_creacion": "2026-11-19T18:30:00.000Z",
+    "preguntas": [
+      {
+        "id": "9b8c7d6e-5f4a-4b3c-8d2e-1f0a9b8c7d6e",
+        "cuestionario_id": "8a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d",
+        "orden": 1,
+        "enunciado": "¿Qué mide la derivada de una función?",
+        "tipo_pregunta": "opcion_multiple",
+        "opciones": [
+          { "id": "a1b2...", "contenido": "La tasa de cambio instantánea.", "orden": 1 },
+          { "id": "b2c3...", "contenido": "El área bajo la curva.", "orden": 2 }
+        ],
+        "respuesta_usuario": null,
+        "es_correcta": null
+      }
+    ]
+  }
+}
+```
+
+`respuesta_correcta`, `es_correcta` y `explicacion` no se exponen al generar ni
+al consultar un cuestionario: solo aparecen en el resultado cuando el intento
+está `finalizado`.
+
+**`GET /api/asistente/cuestionarios`**
+
+Acepta `limit` (1–50, por defecto 20) y `offset` (por defecto 0). Devuelve
+`data` con el resumen de cada cuestionario (sin preguntas) y `meta` con `page`,
+`limit`, `total` y `totalPages`.
+
+**`GET /api/asistente/cuestionarios/:id`**
+
+Devuelve el cuestionario propio con `preguntas`, sus `opciones` y el historial
+de `intentos`. Un ID inválido responde `400`; uno ajeno o inexistente, `404`.
+
+**`DELETE /api/asistente/cuestionarios/:id`**
+
+Elimina el cuestionario propio y, en cascada, sus preguntas, opciones, intentos
+y respuestas. Responde `data: { "id": "<uuid>" }`; un ID ajeno o inexistente
+devuelve `404`.
+
+**`POST /api/asistente/cuestionarios/:id/intentos`**
+
+Crea un intento en estado `en_progreso` y devuelve `intento` y `cuestionario`
+con sus preguntas, sin revelar la corrección. Un cuestionario sin preguntas
+responde `422`.
+
+**`GET /api/asistente/intentos/:id`**
+
+Devuelve `intento`, `cuestionario` y `preguntas`. Mientras el intento sigue
+`en_progreso` no se revelan `respuesta_correcta`, `explicacion` ni
+`es_correcta`; al estar `finalizado` sí. Un intento ajeno responde `404`.
+
+**Body `POST /api/asistente/intentos/:id/responder`**
+
+```json
+{
+  "respuestas": [
+    { "pregunta_id": "9b8c7d6e-5f4a-4b3c-8d2e-1f0a9b8c7d6e", "respuesta": "La tasa de cambio instantánea." }
+  ]
+}
+```
+
+Registra las respuestas, corrige de forma determinista las preguntas objetivas
+(comparando el texto normalizado con `respuesta_correcta`) y finaliza el
+intento. Las preguntas `abierta` quedan con `es_correcta: null` hasta la
+evaluación de HU16. La `puntuacion` es el porcentaje de aciertos sobre las
+preguntas objetivas y es `null` si no hay objetivas. Un intento ya finalizado
+responde `409`; una pregunta que no pertenece al cuestionario, `400`.
+
+**Respuesta `200` de `responder` y `GET /intentos/:id` (finalizado)**
+
+```json
+{
+  "success": true,
+  "data": {
+    "intento": {
+      "id": "d4e5f6a7-b8c9-4d0e-8f1a-2b3c4d5e6f7a",
+      "estado": "finalizado",
+      "total_preguntas": 10,
+      "preguntas_objetivas": 7,
+      "respuestas_correctas": 5,
+      "puntuacion": 71.43,
+      "fecha_inicio": "2026-11-19T19:00:00.000Z",
+      "fecha_finalizacion": "2026-11-19T19:12:00.000Z"
+    },
+    "cuestionario": { "id": "8a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d", "titulo": "Cuestionario de Cálculo Diferencial" },
+    "preguntas": [
+      {
+        "id": "9b8c7d6e-5f4a-4b3c-8d2e-1f0a9b8c7d6e",
+        "tipo_pregunta": "opcion_multiple",
+        "enunciado": "¿Qué mide la derivada de una función?",
+        "opciones": [
+          { "id": "a1b2...", "contenido": "La tasa de cambio instantánea.", "es_correcta": true }
+        ],
+        "respuesta_usuario": "La tasa de cambio instantánea.",
+        "es_correcta": true,
+        "respuesta_correcta": "La tasa de cambio instantánea.",
+        "explicacion": "La derivada describe cómo cambia la función en un punto."
+      }
+    ]
+  }
+}
+```
+
+**Notas de idempotencia**
+
+`POST /api/asistente/chat` acepta la cabecera opcional `Idempotency-Key`; el
+resto de endpoints de IA no la usan. Ver la sección 17.
 
 **Body `POST /api/asistente/tarjetas`**
 
@@ -1096,7 +1248,28 @@ GET /api/tareas?estado=pendiente&prioridad=alta&sort=fecha_entrega&order=asc&lim
 ## 17. Idempotencia
 
 - `POST /api/documentos/:id/procesar` no es idempotente: cada llamada aceptada encola un trabajo nuevo y responde `202`. Mientras el documento está `en_cola` o `procesando` responde `409` y no duplica el trabajo. Un documento ya `procesado` se puede reprocesar y vuelve a `en_cola`.
-- `POST /api/asistente/chat` **aún no** implementa `Idempotency-Key`; los reintentos del cliente pueden crear turnos duplicados. El frontend deshabilita el botón de envío mientras la petición está en curso para mitigarlo. Queda pendiente para una entrega posterior.
+- `POST /api/asistente/chat` acepta la cabecera opcional `Idempotency-Key`. La
+  cabecera no es obligatoria: sin ella el comportamiento es el anterior.
+- La clave se guarda por usuario y endpoint en `solicitudes_idempotentes` con la
+  huella SHA-256 del cuerpo normalizado (`conversacion_id`, `mensaje`,
+  `materia_id`, `documento_ids` y `usar_documentos`).
+- Comportamiento:
+  - Primera solicitud: se reserva la clave, se procesa el mensaje y se guarda la
+    respuesta `200` con estado `completado`.
+  - Reintento con la misma clave y la misma huella: se replica la respuesta
+    guardada sin llamar a la IA ni crear turnos nuevos.
+  - Misma clave con otra huella: `409`.
+  - Misma clave mientras la primera solicitud sigue en curso: `409` con un
+    mensaje para esperar la respuesta.
+  - Si el procesamiento falla, la reserva se libera y el cliente puede
+    reintentar con la misma clave.
+- Validación: 8–100 caracteres y solo letras, números y `. _ : -`. Una clave
+  inválida responde `400` con `error.details.source = "headers"`.
+- Las claves se purgan de forma oportunista después de 24 horas, en la siguiente
+  solicitud del mismo usuario al endpoint.
+- El frontend genera una clave por mensaje y la reutiliza mientras el envío
+  permanezca pendiente; si cambia el contenido, genera una clave nueva.
+- DDL: `supabase/migrations/0011_hu12_idempotencia_chat.sql` (idempotente).
 
 ## 18. Rate limiting
 

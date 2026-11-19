@@ -130,13 +130,16 @@ describe('ChatComponent (HU12)', () => {
     componente.enviar();
     fixture.detectChanges();
 
-    expect(enviar).toHaveBeenCalledWith({
-      conversacion_id: null,
-      mensaje: '¿Qué es una derivada?',
-      materia_id: null,
-      documento_ids: [DOCUMENTO_ID],
-      usar_documentos: false,
-    });
+    expect(enviar).toHaveBeenCalledWith(
+      {
+        conversacion_id: null,
+        mensaje: '¿Qué es una derivada?',
+        materia_id: null,
+        documento_ids: [DOCUMENTO_ID],
+        usar_documentos: false,
+      },
+      expect.any(String),
+    );
     expect(obtener).toHaveBeenCalledWith(CONVERSACION_ID);
   });
 
@@ -151,6 +154,7 @@ describe('ChatComponent (HU12)', () => {
     expect(evento.defaultPrevented).toBe(true);
     expect(enviar).toHaveBeenCalledWith(
       expect.objectContaining({ mensaje: '¿Qué es una derivada?' }),
+      expect.any(String),
     );
   });
 
@@ -164,6 +168,33 @@ describe('ChatComponent (HU12)', () => {
     expect(componente.errorEnvio()).toContain('No se pudo enviar el mensaje.');
     expect(componente.mensajeControl.value).toBe('¿Qué es una derivada?');
     expect(componente.enviando()).toBe(false);
+  });
+
+  it('reutiliza la Idempotency-Key al reintentar la misma solicitud', () => {
+    enviar
+      .mockReturnValueOnce(throwError(() => ({})))
+      .mockReturnValueOnce(of(respuesta));
+    componente.mensajeControl.setValue('¿Qué es una derivada?');
+
+    componente.enviar();
+    const claveDelPrimerIntento = enviar.mock.calls[0][1];
+    componente.enviar();
+
+    expect(claveDelPrimerIntento).toEqual(expect.any(String));
+    expect(enviar.mock.calls[1][1]).toBe(claveDelPrimerIntento);
+  });
+
+  it('genera una clave nueva cuando cambia el contenido del mensaje', () => {
+    enviar
+      .mockReturnValueOnce(throwError(() => ({})))
+      .mockReturnValueOnce(throwError(() => ({})));
+    componente.mensajeControl.setValue('¿Qué es una derivada?');
+    componente.enviar();
+
+    componente.mensajeControl.setValue('¿Qué es una integral?');
+    componente.enviar();
+
+    expect(enviar.mock.calls[0][1]).not.toBe(enviar.mock.calls[1][1]);
   });
 
   it('inicia una conversacion nueva sin historial', () => {

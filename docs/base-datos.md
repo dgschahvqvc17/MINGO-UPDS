@@ -81,6 +81,12 @@ erDiagram
     documentos ||--o{ cuestionarios : basa_en
     cuestionarios ||--o{ preguntas : compone
     preguntas ||--o{ opciones_pregunta : ofrece
+    cuestionarios ||--o{ intentos_cuestionario : evalua
+    perfiles ||--o{ intentos_cuestionario : realiza
+    intentos_cuestionario ||--o{ respuestas_usuario : contiene
+    preguntas ||--o{ respuestas_usuario : responde
+
+    perfiles ||--o{ solicitudes_idempotentes : registra
 
     perfiles {
         uuid id PK
@@ -201,27 +207,67 @@ erDiagram
     }
 
     cuestionarios {
-        serial id PK
+        uuid id PK
         uuid usuario_id FK
-        int materia_id FK
-        int documento_id FK
+        uuid materia_id FK
+        uuid documento_id FK
         varchar titulo
+        varchar dificultad
+        int cantidad_preguntas
+        jsonb tipos
+        varchar modelo
         timestamp fecha_creacion
     }
 
     preguntas {
-        serial id PK
-        int cuestionario_id FK
+        uuid id PK
+        uuid cuestionario_id FK
+        int orden
         text enunciado
         varchar tipo_pregunta
         text respuesta_correcta
+        text explicacion
     }
 
     opciones_pregunta {
-        serial id PK
-        int pregunta_id FK
+        uuid id PK
+        uuid pregunta_id FK
+        int orden
         text contenido
         boolean es_correcta
+    }
+
+    intentos_cuestionario {
+        uuid id PK
+        uuid usuario_id FK
+        uuid cuestionario_id FK
+        varchar estado
+        int total_preguntas
+        int preguntas_objetivas
+        int respuestas_correctas
+        numeric puntuacion
+        timestamp fecha_inicio
+        timestamp fecha_finalizacion
+    }
+
+    respuestas_usuario {
+        uuid id PK
+        uuid intento_id FK
+        uuid pregunta_id FK
+        text respuesta
+        boolean es_correcta
+        timestamp fecha_creacion
+    }
+
+    solicitudes_idempotentes {
+        uuid id PK
+        uuid usuario_id FK
+        varchar endpoint
+        varchar clave
+        varchar huella
+        varchar estado
+        jsonb respuesta
+        timestamp fecha_creacion
     }
 ```
 
@@ -490,16 +536,29 @@ Regla: el documento y el fragmento deben pertenecer al mismo usuario de la conve
 
 ### 3.13. `cuestionarios`
 
-Cuestionarios generados o registrados por el estudiante.
+Cuestionarios generados por IA a partir del material del estudiante (HU13).
 
 | Campo | Tipo | Nulo | Clave | Descripción |
 |---|---|---|:---:|---|
-| `id` | `SERIAL` | No | PK | Identificador del cuestionario. |
+| `id` | `UUID` | No | PK | Identificador del cuestionario (`gen_random_uuid()`). |
 | `usuario_id` | `UUID` | No | FK → `perfiles.id` | Propietario. |
 | `materia_id` | `UUID` | No | FK → `materias.id` | Materia relacionada. |
-| `documento_id` | `INT` | No | FK → `documentos.id` | Documento base. |
-| `titulo` | `VARCHAR` | No | | Título del cuestionario. |
-| `fecha_creacion` | `TIMESTAMP` | No | | Fecha de creación. |
+| `documento_id` | `UUID` | Sí | FK → `documentos.id` | Documento base; `NULL` si se generó con toda la materia. |
+| `titulo` | `VARCHAR(200)` | No | | Título del cuestionario. |
+| `dificultad` | `VARCHAR(20)` | No | | `basica`, `intermedia` o `avanzada`. |
+| `cantidad_preguntas` | `INTEGER` | No | | Cantidad solicitada (5–20). |
+| `tipos` | `JSONB` | No | | Arreglo con los tipos de pregunta pedidos. |
+| `modelo` | `VARCHAR(100)` | No | | Modelo que generó el cuestionario. |
+| `tokens_entrada` | `INTEGER` | No | | Tokens enviados al proveedor. |
+| `tokens_salida` | `INTEGER` | No | | Tokens devueltos por el proveedor. |
+| `fecha_creacion` | `TIMESTAMPTZ` | No | | Fecha de generación. |
+
+Reglas:
+
+- La propiedad de la materia y del documento se valida en el servicio; un
+  recurso ajeno responde `404`.
+- Al borrar el documento, el cuestionario se conserva con `documento_id = NULL`.
+- DDL: `supabase/migrations/0010_hu13_cuestionarios.sql` (idempotente).
 
 ### 3.14. `preguntas`
 
@@ -507,11 +566,14 @@ Preguntas de un cuestionario.
 
 | Campo | Tipo | Nulo | Clave | Descripción |
 |---|---|---|:---:|---|
-| `id` | `SERIAL` | No | PK | Identificador de la pregunta. |
-| `cuestionario_id` | `INT` | No | FK → `cuestionarios.id` | Cuestionario al que pertenece. |
+| `id` | `UUID` | No | PK | Identificador de la pregunta (`gen_random_uuid()`). |
+| `cuestionario_id` | `UUID` | No | FK → `cuestionarios.id` | Cuestionario al que pertenece. |
+| `orden` | `INTEGER` | No | Única por cuestionario | Posición de la pregunta (≥ 1). |
 | `enunciado` | `TEXT` | No | | Texto de la pregunta. |
-| `tipo_pregunta` | `VARCHAR` | No | | `opcion_multiple`, `verdadero_falso` o `abierta`. |
-| `respuesta_correcta` | `TEXT` | Sí | | Respuesta esperada. |
+| `tipo_pregunta` | `VARCHAR(30)` | No | | `opcion_multiple`, `verdadero_falso` o `abierta`. |
+| `respuesta_correcta` | `TEXT` | No | | Respuesta esperada. |
+| `explicacion` | `TEXT` | No | | Justificación que se revela al finalizar el intento. |
+| `fecha_creacion` | `TIMESTAMPTZ` | No | | Fecha de creación. |
 
 ### 3.15. `opciones_pregunta`
 
@@ -519,8 +581,9 @@ Opciones de las preguntas de selección.
 
 | Campo | Tipo | Nulo | Clave | Descripción |
 |---|---|---|:---:|---|
-| `id` | `SERIAL` | No | PK | Identificador de la opción. |
-| `pregunta_id` | `INT` | No | FK → `preguntas.id` | Pregunta a la que pertenece. |
+| `id` | `UUID` | No | PK | Identificador de la opción (`gen_random_uuid()`). |
+| `pregunta_id` | `UUID` | No | FK → `preguntas.id` | Pregunta a la que pertenece. |
+| `orden` | `INTEGER` | No | Única por pregunta | Posición de la opción (≥ 1). |
 | `contenido` | `TEXT` | No | | Texto de la opción. |
 | `es_correcta` | `BOOLEAN` | No | | Indica si es la respuesta correcta. |
 
@@ -563,7 +626,7 @@ Registro de operaciones de IA por usuario, usado para cuotas y control de costos
 |---|---|---|:---:|---|
 | `id` | `UUID` | No | PK | Identificador del registro (`gen_random_uuid()`). |
 | `usuario_id` | `UUID` | No | FK → `perfiles.id` | Usuario que consumió la operación. |
-| `operacion` | `VARCHAR(30)` | No | | `resumen`, `chat`, etc. |
+| `operacion` | `VARCHAR(30)` | No | | `resumen`, `chat`, `busqueda`, `cuestionario`, etc. |
 | `modelo` | `VARCHAR(100)` | No | | Modelo utilizado. |
 | `tokens_entrada` | `INTEGER` | No | | Tokens de entrada. |
 | `tokens_salida` | `INTEGER` | No | | Tokens de salida. |
@@ -574,9 +637,80 @@ Reglas:
 
 - Cuota de resúmenes: 20 por usuario y día, contando registros `operacion = 'resumen'`
   desde el inicio del día en UTC.
+- Cuota de cuestionarios: 10 por usuario y día, contando registros
+  `operacion = 'cuestionario'`.
 - Los aciertos de caché no registran consumo porque no llaman a la IA.
 - El usuario autenticado solo puede leer e insertar sus propios registros (RLS).
 - DDL: `supabase/migrations/0007_hu10_resumenes.sql` (idempotente).
+
+### 3.18. `intentos_cuestionario`
+
+Intentos de resolución de un cuestionario (HU13).
+
+| Campo | Tipo | Nulo | Clave | Descripción |
+|---|---|---|---|---|
+| `id` | `UUID` | No | PK | Identificador del intento (`gen_random_uuid()`). |
+| `usuario_id` | `UUID` | No | FK → `perfiles.id` | Usuario que resuelve. |
+| `cuestionario_id` | `UUID` | No | FK → `cuestionarios.id` | Cuestionario resuelto. |
+| `estado` | `VARCHAR(20)` | No | | `en_progreso` o `finalizado`. |
+| `total_preguntas` | `INTEGER` | No | | Preguntas del cuestionario (1–20). |
+| `preguntas_objetivas` | `INTEGER` | No | | Preguntas corregibles de forma determinista. |
+| `respuestas_correctas` | `INTEGER` | No | | Aciertos en preguntas objetivas. |
+| `puntuacion` | `NUMERIC(5,2)` | Sí | | Porcentaje de aciertos (0–100); `NULL` si no hay objetivas o sigue en progreso. |
+| `fecha_inicio` | `TIMESTAMPTZ` | No | | Inicio del intento. |
+| `fecha_finalizacion` | `TIMESTAMPTZ` | Sí | | Cierre del intento. |
+
+Reglas:
+
+- Un intento `finalizado` no admite más respuestas: responde `409`.
+- `puntuacion` se calcula sobre las preguntas objetivas; las abiertas quedan
+  pendientes hasta HU16.
+- DDL: `supabase/migrations/0010_hu13_cuestionarios.sql` (idempotente).
+
+### 3.19. `respuestas_usuario`
+
+Respuestas registradas en un intento.
+
+| Campo | Tipo | Nulo | Clave | Descripción |
+|---|---|---|---|---|
+| `id` | `UUID` | No | PK | Identificador de la respuesta (`gen_random_uuid()`). |
+| `intento_id` | `UUID` | No | FK → `intentos_cuestionario.id` | Intento al que pertenece. |
+| `pregunta_id` | `UUID` | No | FK → `preguntas.id` | Pregunta respondida. |
+| `respuesta` | `TEXT` | No | | Texto enviado por el estudiante. |
+| `es_correcta` | `BOOLEAN` | Sí | | Resultado de la corrección; `NULL` en preguntas abiertas. |
+| `fecha_creacion` | `TIMESTAMPTZ` | No | | Fecha de registro. |
+
+Reglas:
+
+- `(intento_id, pregunta_id)` es único: no se responde dos veces la misma pregunta.
+- Las preguntas objetivas se corrigen comparando el texto normalizado con
+  `preguntas.respuesta_correcta`.
+- DDL: `supabase/migrations/0010_hu13_cuestionarios.sql` (idempotente).
+
+### 3.20. `solicitudes_idempotentes`
+
+Claves `Idempotency-Key` de los endpoints de IA que permiten reintentos seguros
+(HU12).
+
+| Campo | Tipo | Nulo | Clave | Descripción |
+|---|---|---|---|---|
+| `id` | `UUID` | No | PK | Identificador de la reserva (`gen_random_uuid()`). |
+| `usuario_id` | `UUID` | No | FK → `perfiles.id` | Propietario de la clave. |
+| `endpoint` | `VARCHAR(120)` | No | Única por usuario | Endpoint, por ejemplo `/asistente/chat`. |
+| `clave` | `VARCHAR(100)` | No | Única por usuario | Valor de la cabecera. |
+| `huella` | `VARCHAR(64)` | No | | SHA-256 del cuerpo normalizado. |
+| `estado` | `VARCHAR(20)` | No | | `en_proceso` o `completado`. |
+| `respuesta` | `JSONB` | Sí | | Respuesta original; obligatoria al completar. |
+| `fecha_creacion` | `TIMESTAMPTZ` | No | | Fecha de la reserva. |
+| `fecha_actualizacion` | `TIMESTAMPTZ` | No | | Última actualización. |
+
+Reglas:
+
+- `(usuario_id, endpoint, clave)` es único.
+- Una clave reutilizada con otra huella o mientras sigue `en_proceso` responde
+  `409`.
+- Las claves se purgan de forma oportunista después de 24 horas.
+- DDL: `supabase/migrations/0011_hu12_idempotencia_chat.sql` (idempotente).
 
 ## 4. Relaciones e integridad
 
@@ -601,10 +735,15 @@ Reglas:
 | `fragmentos_documento` → `referencias_respuesta` | 1:N | `ON DELETE CASCADE` |
 | `documentos` → `referencias_respuesta` | 1:N | `ON DELETE CASCADE` |
 | `perfiles` → `cuestionarios` | 1:N | `ON DELETE CASCADE` |
-| `materias` → `cuestionarios` | 1:N | `ON DELETE SET NULL` |
+| `materias` → `cuestionarios` | 1:N | `ON DELETE CASCADE` |
 | `documentos` → `cuestionarios` | 1:N | `ON DELETE SET NULL` |
 | `cuestionarios` → `preguntas` | 1:N | `ON DELETE CASCADE` |
 | `preguntas` → `opciones_pregunta` | 1:N | `ON DELETE CASCADE` |
+| `perfiles` → `intentos_cuestionario` | 1:N | `ON DELETE CASCADE` |
+| `cuestionarios` → `intentos_cuestionario` | 1:N | `ON DELETE CASCADE` |
+| `intentos_cuestionario` → `respuestas_usuario` | 1:N | `ON DELETE CASCADE` |
+| `preguntas` → `respuestas_usuario` | 1:N | `ON DELETE CASCADE` |
+| `perfiles` → `solicitudes_idempotentes` | 1:N | `ON DELETE CASCADE` |
 
 > El diagrama marca `materia_id` y `tarea_id` en `eventos_calendario`, y `materia_id`/`documento_id` en `cuestionarios`, como obligatorios. Para el funcionamiento real se recomienda permitir `NULL` en las relaciones opcionales (ver sección 10).
 
@@ -1102,16 +1241,19 @@ El diagrama actual cubre el núcleo académico, documental, de IA y de evaluaci�
 | `unidades` y `unidad_id` en `tareas`/`documentos` | HU03, HU04, HU07 | Organización por unidades dentro de una materia. |
 | `planes_estudio` | HU15 | Planes de estudio. |
 | `sesiones_estudio` | HU15 | Sesiones del plan. |
-| `intentos_cuestionario` | HU13, HU16 | Intentos y puntuación. |
-| `respuestas_usuario` | HU13, HU16 | Respuestas y resultado por pregunta. |
 | `notificaciones` | HU18 | Notificaciones y recordatorios. |
 | `objetivos_estudio` | HU17 | Objetivos académicos. |
 | `preferencias_usuario` | HU18 | Zona horaria, idioma y canales. |
-| `preguntas.explicacion` | HU13, HU16 | Explicación de la respuesta. |
-| `cuestionarios.cantidad_preguntas` y `descripcion` | HU13 | Configuración del cuestionario. |
+| `cuestionarios.descripcion` | HU13 | Descripción opcional del cuestionario. |
 | `documentos.nombre_archivo`, `tipo_archivo` | HU07, HU08 | Metadatos del archivo. |
 | `tareas.tipo`, `fecha_asignacion`, `fecha_actualizacion` | HU04 | Implementado en `0002_hu04_tareas.sql`. |
 | `perfiles.foto_perfil`, `universidad`, `semestre`, `estado` | HU01, HU02 | Perfil completo. |
+
+Las estructuras de HU13 (`cuestionarios`, `preguntas`, `opciones_pregunta`,
+`intentos_cuestionario` y `respuestas_usuario`) ya están implementadas en
+`supabase/migrations/0010_hu13_cuestionarios.sql`. La idempotencia de HU12 usa
+`solicitudes_idempotentes`, creada en
+`supabase/migrations/0011_hu12_idempotencia_chat.sql`.
 
 Las estructuras de HU12 (`mensajes.modelo_utilizado`,
 `conversaciones.tipo_conversacion` y `fecha_actualizacion`, además de
@@ -1138,10 +1280,13 @@ están implementadas en `supabase/migrations/0009_hu12_chat.sql`.
 | `supabase/migrations/0007_hu10_resumenes.sql` | Tablas `resumenes` y `consumo_ia`, índices y RLS (HU10, idempotente). |
 | `supabase/migrations/0008_hu11_busqueda_semantica.sql` | RPC `match_fragmentos` con UUID reales, filtro por propietario y permisos restringidos (HU11, idempotente). |
 | `supabase/migrations/0009_hu12_chat.sql` | Tablas `conversaciones`, `mensajes` y `referencias_respuesta` con UUID, trigger de `fecha_actualizacion`, índices y RLS por `auth.uid()` (HU12, idempotente). |
+| `supabase/migrations/0010_hu13_cuestionarios.sql` | Tablas `cuestionarios`, `preguntas`, `opciones_pregunta`, `intentos_cuestionario` y `respuestas_usuario` con UUID, índices, restricciones y RLS (HU13, idempotente). |
+| `supabase/migrations/0011_hu12_idempotencia_chat.sql` | Tabla `solicitudes_idempotentes` con unicidad por `(usuario_id, endpoint, clave)`, índice de fecha y RLS (HU12, idempotente). |
 
 - El script `backend/scripts/run-migrations.js` (`npm run migrate`) aplica estas
   migraciones en orden: identidad, materias, tareas, calendario, documentos,
-  fragmentos, reemplazo de fragmentos, resumenes, búsqueda semántica y chat.
+  fragmentos, reemplazo de fragmentos, resumenes, búsqueda semántica, chat,
+  cuestionarios e idempotencia.
 
 - Flujo:
 

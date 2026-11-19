@@ -200,6 +200,12 @@ Reglas:
 | Proveedor caído | `503` controlado, con un solo reintento temporal. |
 | Respuesta del modelo con cita inventada | La cita se descarta. |
 | Eliminar conversación | Cascada de mensajes y referencias; la UI vuelve a "Nueva conversación". |
+| Reintento con la misma `Idempotency-Key` y el mismo cuerpo | Devuelve la respuesta original sin llamar a la IA ni duplicar turnos. |
+| Misma `Idempotency-Key` con otro cuerpo | `409`. |
+| Reintento mientras la clave sigue en proceso | `409` con mensaje para esperar. |
+| Fallo del proveedor con `Idempotency-Key` | La reserva se libera y el reintento con la misma clave funciona. |
+| `Idempotency-Key` inválida (corta, larga o con símbolos) | `400` con `error.details.source = "headers"`. |
+| Envío sin `Idempotency-Key` | Comportamiento normal, sin tocar la tabla de idempotencia. |
 
 ### 4.10. Resúmenes (HU10)
 
@@ -222,6 +228,15 @@ Reglas:
 | Intento guardado | Historial y puntuación correctos. |
 | Flashcards | Frente y reverso, sin texto truncado. |
 | Cuestionario de otro usuario | 404. |
+| Generar sin documento con varios documentos procesados | Usa fragmentos de la materia y guarda el cuestionario. |
+| Generar sin material procesado | `422`. |
+| Pregunta objetiva correcta / incorrecta | `es_correcta` verdadero / falso y puntuación coherente. |
+| Pregunta abierta | `es_correcta: null`; no afecta la puntuación. |
+| Intento en progreso | No revela `respuesta_correcta`, `explicacion` ni `es_correcta`. |
+| Intento finalizado | Revela corrección y explicación. |
+| Responder dos veces el mismo intento | `409`. |
+| Respuesta de una pregunta de otro cuestionario | `400`. |
+| Cuota de cuestionarios agotada | `429` con `AI_QUOTA_EXCEEDED`. |
 
 ### 4.12. Planes y progreso (HU15, HU17)
 

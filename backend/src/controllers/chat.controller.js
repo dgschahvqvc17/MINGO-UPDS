@@ -25,6 +25,7 @@ class ChatController {
       materiaId: materia_id,
       documentoIds: documento_ids,
       usarDocumentos: usar_documentos,
+      idempotencyKey: req.idempotencyKey ?? null,
     });
 
     res.status(200).json({ success: true, data: respuesta });
