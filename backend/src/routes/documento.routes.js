@@ -2,11 +2,17 @@ const { Router } = require('express');
 const authMiddleware = require('../middlewares/auth.middleware');
 const validationMiddleware = require('../middlewares/validation.middleware');
 const asyncHandler = require('../utils/asyncHandler');
-const { createDocumentoService, createDocumentoController } = require('../container');
+const {
+  createDocumentoService,
+  createDocumentoController,
+  createBusquedaService,
+  createBusquedaController,
+} = require('../container');
 const {
   documentoUrlCargaSchema,
   documentoRegistroSchema,
   documentoFiltrosSchema,
+  documentoBuscarSchema,
   documentoIdParamSchema,
 } = require('../models/documento.model');
 
@@ -18,14 +24,25 @@ const router = Router();
  */
 router.use(authMiddleware);
 
-router.use((req, _res, next) => {
-  try {
-    req.documentoService = createDocumentoService(req.user.id, req.accessToken);
-    next();
-  } catch (error) {
-    next(error);
-  }
-});
+/**
+ * Construye el servicio indicado por petición y lo expone en `req`.
+ *
+ * @param {(usuarioId: string, accessToken: string) => object} fabrica
+ * @param {string} propiedad
+ * @returns {import('express').RequestHandler}
+ */
+function prepararServicio(fabrica, propiedad) {
+  return (req, _res, next) => {
+    try {
+      req[propiedad] = fabrica(req.user.id, req.accessToken);
+      next();
+    } catch (error) {
+      next(error);
+    }
+  };
+}
+
+router.use(prepararServicio(createDocumentoService, 'documentoService'));
 
 /**
  * Construye un handler que delega en el controlador correspondiente.
@@ -41,10 +58,31 @@ function atender(accion) {
 }
 
 /**
+ * @returns {import('express').RequestHandler}
+ */
+function atenderBusqueda() {
+  return asyncHandler((req, res) =>
+    createBusquedaController(req.busquedaService).buscar(req, res),
+  );
+}
+
+/**
  * GET /documentos
  * Lista los documentos del usuario con filtros y paginación.
  */
 router.get('/', validationMiddleware({ query: documentoFiltrosSchema }), atender('listarDocumentos'));
+
+/**
+ * GET /documentos/buscar
+ * Busqueda semantica (HU11). Se declara antes de /:id para que Express no
+ * interprete "buscar" como el identificador de un documento.
+ */
+router.get(
+  '/buscar',
+  validationMiddleware({ query: documentoBuscarSchema }),
+  prepararServicio(createBusquedaService, 'busquedaService'),
+  atenderBusqueda(),
+);
 
 /**
  * POST /documentos/url-carga

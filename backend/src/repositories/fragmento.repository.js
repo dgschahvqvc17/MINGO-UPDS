@@ -155,6 +155,40 @@ class FragmentoRepository {
   }
 
   /**
+   * Recupera los fragmentos mas similares a un vector de consulta (HU11).
+   * La funcion RPC filtra por propietario con `auth.uid()`, ademas de aplicar
+   * RLS. Nunca se busca sin ese filtro.
+   *
+   * @param {number[]} embedding Vector de la consulta.
+   * @param {{ limite: number, umbral: number, documentoId?: string | null, materiaId?: string | null }} opciones
+   * @returns {Promise<Array<object>>}
+   */
+  async buscarSimilares(
+    embedding,
+    { limite, umbral, documentoId = null, materiaId = null },
+  ) {
+    const { data, error } = await this.requireClient().rpc('match_fragmentos', {
+      query_embedding: embedding,
+      match_threshold: umbral,
+      match_count: limite,
+      p_documento_id: documentoId,
+      p_materia_id: materiaId,
+    });
+
+    if (error) {
+      if (error.code === CODIGO_RPC_INEXISTENTE) {
+        throw new Error(
+          'Falta la funcion public.match_fragmentos. Ejecuta supabase/migrations/0008_hu11_busqueda_semantica.sql.',
+        );
+      }
+
+      throw error;
+    }
+
+    return data ?? [];
+  }
+
+  /**
    * @param {unknown} error
    * @param {string} documentoId
    * @returns {void}

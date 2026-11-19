@@ -154,7 +154,7 @@ Pregunta del usuario
 |---|---|
 | `match_count` (top-k) | 8 |
 | Máximo absoluto de fragmentos | 20 |
-| Umbral de similitud | 0.70 |
+| Umbral de similitud | 0.55 |
 | Tokens máximos de contexto | 6000 |
 | Tokens máximos de salida | 1200 |
 | Turnos de historial incluidos | 6 |
@@ -312,9 +312,12 @@ Agente: confirma la creación y muestra el enlace
 
 ### 8.3. Búsqueda semántica (HU11)
 
-- Solo devuelve fragmentos; no genera respuesta del modelo.
-- Más económico porque solo usa embeddings.
-- Máximo 20 resultados.
+- Endpoint: `GET /api/documentos/buscar`, implementado en el buscador de `/biblioteca`.
+- Genera un embedding de la consulta con el modelo configurado (`AI_EMBEDDING_MODEL`, 1536 dimensiones) y recupera fragmentos con `pgvector` mediante la RPC `match_fragmentos` de la migración `0008`.
+- Solo devuelve fragmentos; no genera respuesta del modelo de chat.
+- Más económico porque solo usa embeddings: cuota de 50 búsquedas por usuario y día (`429 AI_QUOTA_EXCEEDED`), registradas en `consumo_ia` con `operacion = 'busqueda'`.
+- Umbral de similitud coseno `0.55`; máximo 20 resultados (por defecto 8).
+- La RPC se ejecuta con el JWT del usuario: `auth.uid()` y RLS impiden ver fragmentos ajenos. El filtro textual de la biblioteca (HU08) se mantiene separado.
 
 ### 8.4. Cuestionarios (HU13)
 

@@ -1,0 +1,29 @@
+.busqueda-semantica {
+  border-color: rgba(56, 189, 248, 0.35);
+}
+
+.resultados-busqueda {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.resultado-busqueda {
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--mingo-border-soft);
+  border-radius: var(--mingo-radius-md);
+  background: var(--mingo-surface);
+}
+
+.resultado-contenido {
+  margin-top: 0.6rem;
+  color: var(--mingo-text-muted);
+  font-size: 0.9rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+@media (max-width: 575.98px) {
+  .resultado-busqueda {
+    padding: 0.75rem;
+  }
+}

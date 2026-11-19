@@ -21,6 +21,7 @@ import {
 } from '../../core/services/documento.service';
 import { MateriaService, type Materia } from '../../core/services/materia.service';
 import { mensajeDeErrorHttp } from '../../core/utils/http-error';
+import { BusquedaSemanticaComponent } from './components/busqueda-semantica/busqueda-semantica';
 import { DocumentoCardComponent } from './components/documento-card/documento-card';
 import { DocumentoUploadComponent } from './components/documento-upload/documento-upload';
 
@@ -38,7 +39,12 @@ const PAGINACION_INICIAL: PaginacionDocumentos = {
 
 @Component({
   selector: 'app-biblioteca',
-  imports: [RouterLink, DocumentoCardComponent, DocumentoUploadComponent],
+  imports: [
+    RouterLink,
+    BusquedaSemanticaComponent,
+    DocumentoCardComponent,
+    DocumentoUploadComponent,
+  ],
   templateUrl: './biblioteca.html',
   styleUrl: './biblioteca.css',
   changeDetection: ChangeDetectionStrategy.OnPush,

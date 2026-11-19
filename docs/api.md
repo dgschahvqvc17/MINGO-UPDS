@@ -738,6 +738,15 @@ trabajo real lo ejecuta la Lambda procesadora.
 GET /api/documentos/buscar?q=derivadas%20de%20funciones&materia_id=6d1c2a53-4f7e-4b8a-9c1d-2e3f4a5b6c7d&limit=8
 ```
 
+**Query params**
+
+| Parámetro | Tipo | Regla |
+|---|---|---|
+| `q` | string | Obligatorio, 2 a 120 caracteres. Pregunta o concepto a buscar. |
+| `materia_id` | UUID | Opcional. Limita la búsqueda a una materia propia. |
+| `documento_id` | UUID | Opcional. Limita la búsqueda a un documento propio y procesado. |
+| `limit` | entero | Opcional, por defecto `8`. Se recorta a `20` si se envía un valor mayor. |
+
 **Respuesta**
 
 ```json
@@ -745,20 +754,23 @@ GET /api/documentos/buscar?q=derivadas%20de%20funciones&materia_id=6d1c2a53-4f7e
   "success": true,
   "data": [
     {
-      "fragmento_id": 1,
+      "fragmento_id": "5f1c9e2a-8b7d-4c3e-9a1f-2e4d6b8c0a13",
       "documento_id": "9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d",
       "documento_nombre": "Cálculo Diferencial - Unidad 1",
       "contenido": "La derivada de una función mide...",
       "numero_pagina": 12,
       "similitud": 0.87
     }
-  ]
+  ],
+  "meta": { "mensaje": null }
 }
 ```
 
-- `limit` máximo: 20.
-- Solo devuelve fragmentos de documentos del usuario autenticado.
-- Si no hay resultados con similitud suficiente, devuelve `data: []` y un mensaje en `meta`.
+- Requiere la migración `supabase/migrations/0008_hu11_busqueda_semantica.sql` (RPC `match_fragmentos`).
+- Solo devuelve fragmentos de documentos del usuario autenticado; la RPC filtra por `auth.uid()` y se usa el cliente JWT, nunca `service_role`.
+- Umbral de similitud coseno: `0.55`, calibrado para `gemini-embedding-001`. Los resultados se ordenan de mayor a menor similitud.
+- Si no hay resultados con similitud suficiente, devuelve `data: []` y un mensaje orientativo en `meta.mensaje`.
+- Errores: `400` validación, `404` documento o materia ajena, `422` documento no procesado, `429` cuota agotada (`AI_QUOTA_EXCEEDED`, 50 búsquedas/día), `503` IA no configurada.
 
 ## 11. Asistente de IA
 

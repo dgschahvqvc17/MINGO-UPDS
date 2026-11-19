@@ -21,6 +21,7 @@ const CalendarioService = require('./services/calendario.service');
 const DashboardService = require('./services/dashboard.service');
 const DocumentoService = require('./services/documento.service');
 const ProcesamientoService = require('./services/procesamiento.service');
+const BusquedaService = require('./services/busqueda.service');
 const EmbeddingsService = require('./services/ia/embeddings.service');
 const ResumenIaService = require('./services/ia/resumen.ia.service');
 const ResumenService = require('./services/resumen.service');
@@ -31,8 +32,12 @@ const TareaController = require('./controllers/tarea.controller');
 const CalendarioController = require('./controllers/calendario.controller');
 const DashboardController = require('./controllers/dashboard.controller');
 const DocumentoController = require('./controllers/documento.controller');
+const BusquedaController = require('./controllers/busqueda.controller');
 const ResumenController = require('./controllers/resumen.controller');
 const { s3Client, sqsClient } = require('./config/aws');
+
+// Un solo cliente de embeddings compartido: no guarda estado por petición.
+const embeddingsServiceCompartido = new EmbeddingsService();
 const {
   createSupabaseClient,
   createSupabaseServiceRoleClient,
@@ -177,6 +182,32 @@ function createDocumentoController(documentoService) {
 }
 
 /**
+ * Crea el servicio de busqueda semantica de HU11.
+ * Usa el cliente del usuario: la RPC y RLS filtran por propietario.
+ * Reutiliza el cliente de embeddings compartido.
+ *
+ * @param {string} usuarioActualId - ID del usuario autenticado.
+ * @param {string} accessToken - JWT del usuario autenticado.
+ * @returns {BusquedaService}
+ */
+function createBusquedaService(usuarioActualId, accessToken) {
+  const supabaseClient = createSupabaseClient(accessToken);
+
+  return new BusquedaService({
+    embeddingsService: embeddingsServiceCompartido,
+    fragmentoRepository: new FragmentoRepository({ supabase: supabaseClient }),
+    documentoRepository: new DocumentoRepository({ supabase: supabaseClient }),
+    materiaRepository: new MateriaRepository({ supabase: supabaseClient }),
+    consumoRepository: new ConsumoIaRepository({ supabase: supabaseClient }),
+    usuarioActualId,
+  });
+}
+
+function createBusquedaController(busquedaService) {
+  return new BusquedaController({ busquedaService });
+}
+
+/**
  * Crea el servicio de resumenes de HU10.
  * Usa el cliente del usuario: RLS aplica a documentos, fragmentos, resumenes
  * y consumo. El cliente de IA se reutiliza entre peticiones.
@@ -235,12 +266,14 @@ module.exports = {
   createCalendarioService,
   createDashboardService,
   createDocumentoService,
+  createBusquedaService,
   createResumenService,
   createProcesamientoService,
   createTareaController,
   createCalendarioController,
   createDashboardController,
   createDocumentoController,
+  createBusquedaController,
   createResumenController,
   authController,
   usuarioAdminController: new UsuarioAdminController(),

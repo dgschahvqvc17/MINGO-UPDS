@@ -12,6 +12,7 @@ const DESPLAZAMIENTO = 1_000_000_000;
  *   deleteError?: object | null,
  *   deleteErrors?: Array<object | null> | null,
  *   rpcError?: object | null,
+ *   rpcData?: object[],
  *   onInsert?: (filas: object[]) => void
  * }} [opciones]
  * @returns {{ cliente: object, llamadas: object }}
@@ -21,6 +22,7 @@ function crearCliente({
   deleteError = null,
   deleteErrors = null,
   rpcError = null,
+  rpcData = [],
   onInsert,
 } = {}) {
   const llamadas = { inserts: [], deletes: [], rpc: [] };
@@ -56,7 +58,7 @@ function crearCliente({
     },
     rpc(nombre, argumentos) {
       llamadas.rpc.push({ nombre, argumentos });
-      return Promise.resolve({ error: rpcError });
+      return Promise.resolve({ data: rpcData, error: rpcError });
     },
   };
 
@@ -196,5 +198,45 @@ describe('FragmentoRepository', () => {
     await expect(
       repository.eliminarPendientes(DOCUMENTO_ID),
     ).rejects.toThrow(/Supabase no esta configurado/);
+  });
+
+  it('busca fragmentos similares con la RPC filtrada por propietario', async () => {
+    const fragmentos = [{ id: 'fragmento-id', contenido: 'Contenido' }];
+    const { cliente, llamadas } = crearCliente({ rpcData: fragmentos });
+    const repository = new FragmentoRepository({ supabase: cliente });
+    const embedding = [0.1, 0.2];
+    const MATERIA_ID = '7a1b2c3d-4e5f-4a6b-8c9d-0e1f2a3b4c5d';
+
+    const resultado = await repository.buscarSimilares(embedding, {
+      limite: 8,
+      umbral: 0.7,
+      documentoId: DOCUMENTO_ID,
+      materiaId: MATERIA_ID,
+    });
+
+    expect(resultado).toEqual(fragmentos);
+    expect(llamadas.rpc).toEqual([
+      {
+        nombre: 'match_fragmentos',
+        argumentos: {
+          query_embedding: embedding,
+          match_threshold: 0.7,
+          match_count: 8,
+          p_documento_id: DOCUMENTO_ID,
+          p_materia_id: MATERIA_ID,
+        },
+      },
+    ]);
+  });
+
+  it('avisa de la migración HU11 cuando la RPC de búsqueda no existe', async () => {
+    const { cliente } = crearCliente({
+      rpcError: { code: 'PGRST202', message: 'Could not find the function' },
+    });
+    const repository = new FragmentoRepository({ supabase: cliente });
+
+    await expect(
+      repository.buscarSimilares([0.1], { limite: 8, umbral: 0.7 }),
+    ).rejects.toThrow(/0008_hu11_busqueda_semantica\.sql/);
   });
 });

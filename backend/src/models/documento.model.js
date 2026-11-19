@@ -18,6 +18,9 @@ const MAXIMO_BYTES = config.uploads.maxFileSizeBytes;
 const MAXIMO_MB = Math.round(MAXIMO_BYTES / (1024 * 1024));
 const LARGO_MAXIMO_NOMBRE = 255;
 const LARGO_MAXIMO_BUSQUEDA = 120;
+const LARGO_MINIMO_CONSULTA = 2;
+const MAXIMO_RESULTADOS_BUSQUEDA = 20;
+const TOP_K_BUSQUEDA = 8;
 
 /** Estados posibles de procesamiento; deben coincidir con el CHECK de la tabla. */
 const ESTADOS_PROCESAMIENTO = ['pendiente', 'en_cola', 'procesando', 'procesado', 'error'];
@@ -119,13 +122,43 @@ const documentoIdSchema = z
 
 const documentoIdParamSchema = z.object({ id: documentoIdSchema });
 
+/**
+ * Query de GET /documentos/buscar: busqueda semantica (HU11).
+ * Un `limit` por encima del tope se recorta en lugar de rechazarse, para que
+ * la UI pueda pedir mas resultados sin recibir un 400 inesperado.
+ */
+const documentoBuscarSchema = z.object({
+  q: z
+    .string()
+    .trim()
+    .min(
+      LARGO_MINIMO_CONSULTA,
+      `La consulta debe tener al menos ${LARGO_MINIMO_CONSULTA} caracteres`,
+    )
+    .max(
+      LARGO_MAXIMO_BUSQUEDA,
+      `La consulta no puede exceder ${LARGO_MAXIMO_BUSQUEDA} caracteres`,
+    ),
+  documento_id: documentoIdSchema.optional(),
+  materia_id: materiaIdSchema.optional(),
+  limit: z.coerce
+    .number()
+    .int('El limite debe ser un numero entero')
+    .min(1)
+    .default(TOP_K_BUSQUEDA)
+    .transform((valor) => Math.min(valor, MAXIMO_RESULTADOS_BUSQUEDA)),
+});
+
 module.exports = {
   EXTENSIONES_POR_MIME,
   MAXIMO_BYTES,
   ESTADOS_PROCESAMIENTO,
+  MAXIMO_RESULTADOS_BUSQUEDA,
+  TOP_K_BUSQUEDA,
   documentoUrlCargaSchema,
   documentoRegistroSchema,
   documentoFiltrosSchema,
+  documentoBuscarSchema,
   documentoIdSchema,
   documentoIdParamSchema,
 };

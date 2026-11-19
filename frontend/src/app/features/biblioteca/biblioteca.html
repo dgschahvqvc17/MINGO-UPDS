@@ -142,6 +142,8 @@
     </div>
   </section>
 
+  <app-busqueda-semantica class="d-block mb-4" [materias]="materiasDisponibles()" />
+
   @if (mostrarCargando()) {
     <div class="mat-state" role="status" aria-live="polite">
       <span class="spinner-border" aria-hidden="true"></span>
