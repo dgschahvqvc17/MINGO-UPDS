@@ -78,18 +78,26 @@ function crearCliente({ apiKey, baseUrl }) {
  * @returns {unknown}
  */
 function extraerJson(texto) {
-  const inicio = texto.indexOf('{');
-  const fin = texto.lastIndexOf('}');
+  const limpio = texto
+    .replace(/^```(?:json)?\s*/i, '')
+    .replace(/\s*```$/, '')
+    .trim();
+  const fin = limpio.lastIndexOf('}');
 
-  if (inicio === -1 || fin <= inicio) {
+  if (fin === -1) {
     throw new ResumenIaError('El proveedor de IA devolvio un resumen que no es JSON.');
   }
 
-  try {
-    return JSON.parse(texto.slice(inicio, fin + 1));
-  } catch {
-    throw new ResumenIaError('El proveedor de IA devolvio un JSON invalido.');
+  // El modelo puede agregar texto antes del objeto; se prueba cada '{' hasta encontrarlo.
+  for (let inicio = limpio.indexOf('{'); inicio !== -1 && inicio < fin; inicio = limpio.indexOf('{', inicio + 1)) {
+    try {
+      return JSON.parse(limpio.slice(inicio, fin + 1));
+    } catch {
+      // Se descarta este candidato y se prueba el siguiente.
+    }
   }
+
+  throw new ResumenIaError('El proveedor de IA devolvio un JSON invalido.');
 }
 
 /**

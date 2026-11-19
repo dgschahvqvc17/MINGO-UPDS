@@ -11,7 +11,12 @@ class ResumenController {
   }
 
   generar = async (req, res) => {
-    const resumen = await this.resumenService.generar(req.validated.body);
+    const { documento_id, profundidad, guardar } = req.validated.body;
+    const resumen = await this.resumenService.generar({
+      documentoId: documento_id,
+      profundidad,
+      guardar,
+    });
 
     res.status(200).json({ success: true, data: resumen });
   };

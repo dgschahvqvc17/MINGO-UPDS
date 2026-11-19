@@ -56,7 +56,7 @@ describe('rutas de resumenes (HU10)', () => {
     expect(response.body.success).toBe(true);
     expect(response.body.data).toEqual(RESUMEN);
     expect(mockResumenService.generar).toHaveBeenCalledWith({
-      documento_id: DOCUMENTO_ID,
+      documentoId: DOCUMENTO_ID,
       profundidad: 'media',
       guardar: true,
     });

@@ -66,7 +66,7 @@ Archivo `backend/.env` (no se versiona). Plantilla en `backend/.env.example`.
 | `AI_PROVIDER` | Sí | `gemini` \| `openai` | Proveedor de IA. |
 | `AI_API_KEY` | Sí en prod | `AIza...` o `sk-...` | Clave privada. Nunca al frontend. |
 | `AI_BASE_URL` | No | `https://generativelanguage.googleapis.com/v1beta/openai/` | Endpoint compatible con OpenAI. Vacío usa el de OpenAI. |
-| `AI_CHAT_MODEL` | Sí | `gemini-2.5-flash` \| `gpt-4o-mini` | Modelo de chat. |
+| `AI_CHAT_MODEL` | Sí | `gemini-3.5-flash-lite` \| `gpt-4o-mini` | Modelo de chat. Los modelos `2.5` ya no están disponibles para cuentas nuevas de Gemini. |
 | `AI_EMBEDDING_MODEL` | Sí | `gemini-embedding-001` \| `text-embedding-3-small` | Modelo de embeddings. |
 | `AI_EMBEDDING_DIMENSIONS` | Sí | `1536` | Debe coincidir con `vector(n)` y con el modelo. |
 | `MAX_UPLOAD_MB` | No | `20` | Tamaño máximo de archivo. |
