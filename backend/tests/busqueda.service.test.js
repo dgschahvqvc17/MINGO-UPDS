@@ -1,4 +1,5 @@
 const BusquedaService = require('../src/services/busqueda.service');
+const { UMBRAL_SIMILITUD } = BusquedaService;
 const { ErrorProcesamiento } = require('../src/services/procesamiento/procesamiento.error');
 const { TOP_K_BUSQUEDA } = require('../src/models/documento.model');
 
@@ -57,6 +58,10 @@ function crearServicio({
 }
 
 describe('BusquedaService (HU11)', () => {
+  it('usa el umbral calibrado para el modelo de embeddings configurado', () => {
+    expect(UMBRAL_SIMILITUD).toBe(0.55);
+  });
+
   it('devuelve los fragmentos mapeados y sin mensaje cuando hay coincidencias', async () => {
     const { servicio, dependencias } = crearServicio();
 
@@ -77,7 +82,7 @@ describe('BusquedaService (HU11)', () => {
     });
     expect(dependencias.fragmentoRepository.buscarSimilares).toHaveBeenCalledWith(EMBEDDING, {
       limite: TOP_K_BUSQUEDA,
-      umbral: 0.7,
+      umbral: UMBRAL_SIMILITUD,
       documentoId: null,
       materiaId: null,
     });
@@ -113,7 +118,7 @@ describe('BusquedaService (HU11)', () => {
     );
     expect(dependencias.fragmentoRepository.buscarSimilares).toHaveBeenCalledWith(EMBEDDING, {
       limite: 20,
-      umbral: 0.7,
+      umbral: UMBRAL_SIMILITUD,
       documentoId: DOCUMENTO_ID,
       materiaId: MATERIA_ID,
     });

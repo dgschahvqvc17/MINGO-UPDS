@@ -10,7 +10,10 @@ const ApiError = require('../utils/ApiError');
 
 const OPERACION = 'busqueda';
 const LIMITE_DIARIO_BUSQUEDAS = 50;
-const UMBRAL_SIMILITUD = 0.70;
+// gemini-embedding-001 puntúa ~0.62-0.69 las consultas relevantes en español;
+// con 0.70 se descartaban búsquedas válidas y con 0.55 no apareció ruido en
+// consultas ajenas (0.51-0.54).
+const UMBRAL_SIMILITUD = 0.55;
 const MENSAJE_SIN_RESULTADOS =
   'No encontramos fragmentos relacionados con tu consulta. Prueba con otros términos o revisa tus documentos procesados.';
 

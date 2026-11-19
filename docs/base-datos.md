@@ -1023,7 +1023,7 @@ grant execute on function public.match_fragmentos(vector(1536), double precision
 Reglas:
 
 - La dimensión debe coincidir con `AI_EMBEDDING_DIMENSIONS` (1536 por defecto).
-- `match_count` máximo: 20; similitud mínima por defecto: `0.70`.
+- `match_count` máximo: 20; similitud mínima por defecto de la RPC: `0.70`. El endpoint de HU11 envía explícitamente `0.55`, calibrado para `gemini-embedding-001`.
 - Nunca buscar sin filtrar por `auth.uid()`. Se invoca con el cliente JWT del usuario; con `service_role` no devolvería filas.
 - `revoke ... from public, anon` es obligatorio: Postgres otorga `EXECUTE` a `PUBLIC` por defecto.
 - Guardar `documento_id` y `numero_pagina` para las citas.

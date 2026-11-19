@@ -768,7 +768,7 @@ GET /api/documentos/buscar?q=derivadas%20de%20funciones&materia_id=6d1c2a53-4f7e
 
 - Requiere la migración `supabase/migrations/0008_hu11_busqueda_semantica.sql` (RPC `match_fragmentos`).
 - Solo devuelve fragmentos de documentos del usuario autenticado; la RPC filtra por `auth.uid()` y se usa el cliente JWT, nunca `service_role`.
-- Umbral de similitud coseno: `0.70`. Los resultados se ordenan de mayor a menor similitud.
+- Umbral de similitud coseno: `0.55`, calibrado para `gemini-embedding-001`. Los resultados se ordenan de mayor a menor similitud.
 - Si no hay resultados con similitud suficiente, devuelve `data: []` y un mensaje orientativo en `meta.mensaje`.
 - Errores: `400` validación, `404` documento o materia ajena, `422` documento no procesado, `429` cuota agotada (`AI_QUOTA_EXCEEDED`, 50 búsquedas/día), `503` IA no configurada.
 
