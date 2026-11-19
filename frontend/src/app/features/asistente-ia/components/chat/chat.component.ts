@@ -170,6 +170,14 @@ export class ChatComponent {
       });
   }
 
+  /**
+   * Atiende el submit nativo del formulario sin recargar la pagina.
+   */
+  enviarDesdeFormulario(evento: Event): void {
+    evento.preventDefault();
+    this.enviar();
+  }
+
   enviar(): void {
     const contenido = this.mensajeControl.value.trim();
     if (!contenido || this.enviando() || this.mensajeControl.invalid) {

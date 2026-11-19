@@ -176,7 +176,7 @@
           <div class="alert alert-danger small" role="alert">{{ errorEnvio() }}</div>
         }
 
-        <form (ngSubmit)="enviar()">
+        <form (submit)="enviarDesdeFormulario($event)">
           <label for="mensaje-chat" class="form-label small fw-semibold">Tu mensaje</label>
           <textarea
             id="mensaje-chat"

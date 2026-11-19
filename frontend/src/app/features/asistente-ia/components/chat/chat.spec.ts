@@ -140,6 +140,20 @@ describe('ChatComponent (HU12)', () => {
     expect(obtener).toHaveBeenCalledWith(CONVERSACION_ID);
   });
 
+  it('envia la pregunta al enviar el formulario sin recargar la pagina', () => {
+    componente.mensajeControl.setValue('¿Qué es una derivada?');
+    const formulario = fixture.nativeElement.querySelector('form') as HTMLFormElement;
+    const evento = new Event('submit', { bubbles: true, cancelable: true });
+
+    formulario.dispatchEvent(evento);
+    fixture.detectChanges();
+
+    expect(evento.defaultPrevented).toBe(true);
+    expect(enviar).toHaveBeenCalledWith(
+      expect.objectContaining({ mensaje: '¿Qué es una derivada?' }),
+    );
+  });
+
   it('muestra un error claro sin perder el mensaje cuando falla el envio', () => {
     enviar.mockReturnValue(throwError(() => ({})));
     componente.mensajeControl.setValue('¿Qué es una derivada?');
