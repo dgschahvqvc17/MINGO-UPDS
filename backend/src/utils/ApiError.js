@@ -36,6 +36,14 @@ class ApiError extends Error {
     return new ApiError(409, message);
   }
 
+  static unprocessable(message = 'El recurso no cumple las condiciones para esta operacion', details) {
+    return new ApiError(422, message, details);
+  }
+
+  static rateLimited(message = 'Demasiadas solicitudes', details) {
+    return new ApiError(429, message, details);
+  }
+
   static serviceUnavailable(message = 'Servicio no disponible') {
     return new ApiError(503, message);
   }

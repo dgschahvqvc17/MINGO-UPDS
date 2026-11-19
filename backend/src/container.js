@@ -9,6 +9,8 @@ const TareaRepository = require('./repositories/tarea.repository');
 const CalendarioRepository = require('./repositories/calendario.repository');
 const DocumentoRepository = require('./repositories/documento.repository');
 const FragmentoRepository = require('./repositories/fragmento.repository');
+const ResumenRepository = require('./repositories/resumen.repository');
+const ConsumoIaRepository = require('./repositories/consumo-ia.repository');
 const AlmacenamientoRepository = require('./repositories/almacenamiento.repository');
 const ColaRepository = require('./repositories/cola.repository');
 const AuthService = require('./services/auth.service');
@@ -20,6 +22,8 @@ const DashboardService = require('./services/dashboard.service');
 const DocumentoService = require('./services/documento.service');
 const ProcesamientoService = require('./services/procesamiento.service');
 const EmbeddingsService = require('./services/ia/embeddings.service');
+const ResumenIaService = require('./services/ia/resumen.ia.service');
+const ResumenService = require('./services/resumen.service');
 const AuthController = require('./controllers/auth.controller');
 const UsuarioAdminController = require('./controllers/usuario-admin.controller');
 const MateriaController = require('./controllers/materia.controller');
@@ -27,6 +31,7 @@ const TareaController = require('./controllers/tarea.controller');
 const CalendarioController = require('./controllers/calendario.controller');
 const DashboardController = require('./controllers/dashboard.controller');
 const DocumentoController = require('./controllers/documento.controller');
+const ResumenController = require('./controllers/resumen.controller');
 const { s3Client, sqsClient } = require('./config/aws');
 const {
   createSupabaseClient,
@@ -172,6 +177,32 @@ function createDocumentoController(documentoService) {
 }
 
 /**
+ * Crea el servicio de resumenes de HU10.
+ * Usa el cliente del usuario: RLS aplica a documentos, fragmentos, resumenes
+ * y consumo. El cliente de IA se reutiliza entre peticiones.
+ *
+ * @param {string} usuarioActualId - ID del usuario autenticado.
+ * @param {string} accessToken - JWT del usuario autenticado.
+ * @returns {ResumenService}
+ */
+function createResumenService(usuarioActualId, accessToken) {
+  const supabaseClient = createSupabaseClient(accessToken);
+
+  return new ResumenService({
+    documentoRepository: new DocumentoRepository({ supabase: supabaseClient }),
+    fragmentoRepository: new FragmentoRepository({ supabase: supabaseClient }),
+    resumenRepository: new ResumenRepository({ supabase: supabaseClient }),
+    consumoRepository: new ConsumoIaRepository({ supabase: supabaseClient }),
+    iaService: new ResumenIaService(),
+    usuarioActualId,
+  });
+}
+
+function createResumenController(resumenService) {
+  return new ResumenController({ resumenService });
+}
+
+/**
  * Crea el servicio que ejecuta el worker de procesamiento.
  * Usa service_role porque no hay usuario autenticado en la Lambda; el servicio
  * valida la propiedad del documento y de la ruta antes de tocar nada.
@@ -204,11 +235,13 @@ module.exports = {
   createCalendarioService,
   createDashboardService,
   createDocumentoService,
+  createResumenService,
   createProcesamientoService,
   createTareaController,
   createCalendarioController,
   createDashboardController,
   createDocumentoController,
+  createResumenController,
   authController,
   usuarioAdminController: new UsuarioAdminController(),
   materiaController: new MateriaController(),

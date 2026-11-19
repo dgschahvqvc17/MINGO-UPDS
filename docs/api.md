@@ -769,6 +769,7 @@ GET /api/documentos/buscar?q=derivadas%20de%20funciones&materia_id=6d1c2a53-4f7e
 | GET | `/api/asistente/conversaciones/:id` | HU12 | Historial de mensajes. |
 | DELETE | `/api/asistente/conversaciones/:id` | HU12 | Elimina una conversación. |
 | POST | `/api/asistente/resumen` | HU10 | Genera resumen de un documento. |
+| GET | `/api/asistente/resumen/:documento_id` | HU10 | Recupera el último resumen guardado del documento. |
 | POST | `/api/asistente/cuestionario` | HU13 | Genera cuestionario. |
 | POST | `/api/asistente/tarjetas` | HU14 | Genera flashcards. |
 | POST | `/api/asistente/plan` | HU15 | Propone plan de estudio. |
@@ -831,7 +832,50 @@ GET /api/documentos/buscar?q=derivadas%20de%20funciones&materia_id=6d1c2a53-4f7e
 }
 ```
 
-`profundidad`: `breve` \| `media` \| `detallada`.
+`profundidad`: `breve` \| `media` \| `detallada` (por defecto `media`). `guardar`:
+`true` por defecto; con `false` se devuelve el resumen sin persistirlo. Los
+identificadores de documento son UUID.
+
+**Respuesta `200`**
+
+```json
+{
+  "success": true,
+  "data": {
+    "id": "9f1c...",
+    "documento_id": "9a8b...",
+    "documento_nombre": "Cálculo Diferencial - Unidad 1",
+    "profundidad": "media",
+    "resumen_general": "El documento introduce el concepto de derivada...",
+    "temas_principales": ["Derivadas", "Regla de la cadena"],
+    "conceptos_importantes": [
+      { "termino": "Derivada", "descripcion": "Mide la tasa de cambio de una función." }
+    ],
+    "modelo": "gpt-4o-mini",
+    "tokens_entrada": 1820,
+    "tokens_salida": 340,
+    "contenido_truncado": false,
+    "guardado": true,
+    "reutilizado": false,
+    "fecha_creacion": "2026-11-18T18:30:00.000Z"
+  }
+}
+```
+
+**Reglas**
+
+- Solo se resume un documento en estado `procesado`; si no lo está: `422 UNPROCESSABLE_ENTITY`.
+- El resumen se cachea por `documento_id` + hash del contenido + `profundidad`;
+  un acierto devuelve `reutilizado: true` sin consumir cuota ni llamar a la IA.
+- Cuando el documento supera el presupuesto de tokens se resume la parte inicial
+  y `contenido_truncado` es `true`.
+- Cuota: 20 resúmenes por usuario y día. Al agotarla: `429` con
+  `error.details.code = "AI_QUOTA_EXCEEDED"`.
+- Proveedor de IA no configurado o con error: `503 SERVICE_UNAVAILABLE` con
+  mensaje claro, sin exponer detalles del SDK.
+- `GET /api/asistente/resumen/:documento_id` devuelve el último resumen guardado,
+  o `data: null` si el documento aún no tiene resumen. Un documento ajeno o
+  inexistente responde `404`.
 
 **Body `POST /api/asistente/cuestionario`**
 

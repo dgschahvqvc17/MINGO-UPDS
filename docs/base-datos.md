@@ -19,7 +19,7 @@ La base de datos se organiza en ocho grupos:
 | B. Organización académica | `periodos_academicos`, `materias` |
 | C. Actividades | `tareas`, `eventos_calendario` |
 | D. Biblioteca documental | `documentos`, `fragmentos_documento` |
-| E. Conversaciones e IA | `conversaciones`, `mensajes`, `referencias_respuesta` |
+| E. Conversaciones e IA | `conversaciones`, `mensajes`, `referencias_respuesta`, `resumenes`, `consumo_ia` |
 | F. Evaluación | `cuestionarios`, `preguntas`, `opciones_pregunta` |
 
 **Total del diagrama:** 15 tablas y 23 relaciones.
@@ -43,6 +43,9 @@ Regla de integración:
 > **Estado de implementación (2026-11-10):** HU03, HU04 y HU05 se implementaron con `UUID` y campos
 > adicionales respecto del diagrama original. Las secciones 3.5, 3.6 y 3.7 describen la
 > implementación real; el DDL de la sección 6 incluye esas diferencias.
+
+> HU10 agregó `resumenes` y `consumo_ia` (secciones 3.16 y 3.17) fuera del
+> diagrama original, por lo que el total de tablas del diagrama se mantiene en 15.
 
 ## 2. Diagrama entidad-relación
 
@@ -514,6 +517,58 @@ Opciones de las preguntas de selección.
 | `es_correcta` | `BOOLEAN` | No | | Indica si es la respuesta correcta. |
 
 Regla: en preguntas de opción múltiple debe existir al menos una opción correcta.
+
+### 3.16. `resumenes`
+
+Resumenes IA generados a partir de documentos procesados (HU10).
+
+| Campo | Tipo | Nulo | Clave | Descripción |
+|---|---|---|:---:|---|
+| `id` | `UUID` | No | PK | Identificador del resumen (`gen_random_uuid()`). |
+| `usuario_id` | `UUID` | No | FK → `perfiles.id` | Propietario del resumen. |
+| `documento_id` | `UUID` | No | FK → `documentos.id` | Documento de origen; al borrarlo se borra el resumen. |
+| `profundidad` | `VARCHAR(10)` | No | Única por cache | `breve`, `media` o `detallada`. |
+| `hash_contenido` | `VARCHAR(64)` | No | Única por cache | SHA-256 de los hashes de los fragmentos, en orden. |
+| `resumen_general` | `TEXT` | No | | Texto corrido del resumen. |
+| `temas_principales` | `JSONB` | No | | Arreglo de cadenas. |
+| `conceptos_importantes` | `JSONB` | No | | Arreglo de `{ termino, descripcion }`. |
+| `modelo` | `VARCHAR(100)` | No | | Modelo que generó el resumen. |
+| `tokens_entrada` | `INTEGER` | No | | Tokens enviados al proveedor. |
+| `tokens_salida` | `INTEGER` | No | | Tokens devueltos por el proveedor. |
+| `contenido_truncado` | `BOOLEAN` | No | | `true` si el documento superó el límite de análisis. |
+| `fecha_creacion` | `TIMESTAMPTZ` | No | | Fecha de generación. |
+| `fecha_actualizacion` | `TIMESTAMPTZ` | Sí | | Fecha de última actualización. |
+
+Reglas:
+
+- `(documento_id, hash_contenido, profundidad)` es único: es la clave de caché.
+- Al reprocesarse un documento cambian los hashes de sus fragmentos y, por lo
+  tanto, el `hash_contenido`; el resumen anterior queda como historial.
+- Se consulta siempre filtrando por `usuario_id`, además de RLS.
+- DDL: `supabase/migrations/0007_hu10_resumenes.sql` (idempotente).
+
+### 3.17. `consumo_ia`
+
+Registro de operaciones de IA por usuario, usado para cuotas y control de costos.
+
+| Campo | Tipo | Nulo | Clave | Descripción |
+|---|---|---|:---:|---|
+| `id` | `UUID` | No | PK | Identificador del registro (`gen_random_uuid()`). |
+| `usuario_id` | `UUID` | No | FK → `perfiles.id` | Usuario que consumió la operación. |
+| `operacion` | `VARCHAR(30)` | No | | `resumen`, `chat`, etc. |
+| `modelo` | `VARCHAR(100)` | No | | Modelo utilizado. |
+| `tokens_entrada` | `INTEGER` | No | | Tokens de entrada. |
+| `tokens_salida` | `INTEGER` | No | | Tokens de salida. |
+| `costo_estimado` | `NUMERIC(12,6)` | No | | Costo estimado en USD (0 hasta conocer el precio del proveedor). |
+| `fecha` | `TIMESTAMPTZ` | No | | Fecha de la operación. |
+
+Reglas:
+
+- Cuota de resúmenes: 20 por usuario y día, contando registros `operacion = 'resumen'`
+  desde el inicio del día en UTC.
+- Los aciertos de caché no registran consumo porque no llaman a la IA.
+- El usuario autenticado solo puede leer e insertar sus propios registros (RLS).
+- DDL: `supabase/migrations/0007_hu10_resumenes.sql` (idempotente).
 
 ## 4. Relaciones e integridad
 
@@ -1046,10 +1101,11 @@ El diagrama actual cubre el núcleo académico, documental, de IA y de evaluaci�
 | `supabase/migrations/0004_hu07_documentos.sql` | Tabla `documentos`, índices, trigger de actualización y RLS (HU07, idempotente). |
 | `supabase/migrations/0005_hu09_fragmentos.sql` | Tabla `fragmentos_documento`, extensión `pgvector`, índices y RLS (HU09, idempotente). |
 | `supabase/migrations/0006_hu09_reemplazo_fragmentos.sql` | RPC `confirmar_reemplazo_fragmentos`, reemplazo atómico de fragmentos en el reproceso (HU09, idempotente). |
+| `supabase/migrations/0007_hu10_resumenes.sql` | Tablas `resumenes` y `consumo_ia`, índices y RLS (HU10, idempotente). |
 
 - El script `backend/scripts/run-migrations.js` (`npm run migrate`) aplica estas
   migraciones en orden: identidad, materias, tareas, calendario, documentos,
-  fragmentos y reemplazo de fragmentos.
+  fragmentos, reemplazo de fragmentos y resumenes.
 
 - Flujo:
 
