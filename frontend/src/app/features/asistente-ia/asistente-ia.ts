@@ -18,8 +18,11 @@ import {
   type ResumenDocumento,
 } from '../../core/services/resumen.service';
 import { mensajeDeErrorHttp } from '../../core/utils/http-error';
+import { ChatComponent } from './components/chat/chat.component';
 
 const LIMITE_DOCUMENTOS = 100;
+
+type PestanaAsistente = 'chat' | 'resumenes';
 
 interface OpcionProfundidad {
   valor: ProfundidadResumen;
@@ -27,10 +30,10 @@ interface OpcionProfundidad {
   descripcion: string;
 }
 
-/** Pagina de resumenes inteligentes de documentos (HU10). */
+/** Pagina del asistente academico: chat RAG (HU12) y resumenes (HU10). */
 @Component({
   selector: 'app-asistente-ia',
-  imports: [DatePipe, RouterLink],
+  imports: [DatePipe, RouterLink, ChatComponent],
   templateUrl: './asistente-ia.html',
   styleUrl: './asistente-ia.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -39,6 +42,8 @@ export class AsistenteIaPage {
   private readonly documentoService = inject(DocumentoService);
   private readonly resumenService = inject(ResumenService);
   private readonly destroyRef = inject(DestroyRef);
+
+  readonly pestana = signal<PestanaAsistente>('chat');
 
   readonly documentos = signal<Documento[]>([]);
   readonly cargandoDocumentos = signal(true);
@@ -68,7 +73,21 @@ export class AsistenteIaPage {
   );
 
   constructor() {
-    this.cargarDocumentos();
+    if (this.pestana() === 'resumenes') {
+      this.cargarDocumentos();
+    }
+  }
+
+  cambiarPestana(pestana: PestanaAsistente): void {
+    this.pestana.set(pestana);
+
+    if (
+      pestana === 'resumenes' &&
+      this.documentos().length === 0 &&
+      !this.cargandoDocumentos()
+    ) {
+      this.cargarDocumentos();
+    }
   }
 
   cargarDocumentos(): void {

@@ -10,6 +10,7 @@ const CalendarioRepository = require('./repositories/calendario.repository');
 const DocumentoRepository = require('./repositories/documento.repository');
 const FragmentoRepository = require('./repositories/fragmento.repository');
 const ResumenRepository = require('./repositories/resumen.repository');
+const ConversacionRepository = require('./repositories/conversacion.repository');
 const ConsumoIaRepository = require('./repositories/consumo-ia.repository');
 const AlmacenamientoRepository = require('./repositories/almacenamiento.repository');
 const ColaRepository = require('./repositories/cola.repository');
@@ -24,7 +25,9 @@ const ProcesamientoService = require('./services/procesamiento.service');
 const BusquedaService = require('./services/busqueda.service');
 const EmbeddingsService = require('./services/ia/embeddings.service');
 const ResumenIaService = require('./services/ia/resumen.ia.service');
+const AgenteIaService = require('./services/ia/agente.service');
 const ResumenService = require('./services/resumen.service');
+const ChatService = require('./services/chat.service');
 const AuthController = require('./controllers/auth.controller');
 const UsuarioAdminController = require('./controllers/usuario-admin.controller');
 const MateriaController = require('./controllers/materia.controller');
@@ -34,10 +37,12 @@ const DashboardController = require('./controllers/dashboard.controller');
 const DocumentoController = require('./controllers/documento.controller');
 const BusquedaController = require('./controllers/busqueda.controller');
 const ResumenController = require('./controllers/resumen.controller');
+const ChatController = require('./controllers/chat.controller');
 const { s3Client, sqsClient } = require('./config/aws');
 
-// Un solo cliente de embeddings compartido: no guarda estado por petición.
+// Clientes de IA compartidos: no guardan estado por petición.
 const embeddingsServiceCompartido = new EmbeddingsService();
+const agenteIaServiceCompartido = new AgenteIaService();
 const {
   createSupabaseClient,
   createSupabaseServiceRoleClient,
@@ -234,6 +239,34 @@ function createResumenController(resumenService) {
 }
 
 /**
+ * Crea el servicio de chat con RAG de HU12.
+ * Usa el cliente del usuario: conversaciones, mensajes, citas, documentos,
+ * fragmentos y consumo quedan limitados por RLS. Reutiliza los clientes de IA.
+ *
+ * @param {string} usuarioActualId - ID del usuario autenticado.
+ * @param {string} accessToken - JWT del usuario autenticado.
+ * @returns {ChatService}
+ */
+function createChatService(usuarioActualId, accessToken) {
+  const supabaseClient = createSupabaseClient(accessToken);
+
+  return new ChatService({
+    conversacionRepository: new ConversacionRepository({ supabase: supabaseClient }),
+    documentoRepository: new DocumentoRepository({ supabase: supabaseClient }),
+    materiaRepository: new MateriaRepository({ supabase: supabaseClient }),
+    fragmentoRepository: new FragmentoRepository({ supabase: supabaseClient }),
+    consumoRepository: new ConsumoIaRepository({ supabase: supabaseClient }),
+    embeddingsService: embeddingsServiceCompartido,
+    agenteIaService: agenteIaServiceCompartido,
+    usuarioActualId,
+  });
+}
+
+function createChatController(chatService) {
+  return new ChatController({ chatService });
+}
+
+/**
  * Crea el servicio que ejecuta el worker de procesamiento.
  * Usa service_role porque no hay usuario autenticado en la Lambda; el servicio
  * valida la propiedad del documento y de la ruta antes de tocar nada.
@@ -268,6 +301,7 @@ module.exports = {
   createDocumentoService,
   createBusquedaService,
   createResumenService,
+  createChatService,
   createProcesamientoService,
   createTareaController,
   createCalendarioController,
@@ -275,6 +309,7 @@ module.exports = {
   createDocumentoController,
   createBusquedaController,
   createResumenController,
+  createChatController,
   authController,
   usuarioAdminController: new UsuarioAdminController(),
   materiaController: new MateriaController(),
