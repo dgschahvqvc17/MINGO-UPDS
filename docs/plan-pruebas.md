@@ -161,11 +161,16 @@ Reglas:
 
 | Caso | Resultado esperado |
 |---|---|
-| Consulta con coincidencia | Fragmentos ordenados por similitud. |
-| Consulta sin coincidencia | `data: []` y mensaje claro. |
-| Consulta de B sobre documentos de A | Sin resultados. |
-| `limit` mayor a 20 | Se recorta a 20. |
-| Documento no procesado | No aparece en resultados. |
+| Consulta con coincidencia | Fragmentos ordenados por similitud, con documento, página y porcentaje. |
+| Consulta sin coincidencia | `data: []` y mensaje claro en `meta.mensaje`. |
+| Consulta de B sobre documentos de A | Sin resultados: la RPC filtra por `auth.uid()`. |
+| `limit` mayor a 20 | Se recorta a 20 sin devolver 400. |
+| Documento no procesado | No aparece en resultados; si se filtra explícitamente, responde `422`. |
+| Documento o materia ajena en el filtro | `404`. |
+| Consulta vacía, de un carácter o mayor a 120 | `400`. |
+| Cuota de 50 búsquedas agotada | `429 AI_QUOTA_EXCEEDED`, sin llamar a la IA. |
+| IA no configurada o proveedor caído | `503` con mensaje seguro. |
+| Falta la migración `0008` | Error claro que indica el archivo a ejecutar. |
 
 ### 4.9. Chat y RAG (HU12)
 

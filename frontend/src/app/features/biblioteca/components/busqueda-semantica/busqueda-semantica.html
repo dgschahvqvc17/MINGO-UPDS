@@ -1,0 +1,115 @@
+<section class="mat-filters busqueda-semantica" aria-labelledby="titulo-busqueda-semantica">
+  <div class="mat-filters-head">
+    <span class="mat-filters-title" id="titulo-busqueda-semantica">
+      <i class="bi bi-stars" aria-hidden="true"></i>
+      Búsqueda inteligente
+    </span>
+    <span class="text-muted-soft small">Busca por significado en tus documentos procesados</span>
+  </div>
+
+  <form class="row g-3 align-items-end" (submit)="buscar($event)">
+    <div class="col-12 col-md-3">
+      <label class="mat-filter-label" for="busqueda-semantica-materia">
+        <i class="bi bi-journal-bookmark" aria-hidden="true"></i>
+        Materia
+      </label>
+      <select
+        id="busqueda-semantica-materia"
+        class="form-select"
+        [value]="materiaId()"
+        (change)="materiaId.set($any($event.target).value)"
+      >
+        <option value="">Todas las materias</option>
+        @for (materia of materias(); track materia.id) {
+          <option [value]="materia.id">{{ materia.nombre }}</option>
+        }
+      </select>
+    </div>
+
+    <div class="col-12 col-md-7">
+      <label class="mat-filter-label" for="busqueda-semantica-consulta">
+        <i class="bi bi-search" aria-hidden="true"></i>
+        Pregunta o concepto
+      </label>
+      <input
+        id="busqueda-semantica-consulta"
+        type="search"
+        class="form-control"
+        placeholder="Ej. ¿Cómo se calcula una derivada?"
+        autocomplete="off"
+        [value]="consulta()"
+        [disabled]="cargando()"
+        (input)="consulta.set($any($event.target).value)"
+      />
+    </div>
+
+    <div class="col-12 col-md-2 d-flex gap-2">
+      <button
+        type="submit"
+        class="btn btn-primary flex-grow-1"
+        [disabled]="!consultaValida() || cargando()"
+      >
+        @if (cargando()) {
+          <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
+          Buscando
+        } @else {
+          <i class="bi bi-stars me-1" aria-hidden="true"></i>
+          Buscar
+        }
+      </button>
+      @if (busquedaRealizada()) {
+        <button type="button" class="btn-icon" aria-label="Limpiar búsqueda" (click)="limpiar()">
+          <i class="bi bi-x-lg" aria-hidden="true"></i>
+        </button>
+      }
+    </div>
+  </form>
+
+  @if (error()) {
+    <div class="alert alert-danger mt-3 mb-0 d-flex flex-wrap align-items-center gap-2" role="alert">
+      <i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i>
+      <span class="flex-grow-1">{{ error() }}</span>
+      <button type="button" class="btn btn-sm btn-outline-danger" (click)="buscar()">Reintentar</button>
+    </div>
+  }
+
+  @if (cargando()) {
+    <div class="mt-3 text-muted-soft small" role="status" aria-live="polite">
+      Buscando fragmentos relacionados en tus documentos...
+    </div>
+  }
+
+  @if (!cargando() && !error() && resultados().length > 0) {
+    <div class="resultados-busqueda mt-3" aria-label="Fragmentos encontrados">
+      @for (resultado of resultados(); track resultado.fragmento_id) {
+        <article class="resultado-busqueda">
+          <div class="d-flex flex-wrap justify-content-between align-items-start gap-2">
+            <div>
+              <h3 class="h6 mb-1">
+                <i class="bi bi-file-earmark-text me-1" aria-hidden="true"></i>
+                {{ resultado.documento_nombre }}
+              </h3>
+              <span class="text-muted-soft small">
+                {{ paginaTexto(resultado.numero_pagina) }} · Similitud {{ similitudTexto(resultado.similitud) }}
+              </span>
+            </div>
+            <a
+              class="btn btn-sm btn-outline-primary"
+              [routerLink]="['/biblioteca', resultado.documento_id]"
+            >
+              Abrir documento
+            </a>
+          </div>
+          <p class="resultado-contenido mb-0">{{ resultado.contenido }}</p>
+        </article>
+      }
+    </div>
+  }
+
+  @if (!cargando() && !error() && busquedaRealizada() && resultados().length === 0) {
+    <div class="alert alert-info mt-3 mb-0" role="status">
+      <i class="bi bi-info-circle me-1" aria-hidden="true"></i>
+      {{ mensajeVacio() ?? 'No encontramos fragmentos relacionados con tu consulta.' }}
+    </div>
+  }
+</section>

@@ -970,49 +970,62 @@ create index fragmentos_embedding_hnsw_idx
   using hnsw (embedding vector_cosine_ops);
 ```
 
-Función de búsqueda filtrada por propietario:
+La función de búsqueda se crea en `supabase/migrations/0008_hu11_busqueda_semantica.sql` (HU11). Firma real, con UUID como en el esquema de `documentos` y `fragmentos_documento`:
 
 ```sql
 create or replace function public.match_fragmentos(
   query_embedding vector(1536),
-  match_threshold float default 0.70,
-  match_count int default 8,
-  p_documento_id int default null
+  match_threshold double precision default 0.70,
+  match_count integer default 8,
+  p_documento_id uuid default null,
+  p_materia_id uuid default null
 )
 returns table (
-  id int,
-  documento_id int,
+  id uuid,
+  documento_id uuid,
+  documento_nombre text,
+  numero_fragmento integer,
+  numero_pagina integer,
   contenido text,
-  numero_pagina int,
-  similitud float
+  similitud double precision,
+  modelo_embedding varchar(100)
 )
 language sql
 stable
+set search_path = public, extensions, pg_temp
 as $$
   select
     f.id,
     f.documento_id,
-    f.contenido,
+    d.nombre as documento_nombre,
+    f.numero_fragmento,
     f.numero_pagina,
-    1 - (f.embedding <=> query_embedding) as similitud
+    f.contenido,
+    1 - (f.embedding <=> query_embedding) as similitud,
+    f.modelo_embedding
   from public.fragmentos_documento f
   join public.documentos d on d.id = f.documento_id
   where d.usuario_id = auth.uid()
     and f.embedding is not null
     and (p_documento_id is null or f.documento_id = p_documento_id)
+    and (p_materia_id is null or d.materia_id = p_materia_id)
     and 1 - (f.embedding <=> query_embedding) >= match_threshold
   order by f.embedding <=> query_embedding
   limit least(match_count, 20);
 $$;
 
-grant execute on function public.match_fragmentos to authenticated;
+revoke all on function public.match_fragmentos(vector(1536), double precision, integer, uuid, uuid)
+  from public, anon;
+grant execute on function public.match_fragmentos(vector(1536), double precision, integer, uuid, uuid)
+  to authenticated;
 ```
 
 Reglas:
 
 - La dimensión debe coincidir con `AI_EMBEDDING_DIMENSIONS` (1536 por defecto).
-- `match_count` máximo: 20.
-- Nunca buscar sin filtrar por `usuario_id`.
+- `match_count` máximo: 20; similitud mínima por defecto: `0.70`.
+- Nunca buscar sin filtrar por `auth.uid()`. Se invoca con el cliente JWT del usuario; con `service_role` no devolvería filas.
+- `revoke ... from public, anon` es obligatorio: Postgres otorga `EXECUTE` a `PUBLIC` por defecto.
 - Guardar `documento_id` y `numero_pagina` para las citas.
 
 ## 10. Ajustes recomendados antes de implementar
@@ -1102,10 +1115,11 @@ El diagrama actual cubre el núcleo académico, documental, de IA y de evaluaci�
 | `supabase/migrations/0005_hu09_fragmentos.sql` | Tabla `fragmentos_documento`, extensión `pgvector`, índices y RLS (HU09, idempotente). |
 | `supabase/migrations/0006_hu09_reemplazo_fragmentos.sql` | RPC `confirmar_reemplazo_fragmentos`, reemplazo atómico de fragmentos en el reproceso (HU09, idempotente). |
 | `supabase/migrations/0007_hu10_resumenes.sql` | Tablas `resumenes` y `consumo_ia`, índices y RLS (HU10, idempotente). |
+| `supabase/migrations/0008_hu11_busqueda_semantica.sql` | RPC `match_fragmentos` con UUID reales, filtro por propietario y permisos restringidos (HU11, idempotente). |
 
 - El script `backend/scripts/run-migrations.js` (`npm run migrate`) aplica estas
   migraciones en orden: identidad, materias, tareas, calendario, documentos,
-  fragmentos, reemplazo de fragmentos y resumenes.
+  fragmentos, reemplazo de fragmentos, resumenes y búsqueda semántica.
 
 - Flujo:
 
