@@ -50,6 +50,22 @@ describe('AgenteIaService (HU12)', () => {
     });
   });
 
+  it('exige responder solo la pregunta actual y no inventar palabras del estudiante', async () => {
+    const { servicio, crear } = crearServicio();
+
+    await servicio.responder({
+      pregunta: '¿Qué es una derivada?',
+      contexto: [],
+      historial: [{ rol_mensaje: 'usuario', contenido: '¿Cuál es el clima?' }],
+    });
+
+    const instrucciones = crear.mock.calls[0][0].messages[0].content;
+
+    expect(instrucciones).toMatch(/unicamente a la pregunta mas reciente/);
+    expect(instrucciones).toMatch(/no respondas temas de turnos anteriores/);
+    expect(instrucciones).toMatch(/No atribuyas al estudiante palabras que no escribio/);
+  });
+
   it('impide que el contenido del fragmento cierre los delimitadores', async () => {
     const { servicio, crear } = crearServicio();
 
