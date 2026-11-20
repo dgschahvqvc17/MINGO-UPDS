@@ -5,6 +5,10 @@ const asyncHandler = require('../utils/asyncHandler');
 const {
   createPlanEstudioService,
   createPlanEstudioController,
+  createObjetivoService,
+  createObjetivoController,
+  createProgresoService,
+  createProgresoController,
 } = require('../container');
 const {
   planListarQuerySchema,
@@ -15,6 +19,12 @@ const {
   sesionIdSchema,
   sesionActualizarSchema,
 } = require('../models/plan-estudio.model');
+const {
+  objetivoCrearSchema,
+  objetivoActualizarSchema,
+  objetivoListarQuerySchema,
+  objetivoIdSchema,
+} = require('../models/objetivo.model');
 
 const router = Router();
 
@@ -36,6 +46,30 @@ function atender(accion) {
     const planEstudioService = createPlanEstudioService(req.user.id, req.accessToken);
     const controller = createPlanEstudioController(planEstudioService);
     return controller[accion](req, res);
+  });
+}
+
+/**
+ * Delega en el controlador de objetivos (HU17).
+ * El servicio se compone por peticion para usar el cliente JWT del usuario.
+ *
+ * @param {'listar' | 'obtener' | 'crear' | 'actualizar' | 'eliminar'} accion
+ * @returns {import('express').RequestHandler}
+ */
+function atenderObjetivo(accion) {
+  return asyncHandler((req, res) => {
+    const objetivoService = createObjetivoService(req.user.id, req.accessToken);
+    const controller = createObjetivoController(objetivoService);
+    return controller[accion](req, res);
+  });
+}
+
+/** @returns {import('express').RequestHandler} */
+function atenderProgreso() {
+  return asyncHandler((req, res) => {
+    const progresoService = createProgresoService(req.user.id, req.accessToken);
+    const controller = createProgresoController(progresoService);
+    return controller.obtener(req, res);
   });
 }
 
@@ -117,6 +151,62 @@ router.delete(
   '/sesiones/:id',
   validationMiddleware({ params: sesionIdSchema }),
   atender('eliminarSesion'),
+);
+
+/**
+ * GET /estudio/progreso
+ * Devuelve estadisticas agregadas de progreso academico (HU17).
+ */
+router.get('/progreso', atenderProgreso());
+
+/**
+ * GET /estudio/objetivos
+ * Lista los objetivos del usuario, con filtro opcional por estado.
+ */
+router.get(
+  '/objetivos',
+  validationMiddleware({ query: objetivoListarQuerySchema }),
+  atenderObjetivo('listar'),
+);
+
+/**
+ * POST /estudio/objetivos
+ * Registra un objetivo academico.
+ */
+router.post(
+  '/objetivos',
+  validationMiddleware({ body: objetivoCrearSchema }),
+  atenderObjetivo('crear'),
+);
+
+/**
+ * GET /estudio/objetivos/:id
+ * Devuelve un objetivo propio.
+ */
+router.get(
+  '/objetivos/:id',
+  validationMiddleware({ params: objetivoIdSchema }),
+  atenderObjetivo('obtener'),
+);
+
+/**
+ * PUT /estudio/objetivos/:id
+ * Modifica un objetivo propio, incluido su estado.
+ */
+router.put(
+  '/objetivos/:id',
+  validationMiddleware({ params: objetivoIdSchema, body: objetivoActualizarSchema }),
+  atenderObjetivo('actualizar'),
+);
+
+/**
+ * DELETE /estudio/objetivos/:id
+ * Elimina un objetivo propio.
+ */
+router.delete(
+  '/objetivos/:id',
+  validationMiddleware({ params: objetivoIdSchema }),
+  atenderObjetivo('eliminar'),
 );
 
 module.exports = router;

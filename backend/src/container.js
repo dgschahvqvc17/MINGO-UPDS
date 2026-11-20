@@ -14,6 +14,8 @@ const ConversacionRepository = require('./repositories/conversacion.repository')
 const CuestionarioRepository = require('./repositories/cuestionario.repository');
 const TarjetaRepository = require('./repositories/tarjeta.repository');
 const PlanEstudioRepository = require('./repositories/plan-estudio.repository');
+const ObjetivoRepository = require('./repositories/objetivo.repository');
+const ProgresoRepository = require('./repositories/progreso.repository');
 const IdempotenciaRepository = require('./repositories/idempotencia.repository');
 const ConsumoIaRepository = require('./repositories/consumo-ia.repository');
 const AlmacenamientoRepository = require('./repositories/almacenamiento.repository');
@@ -38,6 +40,8 @@ const EvaluadorIaService = require('./services/ia/evaluador.ia.service');
 const TarjetaService = require('./services/tarjeta.service');
 const TarjetaIaService = require('./services/ia/tarjeta.ia.service');
 const PlanEstudioService = require('./services/plan-estudio.service');
+const ObjetivoService = require('./services/objetivo.service');
+const ProgresoService = require('./services/progreso.service');
 const PlanIaService = require('./services/ia/plan.ia.service');
 const AuthController = require('./controllers/auth.controller');
 const UsuarioAdminController = require('./controllers/usuario-admin.controller');
@@ -52,6 +56,8 @@ const ChatController = require('./controllers/chat.controller');
 const CuestionarioController = require('./controllers/cuestionario.controller');
 const TarjetaController = require('./controllers/tarjeta.controller');
 const PlanEstudioController = require('./controllers/plan-estudio.controller');
+const ObjetivoController = require('./controllers/objetivo.controller');
+const ProgresoController = require('./controllers/progreso.controller');
 const { s3Client, sqsClient } = require('./config/aws');
 
 // Clientes de IA compartidos: no guardan estado por petición.
@@ -369,6 +375,50 @@ function createPlanEstudioController(planEstudioService) {
 }
 
 /**
+ * Crea el servicio de objetivos academicos de HU17 con el cliente del usuario.
+ * RLS limita el acceso a los objetivos propios y a las materias vinculadas.
+ *
+ * @param {string} usuarioActualId - ID del usuario autenticado.
+ * @param {string} accessToken - JWT del usuario autenticado.
+ * @returns {ObjetivoService}
+ */
+function createObjetivoService(usuarioActualId, accessToken) {
+  const supabaseClient = createSupabaseClient(accessToken);
+
+  return new ObjetivoService({
+    objetivoRepository: new ObjetivoRepository({ supabase: supabaseClient }),
+    materiaRepository: new MateriaRepository({ supabase: supabaseClient }),
+    usuarioActualId,
+  });
+}
+
+function createObjetivoController(objetivoService) {
+  return new ObjetivoController({ objetivoService });
+}
+
+/**
+ * Crea el servicio de progreso academico de HU17 con el cliente del usuario.
+ * Solo lectura: agrega registros existentes limitados por RLS.
+ *
+ * @param {string} usuarioActualId - ID del usuario autenticado.
+ * @param {string} accessToken - JWT del usuario autenticado.
+ * @returns {ProgresoService}
+ */
+function createProgresoService(usuarioActualId, accessToken) {
+  const supabaseClient = createSupabaseClient(accessToken);
+
+  return new ProgresoService({
+    progresoRepository: new ProgresoRepository({ supabase: supabaseClient }),
+    objetivoRepository: new ObjetivoRepository({ supabase: supabaseClient }),
+    usuarioActualId,
+  });
+}
+
+function createProgresoController(progresoService) {
+  return new ProgresoController({ progresoService });
+}
+
+/**
  * Crea el servicio que ejecuta el worker de procesamiento.
  * Usa service_role porque no hay usuario autenticado en la Lambda; el servicio
  * valida la propiedad del documento y de la ruta antes de tocar nada.
@@ -407,6 +457,8 @@ module.exports = {
   createCuestionarioService,
   createTarjetaService,
   createPlanEstudioService,
+  createObjetivoService,
+  createProgresoService,
   createProcesamientoService,
   createTareaController,
   createCalendarioController,
@@ -418,6 +470,8 @@ module.exports = {
   createCuestionarioController,
   createTarjetaController,
   createPlanEstudioController,
+  createObjetivoController,
+  createProgresoController,
   authController,
   usuarioAdminController: new UsuarioAdminController(),
   materiaController: new MateriaController(),

@@ -62,8 +62,9 @@ async function runAllMigrations() {
   try {
     // Orden de migraciones: identidad, materias, tareas, calendario,
     // documentos, fragmentos, resumenes, busqueda semantica, chat,
-    // cuestionarios, idempotencia, tarjetas de memoria, planes de estudio y
-    // evaluacion. Las dependencias entre tablas exigen este orden.
+    // cuestionarios, idempotencia, tarjetas de memoria, planes de estudio,
+    // evaluacion, objetivos/progreso y permisos de objetivos. Las dependencias
+    // entre tablas exigen este orden.
     const migrations = [
       path.join('supabase', 'migrations', '0001_hu01_auth.sql'),
       path.join('backend', 'sql', 'materias.sql'),
@@ -80,6 +81,8 @@ async function runAllMigrations() {
       path.join('supabase', 'migrations', '0012_hu14_tarjetas_memoria.sql'),
       path.join('supabase', 'migrations', '0013_hu15_planes_estudio.sql'),
       path.join('supabase', 'migrations', '0014_hu16_evaluacion.sql'),
+      path.join('supabase', 'migrations', '0015_hu17_objetivos_progreso.sql'),
+      path.join('supabase', 'migrations', '0016_hu17_restringir_permisos_objetivos.sql'),
     ];
     
     for (const migrationFile of migrations) {

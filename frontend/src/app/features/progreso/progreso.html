@@ -1,0 +1,409 @@
+<section class="progreso">
+  <header class="page-header mb-4">
+    <div class="d-flex flex-wrap justify-content-between align-items-start gap-3">
+      <div>
+        <span class="page-eyebrow">Seguimiento académico</span>
+        <h1 class="page-title mt-1 mb-2">Objetivos y progreso</h1>
+        <p class="page-subtitle mb-0">
+          Registra tus metas, revisa tus actividades realizadas y detecta qué necesita atención.
+        </p>
+      </div>
+      <a routerLink="/planes-estudio" class="btn btn-sm btn-outline-info d-inline-flex align-items-center gap-2">
+        <i class="bi bi-calendar2-week" aria-hidden="true"></i>
+        Ver planes de estudio
+      </a>
+    </div>
+  </header>
+
+  @if (mensajeExito()) {
+    <div class="alert alert-success d-flex align-items-center mb-4" role="status">
+      <i class="bi bi-check-circle me-2" aria-hidden="true"></i>
+      <span class="flex-grow-1">{{ mensajeExito() }}</span>
+      <button type="button" class="btn-close" aria-label="Cerrar mensaje" (click)="mensajeExito.set(null)"></button>
+    </div>
+  }
+
+  @if (error()) {
+    <div class="alert alert-danger d-flex align-items-center mb-4" role="alert">
+      <i class="bi bi-exclamation-triangle me-2" aria-hidden="true"></i>
+      <span class="flex-grow-1">{{ error() }}</span>
+      <button type="button" class="btn-close" aria-label="Cerrar error" (click)="error.set(null)"></button>
+    </div>
+  }
+
+  @if (cargandoProgreso()) {
+    <div class="app-card mb-4">
+      <div class="card-body p-5 text-center" role="status">
+        <span class="spinner-border text-primary" aria-hidden="true"></span>
+        <p class="text-muted-soft mt-3 mb-0">Calculando tu progreso...</p>
+      </div>
+    </div>
+  } @else if (progreso(); as resumen) {
+    <div class="row g-3 mb-4">
+      <div class="col-6 col-lg-3">
+        <div class="app-card app-card--elevated h-100">
+          <div class="card-body p-3">
+            <span class="progreso-stat-icon progreso-stat-icon--primary" aria-hidden="true"><i class="bi bi-bullseye"></i></span>
+            <p class="progreso-stat-valor mb-0">{{ porcentaje(resumen.cumplimiento_tareas) }}%</p>
+            <p class="progreso-stat-label mb-0">Tareas completadas</p>
+            <p class="small text-muted-soft mb-0">{{ resumen.tareas_completadas }} de {{ resumen.tareas_completadas + resumen.tareas_pendientes }}</p>
+          </div>
+        </div>
+      </div>
+      <div class="col-6 col-lg-3">
+        <div class="app-card app-card--elevated h-100">
+          <div class="card-body p-3">
+            <span class="progreso-stat-icon progreso-stat-icon--success" aria-hidden="true"><i class="bi bi-clock-history"></i></span>
+            <p class="progreso-stat-valor mb-0">{{ resumen.sesiones_completadas }}</p>
+            <p class="progreso-stat-label mb-0">Sesiones realizadas</p>
+            <p class="small text-muted-soft mb-0">De {{ resumen.sesiones_totales }} planificadas</p>
+          </div>
+        </div>
+      </div>
+      <div class="col-6 col-lg-3">
+        <div class="app-card app-card--elevated h-100">
+          <div class="card-body p-3">
+            <span class="progreso-stat-icon progreso-stat-icon--info" aria-hidden="true"><i class="bi bi-patch-check"></i></span>
+            <p class="progreso-stat-valor mb-0">{{ resumen.cuestionarios_completados }}</p>
+            <p class="progreso-stat-label mb-0">Cuestionarios</p>
+            <p class="small text-muted-soft mb-0">
+              @if (resumen.promedio_cuestionarios !== null) {
+                Promedio {{ resumen.promedio_cuestionarios }}%
+              } @else {
+                Sin resultados aún
+              }
+            </p>
+          </div>
+        </div>
+      </div>
+      <div class="col-6 col-lg-3">
+        <div class="app-card app-card--elevated h-100">
+          <div class="card-body p-3">
+            <span class="progreso-stat-icon progreso-stat-icon--warning" aria-hidden="true"><i class="bi bi-lightning-charge"></i></span>
+            <p class="progreso-stat-valor mb-0">{{ resumen.racha_dias }} {{ resumen.racha_dias === 1 ? 'día' : 'días' }}</p>
+            <p class="progreso-stat-label mb-0">Racha activa</p>
+            <p class="small text-muted-soft mb-0">{{ horasEstudiadas() }} h {{ minutosEstudiados() }} min estudiados</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="row g-4 mb-4">
+      <div class="col-12 col-lg-4">
+        <div class="app-card h-100">
+          <div class="card-body p-4">
+            <h2 class="h6 mb-3">Cumplimiento general</h2>
+            <div class="d-flex align-items-center gap-4">
+              <div
+                class="progreso-donut"
+                [style.background]="donutBackground()"
+                role="img"
+                [attr.aria-label]="'Cumplimiento general: ' + cumplimientoGeneral() + ' por ciento'"
+              >
+                <div class="progreso-donut-inner">
+                  <strong>{{ cumplimientoGeneral() }}%</strong>
+                  <span>global</span>
+                </div>
+              </div>
+              <div class="flex-grow-1">
+                @for (item of indicadores(); track item.etiqueta) {
+                  <div class="progreso-media">
+                    <div class="d-flex justify-content-between small mb-1">
+                      <span>{{ item.etiqueta }}</span>
+                      <span class="fw-semibold">{{ porcentaje(item.valor) }}%</span>
+                    </div>
+                    <div class="progress progreso-barra">
+                      <div
+                        class="progress-bar"
+                        [class.bg-primary]="item.color === 'primary'"
+                        [class.bg-success]="item.color === 'success'"
+                        [class.bg-info]="item.color === 'info'"
+                        role="progressbar"
+                        [style.width.%]="porcentaje(item.valor)"
+                        [attr.aria-label]="item.etiqueta + ': ' + porcentaje(item.valor) + ' por ciento'"
+                        [attr.aria-valuenow]="porcentaje(item.valor)"
+                        aria-valuemin="0"
+                        aria-valuemax="100"
+                      ></div>
+                    </div>
+                  </div>
+                }
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-12 col-lg-8">
+        <div class="app-card h-100">
+          <div class="card-body p-4">
+            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+              <h2 class="h6 mb-0">Actividad de los últimos 7 días</h2>
+              <div class="d-flex gap-3 small text-muted-soft">
+                <span><i class="bi bi-square-fill text-primary" aria-hidden="true"></i> Tareas</span>
+                <span><i class="bi bi-square-fill text-success" aria-hidden="true"></i> Sesiones</span>
+              </div>
+            </div>
+            <div class="progreso-grafico" role="group" aria-label="Actividad semanal">
+              @for (dia of resumen.actividad_semanal; track dia.fecha) {
+                <div class="progreso-grafico-dia">
+                  <div class="progreso-barras">
+                    <div
+                      class="progreso-barra-dia progreso-barra-dia--tareas"
+                      [style.height.%]="alturaBarra(dia.tareas)"
+                      role="img"
+                      [attr.aria-label]="dia.etiqueta + ': ' + dia.tareas + ' tareas completadas'"
+                      [title]="dia.tareas + ' tareas'"
+                    ></div>
+                    <div
+                      class="progreso-barra-dia progreso-barra-dia--sesiones"
+                      [style.height.%]="alturaBarra(dia.sesiones)"
+                      role="img"
+                      [attr.aria-label]="dia.etiqueta + ': ' + dia.sesiones + ' sesiones completadas'"
+                      [title]="dia.sesiones + ' sesiones'"
+                    ></div>
+                  </div>
+                  <span class="progreso-grafico-etiqueta">{{ dia.etiqueta }}</span>
+                </div>
+              }
+            </div>
+            @if (sinActividadSemanal()) {
+              <p class="small text-muted-soft text-center mt-3 mb-0">
+                Aún no hay actividad registrada en los últimos 7 días.
+              </p>
+            }
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="row g-4 mb-4">
+      <div class="col-12 col-lg-6">
+        <div class="app-card h-100">
+          <div class="card-body p-4">
+            <h2 class="h6 mb-3"><i class="bi bi-exclamation-circle text-warning me-2" aria-hidden="true"></i>Actividades que necesitan atención</h2>
+            @if (resumen.actividades_atencion.length === 0) {
+              <p class="text-muted-soft mb-0">No hay tareas, sesiones ni objetivos pendientes que requieran atención.</p>
+            } @else {
+              <ul class="list-unstyled mb-0 progreso-lista">
+                @for (atencion of resumen.actividades_atencion; track atencion.tipo + atencion.id) {
+                  <li class="progreso-lista-item">
+                    <span class="badge badge-sm" [class.badge-danger]="atencion.motivo === 'Vencida' || atencion.motivo === 'Objetivo vencido'" [class.badge-warning]="atencion.motivo !== 'Vencida' && atencion.motivo !== 'Objetivo vencido'">{{ atencion.motivo }}</span>
+                    <div class="min-w-0">
+                      <p class="mb-0 fw-semibold text-truncate">{{ atencion.titulo }}</p>
+                      <p class="small text-muted-soft mb-0">
+                        {{ atencion.materia ?? 'Sin materia' }} · {{ atencion.fecha | date: 'dd/MM/yyyy' }}
+                      </p>
+                    </div>
+                  </li>
+                }
+              </ul>
+            }
+          </div>
+        </div>
+      </div>
+      <div class="col-12 col-lg-6">
+        <div class="app-card app-card--success h-100">
+          <div class="card-body p-4">
+            <h2 class="h6 mb-3"><i class="bi bi-lightbulb text-success me-2" aria-hidden="true"></i>Recomendaciones</h2>
+            <ul class="list-unstyled mb-0 progreso-lista">
+              @for (recomendacion of resumen.recomendaciones; track recomendacion.tipo) {
+                <li class="progreso-lista-item">
+                  <span class="badge badge-sm" [class.badge-danger]="recomendacion.prioridad === 'alta'" [class.badge-info]="recomendacion.prioridad === 'media'" [class.badge-success]="recomendacion.prioridad === 'baja'">{{ recomendacion.prioridad }}</span>
+                  <p class="mb-0">{{ recomendacion.mensaje }}</p>
+                </li>
+              }
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  }
+
+  <div class="row g-4">
+    <div class="col-12 col-xl-4">
+      <div class="app-card h-100">
+        <div class="card-body p-4">
+          <div class="panel-heading mb-4">
+            <span class="icon-badge icon-badge--primary icon-badge--lg" aria-hidden="true">
+              <i class="bi bi-bullseye"></i>
+            </span>
+            <div>
+              <h2 class="h5 mb-1">{{ editandoId() ? 'Editar objetivo' : 'Nuevo objetivo' }}</h2>
+              <p class="small text-muted-soft mb-0">Define una meta concreta y su fecha límite.</p>
+            </div>
+          </div>
+
+          @if (errorFormulario()) {
+            <div class="alert alert-danger mb-3" role="alert">{{ errorFormulario() }}</div>
+          }
+
+          <form (submit)="$event.preventDefault(); guardar()">
+            <div class="mb-3">
+              <label for="titulo-objetivo" class="form-label">Título</label>
+              <input
+                id="titulo-objetivo"
+                type="text"
+                class="form-control"
+                maxlength="150"
+                placeholder="Ej. Aprobar el parcial de cálculo"
+                [value]="titulo()"
+                (input)="titulo.set($any($event.target).value)"
+              />
+              <div class="form-text">Entre 5 y 150 caracteres.</div>
+            </div>
+
+            <div class="mb-3">
+              <label for="descripcion-objetivo" class="form-label">Descripción</label>
+              <textarea
+                id="descripcion-objetivo"
+                class="form-control"
+                rows="3"
+                maxlength="1000"
+                placeholder="Detalles para alcanzar tu objetivo"
+                [value]="descripcion()"
+                (input)="descripcion.set($any($event.target).value)"
+              ></textarea>
+            </div>
+
+            <div class="mb-3">
+              <label for="materia-objetivo" class="form-label">Materia (opcional)</label>
+              <select
+                id="materia-objetivo"
+                class="form-select"
+                [value]="materiaId()"
+                (change)="materiaId.set($any($event.target).value)"
+              >
+                <option value="">Sin materia específica</option>
+                @for (materia of materiasActivas(); track materia.id) {
+                  <option [value]="materia.id">{{ materia.nombre }}</option>
+                }
+              </select>
+            </div>
+
+            <div class="row g-3 mb-3">
+              <div class="col-12 col-sm-6 col-xl-12 col-xxl-6">
+                <label for="fecha-objetivo" class="form-label">Fecha límite</label>
+                <input
+                  id="fecha-objetivo"
+                  type="date"
+                  class="form-control"
+                  [value]="fechaLimite()"
+                  (input)="fechaLimite.set($any($event.target).value)"
+                />
+              </div>
+              @if (editandoId()) {
+                <div class="col-12 col-sm-6 col-xl-12 col-xxl-6">
+                  <label for="estado-objetivo" class="form-label">Estado</label>
+                  <select
+                    id="estado-objetivo"
+                    class="form-select"
+                    [value]="estado()"
+                    (change)="estado.set($any($event.target).value)"
+                  >
+                    @for (opcion of estados; track opcion) {
+                      <option [value]="opcion">{{ etiquetasEstado[opcion] }}</option>
+                    }
+                  </select>
+                </div>
+              }
+            </div>
+
+            <div class="d-flex gap-2">
+              <button type="submit" class="btn btn-ai flex-grow-1" [disabled]="!puedeGuardar()">
+                @if (guardando()) {
+                  <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                  Guardando...
+                } @else {
+                  <i class="bi bi-check2 me-2" aria-hidden="true"></i>
+                  {{ editandoId() ? 'Actualizar objetivo' : 'Registrar objetivo' }}
+                }
+              </button>
+              @if (editandoId()) {
+                <button type="button" class="btn btn-outline-secondary" (click)="cancelarEdicion()">Cancelar</button>
+              }
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-xl-8">
+      <div class="app-card h-100">
+        <div class="card-body p-4">
+          <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+            <div>
+              <h2 class="h5 mb-1">Mis objetivos</h2>
+              <p class="small text-muted-soft mb-0">Gestiona tus metas y su estado de cumplimiento.</p>
+            </div>
+            <div class="btn-group btn-group-sm" role="group" aria-label="Filtrar objetivos">
+              <button type="button" class="btn btn-outline-secondary" [class.active]="filtro() === 'todos'" (click)="cambiarFiltro('todos')">Todos</button>
+              <button type="button" class="btn btn-outline-secondary" [class.active]="filtro() === 'pendiente'" (click)="cambiarFiltro('pendiente')">Pendientes</button>
+              <button type="button" class="btn btn-outline-secondary" [class.active]="filtro() === 'completada'" (click)="cambiarFiltro('completada')">Completados</button>
+            </div>
+          </div>
+
+          @if (cargandoObjetivos()) {
+            <div class="text-center py-5" role="status">
+              <span class="spinner-border text-primary" aria-hidden="true"></span>
+              <p class="text-muted-soft mt-3 mb-0">Cargando objetivos...</p>
+            </div>
+          } @else if (objetivosFiltrados().length === 0) {
+            <div class="text-center py-5">
+              <span class="icon-badge icon-badge--primary icon-badge--xl mb-3" aria-hidden="true"><i class="bi bi-bullseye"></i></span>
+              <p class="mb-1 fw-semibold">No hay objetivos en esta vista</p>
+              <p class="small text-muted-soft mb-0">Registra un objetivo para empezar a medir tu progreso.</p>
+            </div>
+          } @else {
+            <div class="progreso-objetivos">
+              @for (objetivo of objetivosFiltrados(); track objetivo.id) {
+                <article class="progreso-objetivo" [class.progreso-objetivo--completada]="objetivo.estado === 'completada'">
+                  <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-2">
+                    <div class="min-w-0">
+                      <h3 class="h6 mb-1">{{ objetivo.titulo }}</h3>
+                      <p class="small text-muted-soft mb-0">
+                        @if (objetivo.materias) {
+                          <i class="bi bi-journal-bookmark me-1" aria-hidden="true"></i>{{ objetivo.materias.nombre }}
+                        } @else {
+                          <i class="bi bi-inbox me-1" aria-hidden="true"></i>Sin materia
+                        }
+                        @if (objetivo.fecha_limite) {
+                          · <i class="bi bi-calendar3 me-1" aria-hidden="true"></i>{{ objetivo.fecha_limite | date: 'dd/MM/yyyy' : 'UTC' }}
+                        }
+                      </p>
+                    </div>
+                    <span class="badge badge-sm" [class.badge-success]="objetivo.estado === 'completada'" [class.badge-info]="objetivo.estado === 'en_progreso'" [class.badge-warning]="objetivo.estado === 'pendiente'">{{ etiquetasEstado[objetivo.estado] }}</span>
+                  </div>
+                  @if (objetivo.descripcion) {
+                    <p class="small mb-3">{{ objetivo.descripcion }}</p>
+                  }
+                  <div class="d-flex flex-wrap gap-2">
+                    @for (opcion of estados; track opcion) {
+                      <button
+                        type="button"
+                        class="btn btn-sm btn-outline-secondary"
+                        [class.active]="objetivo.estado === opcion"
+                        [disabled]="objetivo.estado === opcion"
+                        (click)="cambiarEstado(objetivo, opcion)"
+                      >
+                        {{ etiquetasEstado[opcion] }}
+                      </button>
+                    }
+                    <button type="button" class="btn btn-sm btn-outline-primary" (click)="editar(objetivo)">Editar</button>
+                    <button type="button" class="btn btn-sm btn-outline-danger" (click)="eliminar(objetivo)">Eliminar</button>
+                  </div>
+                </article>
+              }
+            </div>
+
+            @if (hayMasObjetivos()) {
+              <div class="text-center mt-4">
+                <button type="button" class="btn btn-sm btn-outline-secondary" (click)="cargarMas()">Cargar más objetivos</button>
+              </div>
+            }
+          }
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
