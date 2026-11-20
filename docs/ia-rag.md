@@ -497,8 +497,14 @@ Detalles de implementación:
   seguimiento y las animaciones, y el componente anuncia el estado por
   `aria-label`.
 - Está conectada a chat (HU12), resúmenes (HU10), búsqueda semántica (HU11),
-  cuestionarios (HU13), evaluación (HU16), tarjetas (HU14) y planes (HU15),
-  además de los estados vacíos de esas pantallas.
+  cuestionarios (HU13) y evaluación (HU16), además de los estados vacíos de esas
+  pantallas.
+- En el centro de estudio, las tarjetas de memoria y los planes de estudio el
+  lugar del icono lo ocupa un `icon-badge` de Bootstrap, no la mascota:
+  `bi-patch-question`, `bi-journal-check` y `bi-clipboard-check` en el centro de estudio,
+  `bi-card-checklist` y `bi-collection` en tarjetas, y `bi-calendar2-check`,
+  `bi-lightbulb` y `bi-calendar3` en planes. El resultado del resolver de
+  cuestionarios conserva su mascota porque no ocupa un lugar de icono.
 - En el hero del dashboard y en el login se usa la variante `grande`: entra con
   una animación de escala, levanta la pata y guiña un ojo durante 3,2 s al
   saludar, muestra una burbuja con el nombre del estudiante o un mensaje de

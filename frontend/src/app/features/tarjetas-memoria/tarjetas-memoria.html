@@ -54,7 +54,9 @@
         <div class="app-card app-card--ai h-100">
           <div class="card-body p-4">
             <div class="panel-heading">
-              <app-mascota-agente [estado]="estadoMascota()" [compacta]="true" />
+              <span class="icon-badge icon-badge--ai icon-badge--lg" aria-hidden="true">
+                <i class="bi bi-card-checklist"></i>
+              </span>
               <div>
                 <h2 class="h5 mb-1">Generar tarjetas</h2>
                 <p class="small text-muted-soft mb-0">Convierte tus apuntes en tarjetas de repaso.</p>
@@ -170,7 +172,9 @@
               <div class="app-card">
                 <div class="card-body p-5 text-center">
                   <div class="d-flex justify-content-center mb-2">
-                    <app-mascota-agente estado="inactivo" />
+                    <span class="icon-badge icon-badge--ai icon-badge--lg" aria-hidden="true">
+                      <i class="bi bi-collection"></i>
+                    </span>
                   </div>
                   <h3 class="h6 mb-1">Todavía no tienes tarjetas</h3>
                   <p class="small text-muted-soft mb-0">

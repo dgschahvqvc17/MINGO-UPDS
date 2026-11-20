@@ -188,7 +188,7 @@ Reglas:
 | `frontend/src/app/features/dashboard/dashboard.spec.ts` | Componente | Indicadores, estados vacíos, error y recarga; mascota grande saludando con el nombre del usuario. |
 | `frontend/src/app/features/auth/login/login.spec.ts` | Componente | Validación, redirección y errores; una sola mascota en el hero, fuera del bloque de credenciales; cabeza que sigue el cursor y saludo animado que piensa, habla y vuelve al reposo. |
 | `frontend/src/app/shared/components/mascota-agente/estado-mascota.spec.ts` | Unitario (señales) | Reposo inicial; prioridad de la carga; fase hablando temporal; cancelación con `reiniciar`. |
-| `frontend/src/app/features/tarjetas-memoria/tarjetas-memoria.spec.ts` | Componente | Generación de tarjetas con la mascota pensando durante la petición y hablando al recibir el resultado. |
+| `frontend/src/app/features/tarjetas-memoria/tarjetas-memoria.spec.ts` | Componente | Generación de tarjetas y estados vacíos; el panel usa `bi-card-checklist`, el estado vacío `bi-collection` y no hay mascota en la pantalla. |
 
 **Casos funcionales**
 

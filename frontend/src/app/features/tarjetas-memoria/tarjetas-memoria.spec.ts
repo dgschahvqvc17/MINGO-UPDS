@@ -1,5 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { Subject, of, throwError } from 'rxjs';
+import { of, throwError } from 'rxjs';
 import { DocumentoService } from '../../core/services/documento.service';
 import { MateriaService, type Materia } from '../../core/services/materia.service';
 import {
@@ -116,6 +116,7 @@ describe('TarjetasMemoriaPage (HU14)', () => {
     fixture.detectChanges();
 
     expect(fixture.nativeElement.textContent).toContain('Todavía no tienes tarjetas');
+    expect(fixture.nativeElement.querySelector('.bi-collection')).not.toBeNull();
   });
 
   it('muestra un mensaje seguro cuando falla la carga', () => {
@@ -142,24 +143,11 @@ describe('TarjetasMemoriaPage (HU14)', () => {
     expect(componente.estudiando()).toEqual({ id: CONJUNTO_ID, titulo: conjunto.titulo });
   });
 
-  it('muestra la mascota pensando y luego hablando al generar tarjetas', () => {
-    const generacionPendiente = new Subject<typeof conjuntoGenerado>();
-    generar.mockReturnValue(generacionPendiente);
-    componente.cambiarMateria(MATERIA_ID);
+  it('muestra un icono de tarjetas en lugar de la mascota en el panel de generación', () => {
+    const encabezado = fixture.nativeElement.querySelector('.panel-heading') as HTMLElement;
 
-    componente.generar();
-    fixture.detectChanges();
-
-    expect(componente.estadoMascota()).toBe('pensando');
-    const mascota = fixture.nativeElement.querySelector('app-mascota-agente .mascota') as HTMLElement;
-    expect(mascota.classList.contains('mascota--pensando')).toBe(true);
-
-    generacionPendiente.next(conjuntoGenerado);
-    generacionPendiente.complete();
-    fixture.detectChanges();
-
-    expect(componente.estadoMascota()).toBe('hablando');
-    fixture.destroy();
+    expect(encabezado.querySelector('.bi-card-checklist')).not.toBeNull();
+    expect(fixture.nativeElement.querySelector('app-mascota-agente')).toBeNull();
   });
 
   it('no genera si no se seleccionó una materia', () => {

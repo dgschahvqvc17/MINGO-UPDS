@@ -46,7 +46,9 @@
       <div class="app-card app-card--ai h-100">
         <div class="card-body p-4">
           <div class="panel-heading">
-            <app-mascota-agente [estado]="estadoMascota()" [compacta]="true" />
+            <span class="icon-badge icon-badge--ai icon-badge--lg" aria-hidden="true">
+              <i class="bi bi-calendar2-check"></i>
+            </span>
             <div>
               <h2 class="h5 mb-1">Nuevo plan</h2>
               <p class="small text-muted-soft mb-0">Define tu objetivo y tu ritmo de estudio.</p>
@@ -158,7 +160,9 @@
         <div class="app-card h-100">
           <div class="card-body p-4 p-lg-5 d-flex flex-column align-items-center justify-content-center text-center">
             <div class="d-flex justify-content-center mb-2">
-              <app-mascota-agente estado="inactivo" />
+              <span class="icon-badge icon-badge--ai icon-badge--lg" aria-hidden="true">
+                <i class="bi bi-lightbulb"></i>
+              </span>
             </div>
             <h2 class="h5 mb-2">Aún no hay una propuesta</h2>
             <p class="text-muted-soft mb-4">
@@ -346,7 +350,9 @@
       <div class="app-card">
         <div class="card-body p-5 text-center">
           <div class="d-flex justify-content-center mb-2">
-            <app-mascota-agente estado="inactivo" />
+            <span class="icon-badge icon-badge--ai icon-badge--lg" aria-hidden="true">
+              <i class="bi bi-calendar3"></i>
+            </span>
           </div>
           <h3 class="h6 mb-1">Todavía no tienes planes guardados</h3>
           <p class="small text-muted-soft mb-0">

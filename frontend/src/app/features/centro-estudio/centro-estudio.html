@@ -55,7 +55,9 @@
         <div class="app-card app-card--ai h-100">
           <div class="card-body p-4">
             <div class="panel-heading">
-              <app-mascota-agente [estado]="estadoMascota()" [compacta]="true" />
+              <span class="icon-badge icon-badge--ai icon-badge--lg" aria-hidden="true">
+                <i class="bi bi-patch-question"></i>
+              </span>
               <div>
                 <h2 class="h5 mb-1">Generar cuestionario</h2>
                 <p class="small text-muted-soft mb-0">Define el material y el tipo de preguntas.</p>
@@ -208,7 +210,9 @@
               <div class="app-card">
                 <div class="card-body p-5 text-center">
                   <div class="d-flex justify-content-center mb-2">
-                    <app-mascota-agente estado="inactivo" />
+                    <span class="icon-badge icon-badge--ai icon-badge--lg" aria-hidden="true">
+                      <i class="bi bi-journal-check"></i>
+                    </span>
                   </div>
                   <h3 class="h6 mb-1">Todavía no tienes cuestionarios</h3>
                   <p class="small text-muted-soft mb-0">
@@ -361,7 +365,9 @@
               <div class="app-card">
                 <div class="card-body p-5 text-center">
                   <div class="d-flex justify-content-center mb-2">
-                    <app-mascota-agente estado="inactivo" />
+                    <span class="icon-badge icon-badge--ai icon-badge--lg" aria-hidden="true">
+                      <i class="bi bi-clipboard-check"></i>
+                    </span>
                   </div>
                   <h3 class="h6 mb-1">Todavía no tienes evaluaciones</h3>
                   <p class="small text-muted-soft mb-0">
