@@ -59,7 +59,7 @@ Archivo `backend/.env` (no se versiona). Plantilla en `backend/.env.example`.
 | `AWS_REGION` | Sí | `us-east-1` | Una sola región. |
 | `AWS_ACCESS_KEY_ID` | Solo local | `AKIA...` | En Lambda se usa el rol IAM. |
 | `AWS_SECRET_ACCESS_KEY` | Solo local | `...` | En Lambda se usa el rol IAM. |
-| `AWS_S3_BUCKET` | Sí | `mingo-documentos-dev` | Bucket privado. |
+| `AWS_S3_BUCKET` | Sí | `mingo-documentos-dev-591015654164` | Bucket privado creado por el stack SAM; debe coincidir con `BucketName`. |
 | `AWS_LAMBDA_FUNCTION_NAME` | No | `mingo-document-processor` | Función procesadora. |
 | `AWS_SNS_TOPIC_ARN` | No | `arn:aws:sns:...` | Recordatorios por email. |
 | `AWS_SQS_QUEUE_URL` | No | `https://sqs...` | Cola de documentos. |

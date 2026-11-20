@@ -712,6 +712,53 @@ Reglas:
 - Las claves se purgan de forma oportunista después de 24 horas.
 - DDL: `supabase/migrations/0011_hu12_idempotencia_chat.sql` (idempotente).
 
+### 3.21. `conjuntos_tarjetas`
+
+Conjuntos de tarjetas de memoria generados con IA (HU14).
+
+| Campo | Tipo | Nulo | Clave | Descripción |
+|---|---|---|---|---|
+| `id` | `UUID` | No | PK | Identificador del conjunto (`gen_random_uuid()`). |
+| `usuario_id` | `UUID` | No | FK → `perfiles.id` | Propietario del conjunto. |
+| `materia_id` | `UUID` | No | FK → `materias.id` | Materia de estudio. |
+| `documento_id` | `UUID` | Sí | FK → `documentos.id` | Documento de origen; `NULL` si se usó toda la materia. Se conserva con `ON DELETE SET NULL`. |
+| `titulo` | `VARCHAR(200)` | No | | Título legible del conjunto. |
+| `cantidad_tarjetas` | `INTEGER` | No | | Número de tarjetas (5–30). |
+| `modelo` | `VARCHAR(100)` | No | | Modelo de IA usado. |
+| `tokens_entrada` | `INTEGER` | No | | Tokens de entrada consumidos. |
+| `tokens_salida` | `INTEGER` | No | | Tokens de salida consumidos. |
+| `fecha_creacion` | `TIMESTAMPTZ` | No | | Fecha de generación. |
+
+Reglas:
+
+- `titulo` no puede estar vacío y `cantidad_tarjetas` está entre 5 y 30.
+- `tokens_entrada` y `tokens_salida` son no negativos.
+- RLS por `usuario_id`; un conjunto ajeno responde `404`.
+- DDL: `supabase/migrations/0012_hu14_tarjetas_memoria.sql` (idempotente).
+
+### 3.22. `tarjetas`
+
+Tarjetas de un conjunto y su estado de estudio (HU14).
+
+| Campo | Tipo | Nulo | Clave | Descripción |
+|---|---|---|---|---|
+| `id` | `UUID` | No | PK | Identificador de la tarjeta (`gen_random_uuid()`). |
+| `usuario_id` | `UUID` | No | FK → `perfiles.id` | Propietario de la tarjeta. |
+| `conjunto_id` | `UUID` | No | FK → `conjuntos_tarjetas.id` | Conjunto al que pertenece; borrado en cascada. |
+| `orden` | `INTEGER` | No | Única por conjunto | Posición de la tarjeta (mayor que 0). |
+| `frente` | `TEXT` | No | | Texto de la cara visible (2–1000 caracteres). |
+| `reverso` | `TEXT` | No | | Respuesta (2–1200 caracteres). |
+| `estado` | `VARCHAR(20)` | No | | `sin_revisar`, `conocida` o `repaso`. |
+| `fecha_actualizacion` | `TIMESTAMPTZ` | No | | Última marca de estudio. |
+
+Reglas:
+
+- `orden` es único dentro del conjunto.
+- `estado` empieza en `sin_revisar`; el filtro `pendientes` excluye `conocida`.
+- RLS por `usuario_id`; la política de inserción exige que el conjunto pertenezca
+  al usuario.
+- DDL: `supabase/migrations/0012_hu14_tarjetas_memoria.sql` (idempotente).
+
 ## 4. Relaciones e integridad
 
 | Relación | Cardinalidad | Regla de borrado recomendada |
@@ -1253,7 +1300,9 @@ Las estructuras de HU13 (`cuestionarios`, `preguntas`, `opciones_pregunta`,
 `intentos_cuestionario` y `respuestas_usuario`) ya están implementadas en
 `supabase/migrations/0010_hu13_cuestionarios.sql`. La idempotencia de HU12 usa
 `solicitudes_idempotentes`, creada en
-`supabase/migrations/0011_hu12_idempotencia_chat.sql`.
+`supabase/migrations/0011_hu12_idempotencia_chat.sql`. Las estructuras de HU14
+(`conjuntos_tarjetas` y `tarjetas`) están implementadas en
+`supabase/migrations/0012_hu14_tarjetas_memoria.sql`.
 
 Las estructuras de HU12 (`mensajes.modelo_utilizado`,
 `conversaciones.tipo_conversacion` y `fecha_actualizacion`, además de
@@ -1282,11 +1331,12 @@ están implementadas en `supabase/migrations/0009_hu12_chat.sql`.
 | `supabase/migrations/0009_hu12_chat.sql` | Tablas `conversaciones`, `mensajes` y `referencias_respuesta` con UUID, trigger de `fecha_actualizacion`, índices y RLS por `auth.uid()` (HU12, idempotente). |
 | `supabase/migrations/0010_hu13_cuestionarios.sql` | Tablas `cuestionarios`, `preguntas`, `opciones_pregunta`, `intentos_cuestionario` y `respuestas_usuario` con UUID, índices, restricciones y RLS (HU13, idempotente). |
 | `supabase/migrations/0011_hu12_idempotencia_chat.sql` | Tabla `solicitudes_idempotentes` con unicidad por `(usuario_id, endpoint, clave)`, índice de fecha y RLS (HU12, idempotente). |
+| `supabase/migrations/0012_hu14_tarjetas_memoria.sql` | Tablas `conjuntos_tarjetas` y `tarjetas` con índices, restricciones y RLS (HU14, idempotente). |
 
 - El script `backend/scripts/run-migrations.js` (`npm run migrate`) aplica estas
   migraciones en orden: identidad, materias, tareas, calendario, documentos,
   fragmentos, reemplazo de fragmentos, resumenes, búsqueda semántica, chat,
-  cuestionarios e idempotencia.
+  cuestionarios, idempotencia y tarjetas de memoria.
 
 - Flujo:
 
@@ -1340,6 +1390,7 @@ on conflict (nombre) do nothing;
 
 | Fecha | Cambio |
 |---|---|
+| 2026-11-19 | HU14: tablas `conjuntos_tarjetas` y `tarjetas` con índices, restricciones y RLS. Migración `0012_hu14_tarjetas_memoria.sql`. |
 | 2026-11-19 | HU12: tablas de chat con UUID, `documento_nombre` y `extracto` en referencias, trigger de actividad y RLS. Migración `0009_hu12_chat.sql`. |
 | 2026-11-16 | HU09: RPC `confirmar_reemplazo_fragmentos` para reemplazar fragmentos de forma atómica en el reproceso. Cierra el hueco entre el borrado y la inserción. |
 | 2026-11-10 | HU05: `eventos_calendario` implementada con UUID, `materia_id`/`tarea_id` opcionales, `recordatorio`, `fecha_creacion`/`fecha_actualizacion`, RLS y RPC `obtener_eventos_proximos` y `crear_evento_desde_tarea`. `eventos_calendario.recordatorio` deja de estar pendiente. |

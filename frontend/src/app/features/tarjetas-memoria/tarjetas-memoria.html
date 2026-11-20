@@ -1,0 +1,266 @@
+<section class="tarjetas-memoria">
+  @if (estudiando(); as actual) {
+    <app-estudiador-tarjetas
+      [conjuntoId]="actual.id"
+      [titulo]="actual.titulo"
+      (volver)="cerrarEstudiador()"
+      (actualizado)="alActualizar()"
+    />
+  } @else {
+    <header class="mb-4">
+      <h1 class="h3 mb-1">Tarjetas de memoria</h1>
+      <p class="text-muted mb-0">
+        Genera tarjetas con IA a partir de tus apuntes y repásalas cuando quieras.
+      </p>
+    </header>
+
+    @if (mensajeExito()) {
+      <div class="alert alert-success alert-dismissible d-flex align-items-center" role="status">
+        <i class="bi bi-check-circle me-2" aria-hidden="true"></i>
+        <span class="flex-grow-1">{{ mensajeExito() }}</span>
+        <button
+          type="button"
+          class="btn-close"
+          aria-label="Cerrar mensaje"
+          (click)="cerrarMensaje()"
+        ></button>
+      </div>
+    }
+
+    @if (errorAccion()) {
+      <div class="alert alert-danger alert-dismissible d-flex align-items-center" role="alert">
+        <i class="bi bi-exclamation-triangle me-2" aria-hidden="true"></i>
+        <span class="flex-grow-1">{{ errorAccion() }}</span>
+        <button
+          type="button"
+          class="btn-close"
+          aria-label="Cerrar mensaje de error"
+          (click)="cerrarErrorAccion()"
+        ></button>
+      </div>
+    }
+
+    <div class="row g-4">
+      <div class="col-12 col-lg-4">
+        <div class="card border-0 shadow-sm h-100">
+          <div class="card-body">
+            <h2 class="h5 mb-3">
+              <i class="bi bi-layout-text-window me-2 text-primary" aria-hidden="true"></i>
+              Generar tarjetas
+            </h2>
+
+            @if (sinMaterias()) {
+              <div class="alert alert-info" role="status">
+                Necesitas registrar una materia para generar tarjetas.
+                <a routerLink="/materias/nueva" class="alert-link">Crear materia</a>
+              </div>
+            }
+
+            <form (submit)="$event.preventDefault(); generar()">
+              <div class="mb-3">
+                <label for="materia" class="form-label">Materia</label>
+                <select
+                  id="materia"
+                  class="form-select"
+                  [value]="materiaId()"
+                  (change)="cambiarMateria($any($event.target).value)"
+                >
+                  <option value="">Selecciona una materia</option>
+                  @for (materia of materiasActivas(); track materia.id) {
+                    <option [value]="materia.id">{{ materia.nombre }}</option>
+                  }
+                </select>
+              </div>
+
+              <div class="mb-3">
+                <label for="documento" class="form-label">
+                  Documento <span class="text-muted fw-normal">(opcional)</span>
+                </label>
+                <select
+                  id="documento"
+                  class="form-select"
+                  [value]="documentoId()"
+                  [disabled]="!materiaId() || cargandoDocumentos()"
+                  (change)="cambiarDocumento($any($event.target).value)"
+                >
+                  <option value="">
+                    {{ cargandoDocumentos() ? 'Cargando documentos...' : 'Todos los documentos procesados' }}
+                  </option>
+                  @for (documento of documentos(); track documento.id) {
+                    <option [value]="documento.id">{{ documento.nombre }}</option>
+                  }
+                </select>
+                <div class="form-text">
+                  Sin documento, se usan todos los apuntes procesados de la materia.
+                </div>
+              </div>
+
+              <div class="mb-3">
+                <label for="cantidad" class="form-label">Cantidad de tarjetas</label>
+                <input
+                  id="cantidad"
+                  type="number"
+                  class="form-control"
+                  min="5"
+                  max="30"
+                  step="1"
+                  [value]="cantidadTarjetas()"
+                  (input)="cambiarCantidad($any($event.target).value)"
+                />
+                <div class="form-text">Entre 5 y 30 tarjetas por conjunto.</div>
+              </div>
+
+              @if (error()) {
+                <div class="alert alert-danger" role="alert">{{ error() }}</div>
+              }
+
+              <button type="submit" class="btn btn-primary w-100" [disabled]="!puedeGenerar()">
+                @if (generando()) {
+                  <span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
+                  Generando tarjetas...
+                } @else {
+                  <i class="bi bi-stars me-1" aria-hidden="true"></i>
+                  Generar tarjetas
+                }
+              </button>
+              <p class="text-muted small text-center mt-2 mb-0">
+                Puedes generar hasta 10 conjuntos por día.
+              </p>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-12 col-lg-8">
+        <div class="card border-0 shadow-sm h-100">
+          <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+              <h2 class="h5 mb-0">
+                <i class="bi bi-collection me-2 text-primary" aria-hidden="true"></i>
+                Mis conjuntos
+              </h2>
+              <span class="badge text-bg-light border">{{ totalConjuntos() }}</span>
+            </div>
+
+            @if (cargandoConjuntos() && conjuntos().length === 0) {
+              <div class="text-center py-5" role="status">
+                <div class="spinner-border text-primary" aria-hidden="true"></div>
+                <p class="text-muted mt-3 mb-0">Cargando conjuntos...</p>
+              </div>
+            } @else if (error() && conjuntos().length === 0) {
+              <div class="alert alert-danger" role="alert">{{ error() }}</div>
+            } @else if (conjuntos().length === 0) {
+              <div class="alert alert-info mb-0" role="status">
+                Todavía no tienes tarjetas. Genera tu primer conjunto con el formulario de la izquierda.
+              </div>
+            } @else {
+              <div class="d-flex flex-column gap-3">
+                @for (conjunto of conjuntos(); track conjunto.id) {
+                  <article class="card border">
+                    <div class="card-body">
+                      <div class="d-flex flex-wrap justify-content-between align-items-start gap-2">
+                        <div>
+                          <h3 class="h6 mb-1">{{ conjunto.titulo }}</h3>
+                          <p class="text-muted small mb-2">
+                            @if (conjunto.materia_nombre) {
+                              {{ conjunto.materia_nombre }} ·
+                            }
+                            {{ conjunto.fecha_creacion | date: 'dd/MM/yyyy' }}
+                          </p>
+                        </div>
+                        <div class="d-flex flex-wrap gap-1">
+                          <span class="badge text-bg-light border">
+                            {{ conjunto.cantidad_tarjetas }} tarjetas
+                          </span>
+                          <span class="badge text-bg-success">
+                            {{ conjunto.cantidad_conocidas }} conocidas
+                          </span>
+                          <span class="badge text-bg-warning">
+                            {{ conjunto.cantidad_pendientes }} pendientes
+                          </span>
+                        </div>
+                      </div>
+
+                      <div
+                        class="progress mt-3"
+                        role="progressbar"
+                        [attr.aria-valuenow]="conjunto.cantidad_conocidas"
+                        aria-valuemin="0"
+                        [attr.aria-valuemax]="conjunto.cantidad_tarjetas"
+                        [attr.aria-label]="'Avance de ' + conjunto.titulo"
+                      >
+                        <div
+                          class="progress-bar bg-success"
+                          [style.width.%]="conjunto.cantidad_tarjetas > 0
+                            ? (conjunto.cantidad_conocidas / conjunto.cantidad_tarjetas) * 100
+                            : 0"
+                        ></div>
+                      </div>
+
+                      <div class="d-flex flex-wrap gap-2 mt-3">
+                        <button
+                          type="button"
+                          class="btn btn-sm btn-primary"
+                          (click)="estudiar(conjunto)"
+                        >
+                          <i class="bi bi-play-fill me-1" aria-hidden="true"></i>
+                          Estudiar
+                        </button>
+
+                        @if (confirmandoEliminar() === conjunto.id) {
+                          <button
+                            type="button"
+                            class="btn btn-sm btn-danger"
+                            [disabled]="eliminandoId() === conjunto.id"
+                            (click)="eliminar(conjunto)"
+                          >
+                            @if (eliminandoId() === conjunto.id) {
+                              <span class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span>
+                            }
+                            Confirmar eliminación
+                          </button>
+                          <button
+                            type="button"
+                            class="btn btn-sm btn-outline-secondary"
+                            (click)="cancelarEliminar()"
+                          >
+                            Cancelar
+                          </button>
+                        } @else {
+                          <button
+                            type="button"
+                            class="btn btn-sm btn-outline-danger"
+                            (click)="solicitarEliminar(conjunto)"
+                          >
+                            <i class="bi bi-trash me-1" aria-hidden="true"></i>
+                            Eliminar
+                          </button>
+                        }
+                      </div>
+                    </div>
+                  </article>
+                }
+              </div>
+
+              @if (hayMasConjuntos()) {
+                <div class="text-center mt-3">
+                  <button
+                    type="button"
+                    class="btn btn-outline-primary btn-sm"
+                    [disabled]="cargandoConjuntos()"
+                    (click)="cargarMas()"
+                  >
+                    @if (cargandoConjuntos()) {
+                      <span class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span>
+                    }
+                    Cargar más
+                  </button>
+                </div>
+              }
+            }
+          </div>
+        </div>
+      </div>
+    </div>
+  }
+</section>

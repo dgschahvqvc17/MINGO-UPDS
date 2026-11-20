@@ -1,0 +1,146 @@
+<section class="estudiador">
+  <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+    <button type="button" class="btn btn-outline-secondary btn-sm" (click)="volver.emit()">
+      <i class="bi bi-arrow-left me-1" aria-hidden="true"></i>
+      Volver a mis tarjetas
+    </button>
+    <span class="badge text-bg-light border">
+      @if (filtro() === 'pendientes') {
+        Solo pendientes
+      } @else {
+        Todas las tarjetas
+      }
+    </span>
+  </div>
+
+  @if (cargando()) {
+    <div class="text-center py-5" role="status">
+      <div class="spinner-border text-primary" aria-hidden="true"></div>
+      <p class="text-muted mt-3 mb-0">Cargando tarjetas...</p>
+    </div>
+  } @else if (error(); as mensajeError) {
+    <div class="alert alert-danger alert-dismissible" role="alert">
+      <span>{{ mensajeError }}</span>
+      <button
+        type="button"
+        class="btn-close"
+        aria-label="Cerrar mensaje de error"
+        (click)="cerrarError()"
+      ></button>
+    </div>
+  } @else if (!tieneTarjetas()) {
+    <div class="alert alert-info" role="status">
+      No quedan tarjetas pendientes. ¡Buen trabajo! Puedes estudiar todas de nuevo.
+    </div>
+    <button type="button" class="btn btn-primary" (click)="estudiarTodas()">
+      Estudiar todas
+    </button>
+  } @else if (tarjetaActual(); as tarjeta) {
+    <header class="mb-4">
+      <h1 class="h4 mb-1">{{ tituloConjunto() || titulo() }}</h1>
+      <p class="text-muted mb-2" role="status">
+        Tarjeta {{ indice() + 1 }} de {{ total() }} · {{ conocidas() }} conocidas ·
+        {{ pendientes() }} pendientes
+      </p>
+      <div
+        class="progress"
+        role="progressbar"
+        [attr.aria-valuenow]="porcentajeAvance()"
+        aria-valuemin="0"
+        aria-valuemax="100"
+        [attr.aria-label]="'Avance: ' + porcentajeAvance() + '% de tarjetas conocidas'"
+      >
+        <div class="progress-bar bg-success" [style.width.%]="porcentajeAvance()"></div>
+      </div>
+    </header>
+
+    @if (mensaje()) {
+      <div class="alert alert-success alert-dismissible py-2" role="status">
+        <span>{{ mensaje() }}</span>
+        <button
+          type="button"
+          class="btn-close"
+          aria-label="Cerrar mensaje"
+          (click)="cerrarMensaje()"
+        ></button>
+      </div>
+    }
+
+    <article class="card border-0 shadow-sm flashcard">
+      <div class="card-body p-4">
+        <p class="text-uppercase text-muted small fw-semibold mb-3">Frente</p>
+        <p class="h5 mb-4">{{ tarjeta.frente }}</p>
+
+        @if (revelada()) {
+          <div class="flashcard__reverso pt-3">
+            <p class="text-uppercase text-muted small fw-semibold mb-2">Reverso</p>
+            <p class="fs-5 mb-0">{{ tarjeta.reverso }}</p>
+          </div>
+        } @else {
+          <button type="button" class="btn btn-outline-primary" (click)="revelar()">
+            <i class="bi bi-eye me-1" aria-hidden="true"></i>
+            Revelar respuesta
+          </button>
+        }
+      </div>
+    </article>
+
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mt-4">
+      <div class="d-flex gap-2">
+        <button
+          type="button"
+          class="btn btn-outline-secondary"
+          [disabled]="esPrimera() || guardando()"
+          (click)="anterior()"
+        >
+          <i class="bi bi-chevron-left me-1" aria-hidden="true"></i>
+          Anterior
+        </button>
+        <button
+          type="button"
+          class="btn btn-outline-secondary"
+          [disabled]="esUltima() || guardando()"
+          (click)="siguiente()"
+        >
+          Siguiente
+          <i class="bi bi-chevron-right ms-1" aria-hidden="true"></i>
+        </button>
+      </div>
+
+      @if (revelada()) {
+        <div class="d-flex flex-wrap gap-2">
+          <button
+            type="button"
+            class="btn btn-outline-warning"
+            [disabled]="guardando()"
+            (click)="marcar('repaso')"
+          >
+            <i class="bi bi-arrow-repeat me-1" aria-hidden="true"></i>
+            Marcar para repaso
+          </button>
+          <button
+            type="button"
+            class="btn btn-success"
+            [disabled]="guardando()"
+            (click)="marcar('conocida')"
+          >
+            @if (guardando()) {
+              <span class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span>
+            }
+            <i class="bi bi-check-lg me-1" aria-hidden="true"></i>
+            Ya la sé
+          </button>
+        </div>
+      }
+    </div>
+
+    <div class="d-flex flex-wrap gap-2 mt-4 border-top pt-3">
+      <button type="button" class="btn btn-sm btn-outline-primary" (click)="repetirPendientes()">
+        Repetir pendientes
+      </button>
+      <button type="button" class="btn btn-sm btn-outline-secondary" (click)="estudiarTodas()">
+        Estudiar todas
+      </button>
+    </div>
+  }
+</section>

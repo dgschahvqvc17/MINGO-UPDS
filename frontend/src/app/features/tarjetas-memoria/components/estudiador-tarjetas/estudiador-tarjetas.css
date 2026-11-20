@@ -1,0 +1,7 @@
+.flashcard {
+  min-height: 16rem;
+}
+
+.flashcard__reverso {
+  border-top: 1px solid var(--bs-border-color);
+}
