@@ -1169,13 +1169,61 @@ Cuota: 10 generaciones por usuario y día, registradas en `consumo_ia` con
 
 ```json
 {
-  "materia_id": 1,
-  "objetivo": "Prepararme para el examen parcial",
-  "fecha_examen": "2026-11-20",
+  "materia_id": "3f6a1c9e-8b2d-4f5a-9c7e-1d2b3a4c5e6f",
+  "objetivo": "Prepararme para el examen parcial de sistemas operativos",
+  "fecha_examen": "2026-12-10",
   "minutos_por_dia": 90,
   "dias_disponibles": ["lunes", "miercoles", "viernes"]
 }
 ```
+
+`materia_id` es UUID y debe pertenecer al usuario (si no, `404`). `objetivo`
+tiene entre 5 y 300 caracteres, `fecha_examen` usa `AAAA-MM-DD` y no puede ser
+pasada (`400`), `minutos_por_dia` va de 15 a 480 y `dias_disponibles` admite de
+uno a siete valores sin repetir entre `lunes`, `martes`, `miercoles`, `jueves`,
+`viernes`, `sabado` y `domingo`.
+
+La propuesta se basa en las tareas de la materia (máximo 20) y en los fragmentos
+de sus documentos procesados (máximo 40, hasta 24 000 caracteres de contexto).
+La respuesta `200` **no guarda nada** ni crea eventos:
+
+```json
+{
+  "success": true,
+  "data": {
+    "es_propuesta": true,
+    "materia_id": "3f6a1c9e-8b2d-4f5a-9c7e-1d2b3a4c5e6f",
+    "materia_nombre": "Sistemas Operativos",
+    "objetivo": "Prepararme para el examen parcial de sistemas operativos",
+    "fecha_examen": "2026-12-10",
+    "minutos_por_dia": 90,
+    "dias_disponibles": ["lunes", "miercoles", "viernes"],
+    "resumen": "Repaso de planificación y concurrencia antes del parcial.",
+    "sesiones": [
+      {
+        "tema": "Planificación de CPU",
+        "actividades": "Leer el capítulo 3 y resolver los ejercicios 1 a 5",
+        "fecha_inicio": "2026-12-01T09:00:00.000Z",
+        "duracion_minutos": 60,
+        "tipo": "lectura",
+        "orden": 1
+      }
+    ],
+    "modelo": "gpt-4o-mini",
+    "tokens_entrada": 2400,
+    "tokens_salida": 380
+  }
+}
+```
+
+`tipo` es opcional y vale `lectura`, `practica`, `repaso` o `ejercicios`.
+Para conservar el plan, se envía la propuesta (editada o no) a
+`POST /api/estudio/planes`. Un fallo del proveedor responde `503`; una salida
+con JSON inválido se reintenta una sola vez.
+
+Cuota: 5 propuestas por usuario y día, registradas en `consumo_ia` con
+`operacion = 'plan'` (`429 AI_QUOTA_EXCEEDED`). La interfaz está en
+`/planes-estudio`.
 
 **Body `POST /api/asistente/evaluar`**
 
@@ -1198,12 +1246,143 @@ Cuota: 10 generaciones por usuario y día, registradas en `consumo_ia` con
 | PUT | `/api/estudio/planes/:id` | HU15 | Actualiza el plan. |
 | DELETE | `/api/estudio/planes/:id` | HU15 | Elimina el plan. |
 | POST | `/api/estudio/planes/:id/sesiones` | HU15 | Agrega una sesión. |
-| PATCH | `/api/estudio/sesiones/:id` | HU15 | Cambia estado o fecha. |
+| PATCH | `/api/estudio/sesiones/:id` | HU15 | Edita una sesión o cambia su estado. |
+| DELETE | `/api/estudio/sesiones/:id` | HU15 | Elimina una sesión y su evento. |
 | GET | `/api/estudio/progreso` | HU17 | Estadísticas del usuario. |
 | GET | `/api/estudio/objetivos` | HU17 | Lista objetivos. |
 | POST | `/api/estudio/objetivos` | HU17 | Crea objetivo. |
 | PUT | `/api/estudio/objetivos/:id` | HU17 | Actualiza objetivo. |
 | DELETE | `/api/estudio/objetivos/:id` | HU17 | Elimina objetivo. |
+
+Todas las rutas de esta sección requieren autenticación. El usuario se obtiene
+del token; un plan, sesión o materia ajena devuelve `404`.
+
+**Body `POST /api/estudio/planes`**
+
+Es la propuesta de `POST /api/asistente/plan` aceptada por el estudiante, con
+las sesiones editadas y los contadores de tokens de esa generación:
+
+```json
+{
+  "materia_id": "3f6a1c9e-8b2d-4f5a-9c7e-1d2b3a4c5e6f",
+  "objetivo": "Prepararme para el examen parcial de sistemas operativos",
+  "fecha_examen": "2026-12-10",
+  "minutos_por_dia": 90,
+  "dias_disponibles": ["lunes", "miercoles", "viernes"],
+  "modelo": "gpt-4o-mini",
+  "tokens_entrada": 2400,
+  "tokens_salida": 380,
+  "sesiones": [
+    {
+      "tema": "Planificación de CPU",
+      "actividades": "Leer el capítulo 3 y resolver los ejercicios 1 a 5",
+      "fecha_inicio": "2026-12-01T09:00:00.000Z",
+      "duracion_minutos": 60,
+      "tipo": "lectura"
+    }
+  ]
+}
+```
+
+`modelo` es opcional; `tokens_entrada` y `tokens_salida` valen `0` si se omiten.
+El plan admite de 1 a 30 sesiones. Cada sesión tiene tema de 2 a 200 caracteres,
+actividades de 2 a 2000, `fecha_inicio` ISO 8601 con zona horaria y duración de
+5 a 480 minutos. Ninguna sesión puede programarse después de `fecha_examen`.
+Esta ruta **consume memoria**: guarda el plan en `planes_estudio`, sus sesiones
+en `sesiones_estudio` y crea un evento `tipo_evento = 'estudio'` por sesión.
+
+**Respuesta `201`**
+
+```json
+{
+  "success": true,
+  "data": {
+    "id": "b7e3a2c1-9d4f-4e6a-8b2c-3d1f5a7e9c02",
+    "usuario_id": "c1d2e3f4-5a6b-4c7d-8e9f-0a1b2c3d4e5f",
+    "materia_id": "3f6a1c9e-8b2d-4f5a-9c7e-1d2b3a4c5e6f",
+    "materia_nombre": "Sistemas Operativos",
+    "materia_codigo": "SIS-204",
+    "objetivo": "Prepararme para el examen parcial de sistemas operativos",
+    "fecha_examen": "2026-12-10",
+    "minutos_por_dia": 90,
+    "dias_disponibles": ["lunes", "miercoles", "viernes"],
+    "estado": "confirmado",
+    "modelo": "gpt-4o-mini",
+    "tokens_entrada": 2400,
+    "tokens_salida": 380,
+    "fecha_creacion": "2026-11-19T20:00:00.000Z",
+    "fecha_actualizacion": null,
+    "sesiones": [
+      {
+        "id": "c8f4b3d2-0e5a-4f7b-9c3d-4e2a6b8f0d13",
+        "plan_id": "b7e3a2c1-9d4f-4e6a-8b2c-3d1f5a7e9c02",
+        "evento_calendario_id": "d9e5c4f3-1a6b-4c8d-ad4e-5f3b7c9e1a24",
+        "tema": "Planificación de CPU",
+        "actividades": "Leer el capítulo 3 y resolver los ejercicios 1 a 5",
+        "tipo": "lectura",
+        "fecha_inicio": "2026-12-01T09:00:00.000Z",
+        "duracion_minutos": 60,
+        "orden": 1,
+        "estado": "pendiente",
+        "fecha_creacion": "2026-11-19T20:00:00.000Z",
+        "fecha_actualizacion": null
+      }
+    ]
+  }
+}
+```
+
+**`GET /api/estudio/planes`**
+
+Acepta `limit` (1–50, por defecto 20) y `offset` (por defecto 0). Devuelve los
+planes propios sin sesiones, ordenados por `fecha_creacion` descendente, y
+`meta: { limit, offset, total }`.
+
+**`GET /api/estudio/planes/:id`**
+
+Devuelve un plan propio con sus sesiones ordenadas por `orden`. Un ID inválido
+responde `400`; uno ajeno o inexistente, `404`.
+
+**`PUT /api/estudio/planes/:id`**
+
+Acepta cualquier combinación de `objetivo`, `fecha_examen`, `minutos_por_dia` y
+`dias_disponibles`, con las mismas restricciones que la creación. Devuelve el
+plan actualizado sin sesiones.
+
+**`DELETE /api/estudio/planes/:id`**
+
+Descarta el plan (`estado = 'descartado'`), elimina los eventos de calendario de
+sus sesiones y responde `data: { "id": "<uuid>", "estado": "descartado" }`.
+
+**`POST /api/estudio/planes/:id/sesiones`**
+
+```json
+{
+  "sesion": {
+    "tema": "Repaso de concurrencia",
+    "actividades": "Resolver la guía de semáforos",
+    "fecha_inicio": "2026-12-05T10:00:00.000Z",
+    "duracion_minutos": 45,
+    "tipo": "ejercicios"
+  }
+}
+```
+
+Responde `201` con la sesión creada. Un plan con 30 sesiones responde `409`.
+
+**`PATCH /api/estudio/sesiones/:id`**
+
+Acepta `tema`, `actividades`, `fecha_inicio`, `duracion_minutos`, `tipo` y
+`estado` (`pendiente` o `completada`). Al cambiar tema, fecha o duración se
+actualiza su evento de calendario. Responde `200` con la sesión actualizada.
+
+**`DELETE /api/estudio/sesiones/:id`**
+
+Elimina la sesión y su evento de calendario. Responde
+`data: { "id": "<uuid>" }`.
+
+> Si el calendario no está disponible, el plan y las sesiones se guardan igual:
+> la sincronización es tolerante a fallos y se registra solo en el servidor.
 
 **Respuesta `GET /api/estudio/progreso`**
 

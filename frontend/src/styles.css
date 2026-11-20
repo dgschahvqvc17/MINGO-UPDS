@@ -2998,3 +2998,928 @@ pre {
   color: var(--mingo-text-disabled);
   background: transparent;
 }
+
+/* ==========================================================================
+   Planes de estudio (extension del design system, prefijada por feature)
+   ========================================================================== */
+
+/* Planes de estudio — extensión del design system MINGO (tema oscuro). */
+
+.planes-estudio .page-header {
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--mingo-border-soft);
+}
+
+.planes-estudio .page-subtitle {
+  max-width: 70ch;
+}
+
+.planes-estudio .panel-heading {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  padding-bottom: 1.25rem;
+  margin-bottom: 1.25rem;
+  border-bottom: 1px solid var(--mingo-border-soft);
+}
+
+/* Botones de acción con contraste AA sobre el fondo oscuro. */
+.planes-estudio .btn-ai {
+  color: #fff;
+  font-weight: 700;
+  border: 1px solid rgba(56, 189, 248, 0.45);
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  box-shadow: 0 8px 24px rgba(37, 99, 235, 0.3);
+}
+
+.planes-estudio .btn-ai:hover:not(:disabled) {
+  color: #fff;
+  border-color: rgba(56, 189, 248, 0.8);
+  box-shadow: 0 12px 30px rgba(37, 99, 235, 0.48);
+}
+
+.planes-estudio .btn-aceptar {
+  color: #04150f;
+  font-weight: 700;
+  border: 1px solid #34d399;
+  background: linear-gradient(135deg, #10b981, #059669);
+}
+
+.planes-estudio .btn-aceptar:hover:not(:disabled) {
+  color: #04150f;
+  filter: brightness(1.1);
+  box-shadow: 0 10px 26px rgba(16, 185, 129, 0.35);
+}
+
+.planes-estudio .btn-aceptar:disabled,
+.planes-estudio .btn-ai:disabled {
+  opacity: 0.45;
+}
+
+/* Días seleccionables. */
+.planes-estudio .dia-chip {
+  padding: 0.4rem 0.8rem;
+  border: 1px solid var(--mingo-border);
+  border-radius: var(--mingo-radius-full);
+  background: rgba(148, 163, 184, 0.06);
+  color: var(--mingo-text-muted);
+  font-size: 0.8rem;
+  font-weight: 600;
+  transition: all var(--mingo-transition-fast);
+}
+
+.planes-estudio .dia-chip:hover {
+  color: #fff;
+  border-color: rgba(37, 99, 235, 0.6);
+}
+
+.planes-estudio .dia-chip.seleccionado {
+  background: var(--mingo-primary-soft);
+  border-color: var(--mingo-primary);
+  color: #bfdbfe;
+  box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.35);
+}
+
+/* Chips de resumen y metadatos. */
+.planes-estudio .resumen-chips,
+.planes-estudio .meta-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.planes-estudio .chip,
+.planes-estudio .meta-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.3rem 0.65rem;
+  border: 1px solid var(--mingo-border-soft);
+  border-radius: var(--mingo-radius-full);
+  background: rgba(148, 163, 184, 0.06);
+  color: #cbd5e1;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.planes-estudio .chip-ai {
+  border-color: rgba(56, 189, 248, 0.35);
+  background: var(--mingo-ai-soft);
+  color: var(--mingo-ai);
+}
+
+.planes-estudio .meta-chip {
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: var(--mingo-text-muted);
+}
+
+.planes-estudio .meta-chip--dia {
+  border-color: rgba(37, 99, 235, 0.3);
+  background: var(--mingo-primary-soft);
+  color: #bfdbfe;
+}
+
+/* Tabla editable de la propuesta. */
+.planes-estudio .tabla-propuesta,
+.planes-estudio .calendario-wrap {
+  border: 1px solid var(--mingo-border-soft);
+  border-radius: var(--mingo-radius);
+  overflow: hidden;
+}
+
+.planes-estudio .calendario-wrap {
+  padding: 0.75rem;
+  background: rgba(6, 11, 24, 0.45);
+}
+
+.planes-estudio .tabla-propuesta .table {
+  --bs-table-bg: transparent;
+  --bs-table-color: var(--mingo-text);
+  --bs-table-border-color: var(--mingo-border-soft);
+  margin-bottom: 0;
+}
+
+.planes-estudio .tabla-propuesta th {
+  background: rgba(148, 163, 184, 0.06);
+  color: var(--mingo-text-muted);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.planes-estudio .tabla-propuesta td {
+  vertical-align: middle;
+  min-width: 7rem;
+}
+
+.planes-estudio .tabla-propuesta tbody tr:hover {
+  background: rgba(37, 99, 235, 0.08);
+}
+
+.planes-estudio .tabla-propuesta .form-control,
+.planes-estudio .tabla-propuesta .form-select {
+  min-width: 7rem;
+  padding: 0.4rem 0.5rem;
+  font-size: 0.8rem;
+}
+
+.planes-estudio .numero-fila,
+.planes-estudio .sesion-orden {
+  display: inline-grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--mingo-primary-soft);
+  color: #bfdbfe;
+  font-weight: 700;
+}
+
+.planes-estudio .numero-fila {
+  width: 1.6rem;
+  height: 1.6rem;
+  font-size: 0.72rem;
+}
+
+.planes-estudio .sesion-orden {
+  width: 1.75rem;
+  height: 1.75rem;
+  font-size: 0.75rem;
+  font-weight: 800;
+}
+
+.planes-estudio .sesion-item[data-estado='completada'] .sesion-orden {
+  background: var(--mingo-success-soft);
+  color: var(--mingo-success);
+}
+
+/* Tarjetas de planes guardados. */
+.planes-estudio .planes-grid {
+  display: grid;
+  gap: 1rem;
+}
+
+.planes-estudio .plan-card {
+  transition: border-color var(--mingo-transition-normal);
+}
+
+.planes-estudio .plan-card:hover {
+  border-color: rgba(37, 99, 235, 0.45);
+}
+
+.planes-estudio .plan-card[data-estado='descartado'] {
+  opacity: 0.72;
+}
+
+.planes-estudio .plan-titulo {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #fff;
+  text-align: left;
+}
+
+.planes-estudio .plan-titulo strong {
+  font-size: 1.05rem;
+  transition: color var(--mingo-transition-fast);
+}
+
+.planes-estudio .plan-titulo:hover strong {
+  color: var(--mingo-ai);
+}
+
+.planes-estudio .detalle-plan {
+  margin-top: 1.25rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--mingo-border-soft);
+}
+
+.planes-estudio .estado-carga {
+  padding: 1.5rem;
+  text-align: center;
+  color: var(--mingo-text-muted);
+}
+
+/* Estadísticas y progreso del plan. */
+.planes-estudio .stats-plan {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(5rem, auto));
+  gap: 0.6rem;
+}
+
+.planes-estudio .stat-plan,
+.planes-estudio .sesion-item {
+  padding: 0.6rem 0.9rem;
+  border: 1px solid var(--mingo-border-soft);
+  border-radius: var(--mingo-radius-sm);
+  background: var(--mingo-surface-hover);
+}
+
+.planes-estudio .stat-plan {
+  text-align: center;
+}
+
+.planes-estudio .sesion-item {
+  padding: 0.85rem 1rem;
+  border-left: 3px solid var(--mingo-primary);
+}
+
+.planes-estudio .stat-plan-valor {
+  display: block;
+  color: #fff;
+  font-size: 1.2rem;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.planes-estudio .stat-plan-label {
+  display: block;
+  color: var(--mingo-text-muted);
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.planes-estudio .progreso-plan .progress {
+  height: 0.55rem;
+  background: rgba(148, 163, 184, 0.14);
+  border-radius: var(--mingo-radius-full);
+}
+
+.planes-estudio .progreso-plan .progress-bar {
+  background: linear-gradient(90deg, var(--mingo-primary), var(--mingo-success));
+  border-radius: var(--mingo-radius-full);
+}
+
+.planes-estudio .editor-panel {
+  padding: 1.25rem;
+  border: 1px solid rgba(37, 99, 235, 0.35);
+  border-radius: var(--mingo-radius);
+  background: var(--mingo-surface-hover);
+}
+
+/* Lista de sesiones. */
+.planes-estudio .sesiones-list {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.planes-estudio .sesion-item[data-estado='completada'] {
+  border-left-color: var(--mingo-success);
+  background: rgba(16, 185, 129, 0.06);
+}
+
+.planes-estudio .sesion-cabecera,
+.planes-estudio .sesion-acciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.85rem;
+}
+
+.planes-estudio .sesion-cabecera {
+  align-items: flex-start;
+}
+
+.planes-estudio .sesion-acciones {
+  gap: 0.4rem;
+}
+
+.planes-estudio .min-w-0 {
+  min-width: 0;
+}
+
+.planes-estudio .sesion-meta {
+  margin-top: 0.3rem;
+  color: var(--mingo-text-muted);
+  font-size: 0.8rem;
+}
+
+.planes-estudio .sesion-actividades {
+  margin-top: 0.2rem;
+  color: #cbd5e1;
+  font-size: 0.85rem;
+  overflow-wrap: anywhere;
+}
+
+.planes-estudio .btn-completar {
+  color: #6ee7b7;
+  border: 1px solid rgba(16, 185, 129, 0.45);
+  background: transparent;
+  font-size: 0.8rem;
+}
+
+.planes-estudio .btn-completar:hover {
+  color: #fff;
+  border-color: var(--mingo-success);
+  background: rgba(16, 185, 129, 0.16);
+}
+
+.planes-estudio .btn-completar.completada {
+  color: #04150f;
+  border-color: var(--mingo-success);
+  background: var(--mingo-success);
+  font-weight: 700;
+}
+
+/* Etiquetas de tipo de sesión. */
+.planes-estudio .tipo-badge[data-tipo] {
+  border: 1px solid var(--tipo-borde);
+  background: var(--tipo-fondo);
+  color: var(--tipo-color);
+}
+
+.planes-estudio .tipo-badge[data-tipo='lectura'] {
+  --tipo-borde: rgba(37, 99, 235, 0.45);
+  --tipo-fondo: var(--mingo-primary-soft);
+  --tipo-color: #bfdbfe;
+}
+
+.planes-estudio .tipo-badge[data-tipo='practica'] {
+  --tipo-borde: rgba(251, 191, 36, 0.4);
+  --tipo-fondo: rgba(251, 191, 36, 0.12);
+  --tipo-color: #fcd34d;
+}
+
+.planes-estudio .tipo-badge[data-tipo='repaso'] {
+  --tipo-borde: rgba(168, 85, 247, 0.4);
+  --tipo-fondo: rgba(168, 85, 247, 0.14);
+  --tipo-color: #d8b4fe;
+}
+
+.planes-estudio .tipo-badge[data-tipo='ejercicios'] {
+  --tipo-borde: rgba(16, 185, 129, 0.4);
+  --tipo-fondo: var(--mingo-success-soft);
+  --tipo-color: #6ee7b7;
+}
+
+.planes-estudio .tipo-badge[data-tipo='sin-tipo'] {
+  --tipo-borde: transparent;
+  --tipo-fondo: transparent;
+  --tipo-color: var(--mingo-text-muted);
+}
+
+@media (max-width: 575.98px) {
+  .planes-estudio .page-header .btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .planes-estudio .stats-plan {
+    grid-template-columns: repeat(3, 1fr);
+    width: 100%;
+  }
+
+  .planes-estudio .sesion-acciones {
+    width: 100%;
+  }
+
+  .planes-estudio .btn-completar {
+    flex: 1 1 auto;
+  }
+}
+
+/* ==========================================================================
+   Centro de estudio (extension del design system, prefijada por feature)
+   ========================================================================== */
+
+.centro-estudio .page-header {
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--mingo-border-soft);
+}
+
+.centro-estudio .page-subtitle {
+  max-width: 70ch;
+}
+
+.centro-estudio .form-text,
+.centro-estudio .page-subtitle {
+  color: var(--mingo-text-muted);
+}
+
+.centro-estudio .panel-heading {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  padding-bottom: 1.25rem;
+  margin-bottom: 1.25rem;
+  border-bottom: 1px solid var(--mingo-border-soft);
+}
+
+.centro-estudio .btn-ai {
+  color: #fff;
+  font-weight: 700;
+  border: 1px solid rgba(56, 189, 248, 0.45);
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  box-shadow: 0 8px 24px rgba(37, 99, 235, 0.3);
+}
+
+.centro-estudio .btn-ai:hover:not(:disabled) {
+  color: #fff;
+  border-color: rgba(56, 189, 248, 0.8);
+  box-shadow: 0 12px 30px rgba(37, 99, 235, 0.48);
+}
+
+.centro-estudio .btn-ai:disabled {
+  opacity: 0.45;
+}
+
+.centro-estudio .btn-aceptar {
+  color: #04150f;
+  font-weight: 700;
+  border: 1px solid #34d399;
+  background: linear-gradient(135deg, #10b981, #059669);
+}
+
+.centro-estudio .btn-aceptar:hover:not(:disabled) {
+  color: #04150f;
+  filter: brightness(1.1);
+  box-shadow: 0 10px 26px rgba(16, 185, 129, 0.35);
+}
+
+.centro-estudio .tipo-chip {
+  padding: 0.4rem 0.8rem;
+  border: 1px solid var(--mingo-border);
+  border-radius: var(--mingo-radius-full);
+  background: rgba(148, 163, 184, 0.06);
+  color: var(--mingo-text-muted);
+  font-size: 0.8rem;
+  font-weight: 600;
+  transition: all var(--mingo-transition-fast);
+}
+
+.centro-estudio .tipo-chip i {
+  opacity: 0;
+}
+
+.centro-estudio .tipo-chip:hover {
+  color: #fff;
+  border-color: rgba(37, 99, 235, 0.6);
+}
+
+.centro-estudio .tipo-chip.seleccionado {
+  background: var(--mingo-primary-soft);
+  border-color: var(--mingo-primary);
+  color: #bfdbfe;
+  box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.35);
+}
+
+.centro-estudio .tipo-chip.seleccionado i {
+  opacity: 1;
+}
+
+.centro-estudio .cuestionarios-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 1rem;
+}
+
+.centro-estudio .cuestionario-card {
+  transition: border-color var(--mingo-transition-normal);
+}
+
+.centro-estudio .cuestionario-card:hover {
+  border-color: rgba(37, 99, 235, 0.45);
+}
+
+.centro-estudio .min-w-0 {
+  min-width: 0;
+}
+
+.centro-estudio .meta-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.centro-estudio .meta-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.3rem 0.65rem;
+  border: 1px solid var(--mingo-border-soft);
+  border-radius: var(--mingo-radius-full);
+  background: rgba(148, 163, 184, 0.06);
+  color: var(--mingo-text-muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+/* ==========================================================================
+   Tarjetas de memoria (extension del design system, prefijada por feature)
+   ========================================================================== */
+
+.tarjetas-memoria .page-header {
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--mingo-border-soft);
+}
+
+.tarjetas-memoria .page-subtitle,
+.tarjetas-memoria .form-text {
+  color: var(--mingo-text-muted);
+}
+
+.tarjetas-memoria .panel-heading {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  padding-bottom: 1.25rem;
+  margin-bottom: 1.25rem;
+  border-bottom: 1px solid var(--mingo-border-soft);
+}
+
+.tarjetas-memoria .btn-ai {
+  color: #fff;
+  font-weight: 700;
+  border: 1px solid rgba(56, 189, 248, 0.45);
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  box-shadow: 0 8px 24px rgba(37, 99, 235, 0.3);
+}
+
+.tarjetas-memoria .btn-ai:hover:not(:disabled) {
+  color: #fff;
+  border-color: rgba(56, 189, 248, 0.8);
+  box-shadow: 0 12px 30px rgba(37, 99, 235, 0.48);
+}
+
+.tarjetas-memoria .btn-ai:disabled {
+  opacity: 0.45;
+}
+
+.tarjetas-memoria .btn-aceptar {
+  color: #04150f;
+  font-weight: 700;
+  border: 1px solid #34d399;
+  background: linear-gradient(135deg, #10b981, #059669);
+}
+
+.tarjetas-memoria .btn-aceptar:hover:not(:disabled) {
+  color: #04150f;
+  filter: brightness(1.1);
+  box-shadow: 0 10px 26px rgba(16, 185, 129, 0.35);
+}
+
+.tarjetas-memoria .conjuntos-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1rem;
+}
+
+.tarjetas-memoria .conjunto-card {
+  transition: border-color var(--mingo-transition-normal);
+}
+
+.tarjetas-memoria .conjunto-card:hover {
+  border-color: rgba(37, 99, 235, 0.45);
+}
+
+.tarjetas-memoria .min-w-0 {
+  min-width: 0;
+}
+
+.tarjetas-memoria .meta-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.tarjetas-memoria .meta-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.3rem 0.65rem;
+  border: 1px solid var(--mingo-border-soft);
+  border-radius: var(--mingo-radius-full);
+  background: rgba(148, 163, 184, 0.06);
+  color: var(--mingo-text-muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.tarjetas-memoria .conjunto-progress {
+  height: 0.5rem;
+  background-color: var(--mingo-surface-strong);
+  border-radius: var(--mingo-radius-full);
+}
+
+.tarjetas-memoria .conjunto-progress .progress-bar {
+  border-radius: var(--mingo-radius-full);
+}
+/* ==========================================================================
+   Estudiador de tarjetas (prefijado por componente)
+   ========================================================================== */
+
+.estudiador .page-header {
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--mingo-border-soft);
+}
+
+.estudiador .page-subtitle {
+  font-size: 0.9rem;
+  max-width: none;
+}
+
+.estudiador .estudiador-progress {
+  height: 0.5rem;
+  background-color: var(--mingo-surface-strong);
+  border-radius: var(--mingo-radius-full);
+}
+
+.estudiador .estudiador-progress .progress-bar {
+  border-radius: var(--mingo-radius-full);
+}
+
+.estudiador .flashcard {
+  min-height: 16rem;
+}
+
+.estudiador .flashcard__reverso {
+  border-top: 1px solid var(--mingo-border-soft);
+}
+
+.estudiador .btn-ai {
+  color: #fff;
+  font-weight: 700;
+  border: 1px solid rgba(56, 189, 248, 0.45);
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  box-shadow: 0 8px 24px rgba(37, 99, 235, 0.3);
+}
+
+.estudiador .btn-ai:hover:not(:disabled) {
+  color: #fff;
+  border-color: rgba(56, 189, 248, 0.8);
+}
+
+.estudiador .btn-aceptar {
+  color: #04150f;
+  font-weight: 700;
+  border: 1px solid #34d399;
+  background: linear-gradient(135deg, #10b981, #059669);
+}
+
+.estudiador .btn-aceptar:hover:not(:disabled) {
+  color: #04150f;
+  filter: brightness(1.1);
+  box-shadow: 0 10px 26px rgba(16, 185, 129, 0.35);
+}
+/* ==========================================================================
+   Dashboard (extension del design system, prefijada por feature)
+   ========================================================================== */
+
+.dashboard-page .page-header {
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--mingo-border-soft);
+}
+
+.dashboard-page .page-subtitle {
+  max-width: 75ch;
+}
+
+.dashboard-page .panel-heading {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  padding-bottom: 1rem;
+  margin-bottom: 1rem;
+  border-bottom: 1px solid var(--mingo-border-soft);
+}
+
+.dashboard-page .icon-badge--warning {
+  background-color: rgba(251, 191, 36, 0.14);
+  border-color: rgba(251, 191, 36, 0.3);
+  color: #fbbf24;
+}
+/* ==========================================================================
+   Asistente IA (extension del design system, prefijada por feature)
+   ========================================================================== */
+
+.asistente-ia .page-header {
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--mingo-border-soft);
+}
+
+.asistente-ia .asistente-tabs {
+  gap: 0.35rem;
+  padding: 0.3rem;
+  border: 1px solid var(--mingo-border-soft);
+  border-radius: var(--mingo-radius-full);
+  background: var(--mingo-surface-hover);
+  width: fit-content;
+  max-width: 100%;
+}
+
+.asistente-ia .asistente-tabs .nav-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.55rem 1.1rem;
+  border-radius: var(--mingo-radius-full);
+  color: var(--mingo-text-muted);
+  font-size: 0.9rem;
+  font-weight: 600;
+  transition: all var(--mingo-transition-fast);
+}
+
+.asistente-ia .asistente-tabs .nav-link:hover {
+  color: var(--mingo-text);
+  background: var(--mingo-surface-strong);
+}
+
+.asistente-ia .asistente-tabs .nav-link.active {
+  color: #fff;
+  border: 1px solid rgba(56, 189, 248, 0.45);
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  box-shadow: 0 8px 24px rgba(37, 99, 235, 0.3);
+}
+
+.asistente-ia .panel-heading {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  padding-bottom: 1.25rem;
+  margin-bottom: 1.25rem;
+  border-bottom: 1px solid var(--mingo-border-soft);
+}
+
+.asistente-ia .min-w-0 {
+  min-width: 0;
+}
+
+.asistente-ia .asistente-step {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 1rem;
+}
+
+.asistente-ia .asistente-step-numero {
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 1.75rem;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 50%;
+  background: var(--mingo-ai-soft);
+  border: 1px solid rgba(56, 189, 248, 0.35);
+  color: var(--mingo-ai);
+  font-size: 0.85rem;
+  font-weight: 800;
+}
+
+.asistente-ia .btn-ai {
+  color: #fff;
+  font-weight: 700;
+  border: 1px solid rgba(56, 189, 248, 0.45);
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  box-shadow: 0 8px 24px rgba(37, 99, 235, 0.3);
+}
+
+.asistente-ia .btn-ai:hover:not(:disabled) {
+  color: #fff;
+  border-color: rgba(56, 189, 248, 0.8);
+  box-shadow: 0 12px 30px rgba(37, 99, 235, 0.48);
+}
+
+.asistente-ia .btn-ai:disabled {
+  opacity: 0.45;
+}
+
+.asistente-ia .meta-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.asistente-ia .meta-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.3rem 0.65rem;
+  border: 1px solid var(--mingo-border-soft);
+  border-radius: var(--mingo-radius-full);
+  background: rgba(148, 163, 184, 0.06);
+  color: var(--mingo-text-muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.asistente-ia .asistente-resumen-section {
+  margin-top: 1.75rem;
+}
+
+.asistente-ia .asistente-section-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+  color: var(--mingo-text);
+}
+
+.asistente-ia .asistente-section-title i {
+  color: var(--mingo-ai);
+}
+
+.asistente-ia .asistente-concepto {
+  transition: border-color var(--mingo-transition-normal);
+}
+
+.asistente-ia .asistente-concepto:hover {
+  border-color: rgba(56, 189, 248, 0.45);
+}
+
+.asistente-ia .asistente-conversaciones .list-group-item {
+  border-color: var(--mingo-border-soft);
+  background: transparent;
+  color: var(--mingo-text);
+  border-radius: var(--mingo-radius);
+  margin-bottom: 0.4rem;
+}
+
+.asistente-ia .asistente-conversaciones .list-group-item:hover {
+  background: var(--mingo-surface-hover);
+}
+
+.asistente-ia .asistente-conversaciones .list-group-item.active {
+  background: var(--mingo-primary-soft);
+  border-color: rgba(37, 99, 235, 0.45);
+  color: var(--mingo-text);
+}
+
+.asistente-ia .asistente-conversaciones .list-group-item.active .chat-texto-secundario {
+  color: var(--mingo-text-muted);
+}
+
+.asistente-ia .asistente-conversaciones .list-group-item.active .chat-eliminar {
+  color: var(--mingo-danger);
+}
+
+.asistente-ia .chat-mensajes {
+  border-color: var(--mingo-border-soft) !important;
+  border-radius: var(--mingo-radius);
+}
+
+.asistente-ia .chat-referencias {
+  border-top: 1px solid var(--mingo-border-soft);
+}
+
+.asistente-ia .chat-fuentes-titulo {
+  color: var(--mingo-ai);
+}
+
+@media (max-width: 575.98px) {
+  .asistente-ia .asistente-tabs {
+    width: 100%;
+  }
+
+  .asistente-ia .asistente-tabs .nav-item {
+    flex: 1 1 0;
+  }
+
+  .asistente-ia .asistente-tabs .nav-link {
+    justify-content: center;
+    padding: 0.55rem 0.6rem;
+    font-size: 0.8rem;
+  }
+}

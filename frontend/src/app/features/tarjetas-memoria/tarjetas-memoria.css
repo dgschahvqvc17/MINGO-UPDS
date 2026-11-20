@@ -1,3 +1,2 @@
-.tarjetas-memoria .progress {
-  height: 0.5rem;
-}
+/* Los estilos de esta feature viven en styles.css bajo el prefijo .tarjetas-memoria
+   para no exceder el budget anyComponentStyle de Angular (6 kB). */

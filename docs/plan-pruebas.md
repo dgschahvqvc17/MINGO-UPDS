@@ -251,10 +251,29 @@ Reglas:
 
 | Caso | Resultado esperado |
 |---|---|
-| Plan con fecha futura | Sesiones distribuidas antes del examen. |
-| Fecha de examen pasada | 400. |
-| Sin días disponibles | 400. |
-| El plan no se guarda hasta confirmar | Solo existe en la propuesta. |
+| Propuesta con fecha futura, minutos y días válidos | Sesiones ordenadas, con tema, actividades, fecha, duración y tipo opcional; resumen y contadores de tokens. |
+| Tras generar la propuesta | No hay plan guardado ni eventos de calendario; `es_propuesta: true`. |
+| Materia ajena o inexistente | `404` y no se llama al proveedor de IA. |
+| Fecha de evaluación pasada | `400`. |
+| Sin días disponibles, días repetidos o minutos fuera de 15–480 | `400`. |
+| Objetivo con menos de 5 caracteres o `materia_id` no UUID | `400`. |
+| Materia con evaluaciones en el calendario | La propuesta recibe hasta 10 eventos `examen` de esa materia junto con las tareas. |
+| Materia sin documentos procesados | La propuesta se genera indicando que no hay material; no inventa temas externos. |
+| Contexto con instrucciones incrustadas | Se tratan como datos; no alteran el formato ni las reglas de la propuesta. |
+| Salida con JSON inválido o sesiones duplicadas | Se reintenta una vez; si persiste, `503` con mensaje seguro. |
+| Cuota de planes agotada (5/día) | `429` con `AI_QUOTA_EXCEEDED` y `reinicio`; no se llama al proveedor. |
+| Confirmar la propuesta editada | Plan `confirmado`, sesiones `pendiente` y un evento `estudio` por sesión con `evento_calendario_id`. |
+| Cambiar tema, fecha, duración o tipo de una sesión | Se guarda el cambio y se actualiza su evento. |
+| Marcar sesión como completada | Estado `completada`; el evento permanece. |
+| Sesión posterior a la evaluación al confirmar o editar | `400` y no se guarda. |
+| Más de 30 sesiones | `400` al confirmar; `409` al agregar una sesión extra. |
+| Eliminar una sesión | Desaparecen la sesión y su evento. |
+| Eliminar una sesión intermedia y agregar otra | El nuevo `orden` es `max(orden) + 1`; no hay conflicto con el índice único ni 500. |
+| Descartar un plan | Estado `descartado`; se eliminan sus sesiones y eventos. |
+| Plan, sesión o materia de otro usuario | `404`. |
+| Listado de planes | Devuelve solo los propios con `meta.total` correcto y paginación por `limit`/`offset`. |
+| Fallo del calendario al confirmar | El plan y las sesiones se conservan; solo se registra el aviso en el servidor. |
+| UI `/planes-estudio` | Estados de carga, vacío y error; el botón de generar se habilita solo con el formulario completo; el calendario muestra las sesiones confirmadas. |
 | Progreso | Porcentajes coherentes con los registros. |
 | Progreso de otro usuario | No accesible. |
 
@@ -335,6 +354,8 @@ Crear un documento de prueba con temas conocidos y un conjunto de preguntas con 
 | Listas | Estados de carga, vacío y error. |
 | Tarjetas de memoria | El reverso no se muestra hasta revelarlo; avanzar/retroceder lo oculta. |
 | Tarjetas de memoria | Marcar avance actualiza el progreso y «repetir pendientes» filtra las conocidas. |
+| Planes de estudio | La propuesta se puede editar y descartar sin guardar; al aceptar aparece en el listado y en el calendario. |
+| Planes de estudio | El calendario de sesiones refleja cambios de fecha y duración sin recargar toda la página. |
 | Componentes | Renderizan datos sin errores. |
 | Accesibilidad | Navegación por teclado y `label` asociados. |
 
