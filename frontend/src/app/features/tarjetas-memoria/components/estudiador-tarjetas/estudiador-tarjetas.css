@@ -1,7 +1,2 @@
-.flashcard {
-  min-height: 16rem;
-}
-
-.flashcard__reverso {
-  border-top: 1px solid var(--bs-border-color);
-}
+/* Los estilos de este componente viven en styles.css bajo el prefijo .estudiador
+   para mantener un unico design system MINGO. */

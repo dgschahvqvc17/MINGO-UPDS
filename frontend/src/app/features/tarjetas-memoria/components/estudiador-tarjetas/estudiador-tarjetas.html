@@ -1,10 +1,10 @@
 <section class="estudiador">
   <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
-    <button type="button" class="btn btn-outline-secondary btn-sm" (click)="volver.emit()">
+    <button type="button" class="btn btn-sm btn-outline-info" (click)="volver.emit()">
       <i class="bi bi-arrow-left me-1" aria-hidden="true"></i>
       Volver a mis tarjetas
     </button>
-    <span class="badge text-bg-light border">
+    <span class="badge badge-info">
       @if (filtro() === 'pendientes') {
         Solo pendientes
       } @else {
@@ -14,13 +14,16 @@
   </div>
 
   @if (cargando()) {
-    <div class="text-center py-5" role="status">
-      <div class="spinner-border text-primary" aria-hidden="true"></div>
-      <p class="text-muted mt-3 mb-0">Cargando tarjetas...</p>
+    <div class="app-card" role="status" aria-live="polite">
+      <div class="card-body p-5 text-center text-muted-soft">
+        <span class="spinner-border spinner-border-sm text-primary me-2" aria-hidden="true"></span>
+        Cargando tarjetas...
+      </div>
     </div>
   } @else if (error(); as mensajeError) {
-    <div class="alert alert-danger alert-dismissible" role="alert">
-      <span>{{ mensajeError }}</span>
+    <div class="alert alert-danger d-flex align-items-center mb-4" role="alert">
+      <i class="bi bi-exclamation-triangle me-2" aria-hidden="true"></i>
+      <span class="flex-grow-1">{{ mensajeError }}</span>
       <button
         type="button"
         class="btn-close"
@@ -29,21 +32,37 @@
       ></button>
     </div>
   } @else if (!tieneTarjetas()) {
-    <div class="alert alert-info" role="status">
-      No quedan tarjetas pendientes. ¡Buen trabajo! Puedes estudiar todas de nuevo.
+    <div class="app-card">
+      <div class="card-body p-5 text-center">
+        <span class="icon-badge icon-badge--success icon-badge--xl mb-3" aria-hidden="true">
+          <i class="bi bi-check2-all"></i>
+        </span>
+        <h2 class="h6 mb-1">No quedan tarjetas pendientes</h2>
+        <p class="small text-muted-soft mb-4">¡Buen trabajo! Puedes estudiar todas de nuevo.</p>
+        <button type="button" class="btn btn-aceptar" (click)="estudiarTodas()">
+          <i class="bi bi-arrow-repeat me-1" aria-hidden="true"></i>
+          Estudiar todas
+        </button>
+      </div>
     </div>
-    <button type="button" class="btn btn-primary" (click)="estudiarTodas()">
-      Estudiar todas
-    </button>
   } @else if (tarjetaActual(); as tarjeta) {
-    <header class="mb-4">
-      <h1 class="h4 mb-1">{{ tituloConjunto() || titulo() }}</h1>
-      <p class="text-muted mb-2" role="status">
-        Tarjeta {{ indice() + 1 }} de {{ total() }} · {{ conocidas() }} conocidas ·
-        {{ pendientes() }} pendientes
-      </p>
+    <header class="page-header mb-4">
+      <div class="d-flex flex-wrap justify-content-between align-items-start gap-3">
+        <div>
+          <span class="page-eyebrow">Repaso activo</span>
+          <h1 class="page-title mt-1 mb-2">{{ tituloConjunto() || titulo() }}</h1>
+          <p class="page-subtitle mb-0 text-muted-soft" role="status">
+            Tarjeta {{ indice() + 1 }} de {{ total() }} · {{ conocidas() }} conocidas ·
+            {{ pendientes() }} pendientes
+          </p>
+        </div>
+        <span class="badge badge-info">
+          <i class="bi bi-collection me-1" aria-hidden="true"></i>
+          {{ total() }} tarjetas
+        </span>
+      </div>
       <div
-        class="progress"
+        class="progress estudiador-progress mt-3"
         role="progressbar"
         [attr.aria-valuenow]="porcentajeAvance()"
         aria-valuemin="0"
@@ -55,8 +74,9 @@
     </header>
 
     @if (mensaje()) {
-      <div class="alert alert-success alert-dismissible py-2" role="status">
-        <span>{{ mensaje() }}</span>
+      <div class="alert alert-success d-flex align-items-center mb-4" role="status">
+        <i class="bi bi-check-circle me-2" aria-hidden="true"></i>
+        <span class="flex-grow-1">{{ mensaje() }}</span>
         <button
           type="button"
           class="btn-close"
@@ -66,18 +86,18 @@
       </div>
     }
 
-    <article class="card border-0 shadow-sm flashcard">
-      <div class="card-body p-4">
-        <p class="text-uppercase text-muted small fw-semibold mb-3">Frente</p>
-        <p class="h5 mb-4">{{ tarjeta.frente }}</p>
+    <article class="app-card app-card--ai flashcard">
+      <div class="card-body p-4 p-lg-5">
+        <p class="text-uppercase text-muted-soft small fw-semibold mb-3">Frente</p>
+        <p class="h4 mb-4">{{ tarjeta.frente }}</p>
 
         @if (revelada()) {
-          <div class="flashcard__reverso pt-3">
-            <p class="text-uppercase text-muted small fw-semibold mb-2">Reverso</p>
+          <div class="flashcard__reverso pt-4 mt-2">
+            <p class="text-uppercase text-muted-soft small fw-semibold mb-2">Reverso</p>
             <p class="fs-5 mb-0">{{ tarjeta.reverso }}</p>
           </div>
         } @else {
-          <button type="button" class="btn btn-outline-primary" (click)="revelar()">
+          <button type="button" class="btn btn-ai" (click)="revelar()">
             <i class="bi bi-eye me-1" aria-hidden="true"></i>
             Revelar respuesta
           </button>
@@ -89,7 +109,7 @@
       <div class="d-flex gap-2">
         <button
           type="button"
-          class="btn btn-outline-secondary"
+          class="btn btn-outline-info"
           [disabled]="esPrimera() || guardando()"
           (click)="anterior()"
         >
@@ -98,7 +118,7 @@
         </button>
         <button
           type="button"
-          class="btn btn-outline-secondary"
+          class="btn btn-outline-info"
           [disabled]="esUltima() || guardando()"
           (click)="siguiente()"
         >
@@ -120,7 +140,7 @@
           </button>
           <button
             type="button"
-            class="btn btn-success"
+            class="btn btn-aceptar"
             [disabled]="guardando()"
             (click)="marcar('conocida')"
           >
@@ -134,11 +154,11 @@
       }
     </div>
 
-    <div class="d-flex flex-wrap gap-2 mt-4 border-top pt-3">
-      <button type="button" class="btn btn-sm btn-outline-primary" (click)="repetirPendientes()">
+    <div class="d-flex flex-wrap gap-2 mt-4 pt-3 border-top">
+      <button type="button" class="btn btn-sm btn-outline-info" (click)="repetirPendientes()">
         Repetir pendientes
       </button>
-      <button type="button" class="btn btn-sm btn-outline-secondary" (click)="estudiarTodas()">
+      <button type="button" class="btn btn-sm btn-outline-info" (click)="estudiarTodas()">
         Estudiar todas
       </button>
     </div>

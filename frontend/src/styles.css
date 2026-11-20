@@ -3509,36 +3509,9 @@ pre {
   opacity: 1;
 }
 
-.centro-estudio .pasos-generacion {
-  display: grid;
-  gap: 0.9rem;
-}
-
-.centro-estudio .paso-item {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.9rem;
-  padding: 0.9rem 1rem;
-  border: 1px solid var(--mingo-border-soft);
-  border-radius: var(--mingo-radius);
-  background: var(--mingo-surface-hover);
-}
-
-.centro-estudio .paso-numero {
-  display: inline-grid;
-  place-items: center;
-  flex: 0 0 1.9rem;
-  width: 1.9rem;
-  height: 1.9rem;
-  border-radius: 50%;
-  background: var(--mingo-primary-soft);
-  color: #bfdbfe;
-  font-size: 0.85rem;
-  font-weight: 800;
-}
-
 .centro-estudio .cuestionarios-grid {
   display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
   gap: 1rem;
 }
 
@@ -3571,4 +3544,189 @@ pre {
   color: var(--mingo-text-muted);
   font-size: 0.75rem;
   font-weight: 600;
+}
+/* ==========================================================================
+   Tarjetas de memoria (extension del design system, prefijada por feature)
+   ========================================================================== */
+
+.tarjetas-memoria .page-header {
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--mingo-border-soft);
+}
+
+.tarjetas-memoria .page-subtitle,
+.tarjetas-memoria .form-text {
+  color: var(--mingo-text-muted);
+}
+
+.tarjetas-memoria .panel-heading {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  padding-bottom: 1.25rem;
+  margin-bottom: 1.25rem;
+  border-bottom: 1px solid var(--mingo-border-soft);
+}
+
+.tarjetas-memoria .btn-ai {
+  color: #fff;
+  font-weight: 700;
+  border: 1px solid rgba(56, 189, 248, 0.45);
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  box-shadow: 0 8px 24px rgba(37, 99, 235, 0.3);
+}
+
+.tarjetas-memoria .btn-ai:hover:not(:disabled) {
+  color: #fff;
+  border-color: rgba(56, 189, 248, 0.8);
+  box-shadow: 0 12px 30px rgba(37, 99, 235, 0.48);
+}
+
+.tarjetas-memoria .btn-ai:disabled {
+  opacity: 0.45;
+}
+
+.tarjetas-memoria .btn-aceptar {
+  color: #04150f;
+  font-weight: 700;
+  border: 1px solid #34d399;
+  background: linear-gradient(135deg, #10b981, #059669);
+}
+
+.tarjetas-memoria .btn-aceptar:hover:not(:disabled) {
+  color: #04150f;
+  filter: brightness(1.1);
+  box-shadow: 0 10px 26px rgba(16, 185, 129, 0.35);
+}
+
+.tarjetas-memoria .conjuntos-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1rem;
+}
+
+.tarjetas-memoria .conjunto-card {
+  transition: border-color var(--mingo-transition-normal);
+}
+
+.tarjetas-memoria .conjunto-card:hover {
+  border-color: rgba(37, 99, 235, 0.45);
+}
+
+.tarjetas-memoria .min-w-0 {
+  min-width: 0;
+}
+
+.tarjetas-memoria .meta-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.tarjetas-memoria .meta-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.3rem 0.65rem;
+  border: 1px solid var(--mingo-border-soft);
+  border-radius: var(--mingo-radius-full);
+  background: rgba(148, 163, 184, 0.06);
+  color: var(--mingo-text-muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.tarjetas-memoria .conjunto-progress {
+  height: 0.5rem;
+  background-color: var(--mingo-surface-strong);
+  border-radius: var(--mingo-radius-full);
+}
+
+.tarjetas-memoria .conjunto-progress .progress-bar {
+  border-radius: var(--mingo-radius-full);
+}
+/* ==========================================================================
+   Estudiador de tarjetas (prefijado por componente)
+   ========================================================================== */
+
+.estudiador .page-header {
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--mingo-border-soft);
+}
+
+.estudiador .page-subtitle {
+  font-size: 0.9rem;
+  max-width: none;
+}
+
+.estudiador .estudiador-progress {
+  height: 0.5rem;
+  background-color: var(--mingo-surface-strong);
+  border-radius: var(--mingo-radius-full);
+}
+
+.estudiador .estudiador-progress .progress-bar {
+  border-radius: var(--mingo-radius-full);
+}
+
+.estudiador .flashcard {
+  min-height: 16rem;
+}
+
+.estudiador .flashcard__reverso {
+  border-top: 1px solid var(--mingo-border-soft);
+}
+
+.estudiador .btn-ai {
+  color: #fff;
+  font-weight: 700;
+  border: 1px solid rgba(56, 189, 248, 0.45);
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  box-shadow: 0 8px 24px rgba(37, 99, 235, 0.3);
+}
+
+.estudiador .btn-ai:hover:not(:disabled) {
+  color: #fff;
+  border-color: rgba(56, 189, 248, 0.8);
+}
+
+.estudiador .btn-aceptar {
+  color: #04150f;
+  font-weight: 700;
+  border: 1px solid #34d399;
+  background: linear-gradient(135deg, #10b981, #059669);
+}
+
+.estudiador .btn-aceptar:hover:not(:disabled) {
+  color: #04150f;
+  filter: brightness(1.1);
+  box-shadow: 0 10px 26px rgba(16, 185, 129, 0.35);
+}
+/* ==========================================================================
+   Dashboard (extension del design system, prefijada por feature)
+   ========================================================================== */
+
+.dashboard-page .page-header {
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--mingo-border-soft);
+}
+
+.dashboard-page .page-subtitle {
+  max-width: 75ch;
+}
+
+.dashboard-page .panel-heading {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  padding-bottom: 1rem;
+  margin-bottom: 1rem;
+  border-bottom: 1px solid var(--mingo-border-soft);
+}
+
+.dashboard-page .icon-badge--warning {
+  background-color: rgba(251, 191, 36, 0.14);
+  border-color: rgba(251, 191, 36, 0.3);
+  color: #fbbf24;
 }

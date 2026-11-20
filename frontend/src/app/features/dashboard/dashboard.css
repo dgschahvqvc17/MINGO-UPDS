@@ -2,10 +2,6 @@
   display: block;
 }
 
-.dashboard-header h1 {
-  letter-spacing: -0.01em;
-}
-
 .role-badge {
   display: inline-flex;
   align-items: center;
@@ -33,37 +29,6 @@
 /* --------------------------------------------------------------------------
    Tarjetas de indicadores
    -------------------------------------------------------------------------- */
-
-.stat-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 2.75rem;
-  height: 2.75rem;
-  border-radius: var(--mingo-radius);
-  font-size: 1.25rem;
-  flex-shrink: 0;
-}
-
-.stat-icon--primary {
-  background-color: var(--mingo-primary-soft);
-  color: var(--mingo-ai);
-}
-
-.stat-icon--warning {
-  background-color: rgba(251, 191, 36, 0.14);
-  color: var(--mingo-warning);
-}
-
-.stat-icon--success {
-  background-color: var(--mingo-success-soft);
-  color: var(--mingo-success);
-}
-
-.stat-icon--danger {
-  background-color: var(--mingo-danger-soft);
-  color: var(--mingo-danger);
-}
 
 .stat-value {
   font-size: 1.65rem;

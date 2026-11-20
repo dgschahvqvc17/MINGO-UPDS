@@ -188,171 +188,131 @@
               <span class="icon-badge icon-badge--ai icon-badge--lg" aria-hidden="true">
                 <i class="bi bi-journal-check"></i>
               </span>
-              <div>
-                <h2 class="h5 mb-1">Cómo funciona</h2>
-                <p class="small text-muted-soft mb-0">Tres pasos para evaluar tus conocimientos.</p>
+              <div class="flex-grow-1">
+                <h2 class="h5 mb-1" id="titulo-mis-cuestionarios">Mis cuestionarios</h2>
+                <p class="small text-muted-soft mb-0">Resuelve los cuestionarios que has generado.</p>
               </div>
+              <span class="badge badge-info">
+                <i class="bi bi-collection me-1" aria-hidden="true"></i>
+                {{ totalCuestionarios() }} {{ totalCuestionarios() === 1 ? 'cuestionario' : 'cuestionarios' }}
+              </span>
             </div>
 
-            <div class="pasos-generacion">
-              <div class="paso-item">
-                <span class="paso-numero">1</span>
-                <div>
-                  <strong>Elige el material</strong>
+            @if (cargandoCuestionarios() && cuestionarios().length === 0) {
+              <div class="app-card" role="status" aria-live="polite">
+                <div class="card-body p-5 text-center text-muted-soft">
+                  <span class="spinner-border spinner-border-sm text-primary me-2" aria-hidden="true"></span>
+                  Cargando cuestionarios...
+                </div>
+              </div>
+            } @else if (mostrarListaVacia()) {
+              <div class="app-card">
+                <div class="card-body p-5 text-center">
+                  <span class="icon-badge icon-badge--ai icon-badge--xl mb-3" aria-hidden="true">
+                    <i class="bi bi-journal-plus"></i>
+                  </span>
+                  <h3 class="h6 mb-1">Todavía no tienes cuestionarios</h3>
                   <p class="small text-muted-soft mb-0">
-                    Selecciona una materia y, si quieres, un documento procesado.
+                    Genera el primero desde el panel de generación para empezar a practicar.
                   </p>
                 </div>
               </div>
-              <div class="paso-item">
-                <span class="paso-numero">2</span>
-                <div>
-                  <strong>Configura el cuestionario</strong>
-                  <p class="small text-muted-soft mb-0">
-                    Define la cantidad, la dificultad y los tipos de pregunta que necesitas.
-                  </p>
-                </div>
+            } @else {
+              <div class="cuestionarios-grid">
+                @for (cuestionario of cuestionarios(); track cuestionario.id) {
+                  <div class="app-card cuestionario-card">
+                    <div class="card-body p-4">
+                      <div class="d-flex flex-wrap justify-content-between align-items-start gap-2">
+                        <div class="flex-grow-1 min-w-0">
+                          <h3 class="h6 mb-1">{{ cuestionario.titulo }}</h3>
+                          <p class="small text-muted-soft mb-0">
+                            @if (cuestionario.materia_nombre) {
+                              <i class="bi bi-book me-1" aria-hidden="true"></i>
+                              {{ cuestionario.materia_nombre }} ·
+                            }
+                            <i class="bi bi-clock-history me-1" aria-hidden="true"></i>
+                            {{ cuestionario.fecha_creacion | date: 'dd/MM/yyyy' }}
+                          </p>
+                        </div>
+                        <span class="badge badge-success badge-sm">
+                          <i class="bi bi-check2-circle me-1" aria-hidden="true"></i>
+                          Listo
+                        </span>
+                      </div>
+
+                      <div class="meta-chips mt-3">
+                        <span class="meta-chip">
+                          <i class="bi bi-list-check" aria-hidden="true"></i>
+                          {{ cuestionario.cantidad_preguntas }} preguntas
+                        </span>
+                        <span class="meta-chip">
+                          <i class="bi bi-bar-chart" aria-hidden="true"></i>
+                          {{ etiquetaDificultad(cuestionario) }}
+                        </span>
+                      </div>
+
+                      <div class="d-flex flex-wrap gap-2 mt-4 pt-3 border-top">
+                        <button type="button" class="btn btn-aceptar btn-sm" (click)="resolver(cuestionario)">
+                          <i class="bi bi-play-fill me-1" aria-hidden="true"></i>
+                          Resolver
+                        </button>
+
+                        @if (confirmandoEliminar() === cuestionario.id) {
+                          <button
+                            type="button"
+                            class="btn btn-sm btn-danger"
+                            [disabled]="eliminandoId() === cuestionario.id"
+                            (click)="eliminar(cuestionario)"
+                          >
+                            @if (eliminandoId() === cuestionario.id) {
+                              <span class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span>
+                            }
+                            Confirmar eliminación
+                          </button>
+                          <button
+                            type="button"
+                            class="btn btn-sm btn-outline-info"
+                            (click)="cancelarEliminar()"
+                          >
+                            Cancelar
+                          </button>
+                        } @else {
+                          <button
+                            type="button"
+                            class="btn btn-sm btn-outline-danger"
+                            (click)="solicitarEliminar(cuestionario)"
+                          >
+                            <i class="bi bi-trash me-1" aria-hidden="true"></i>
+                            Eliminar
+                          </button>
+                        }
+                      </div>
+                    </div>
+                  </div>
+                }
               </div>
-              <div class="paso-item">
-                <span class="paso-numero">3</span>
-                <div>
-                  <strong>Resuelve y revisa</strong>
-                  <p class="small text-muted-soft mb-0">
-                    Responde las preguntas y consulta la explicación de cada respuesta.
-                  </p>
+
+              @if (hayMasCuestionarios()) {
+                <div class="text-center mt-4">
+                  <button
+                    type="button"
+                    class="btn btn-outline-info btn-sm"
+                    [disabled]="cargandoCuestionarios()"
+                    (click)="cargarMas()"
+                  >
+                    @if (cargandoCuestionarios()) {
+                      <span class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span>
+                    } @else {
+                      <i class="bi bi-chevron-down me-1" aria-hidden="true"></i>
+                    }
+                    Cargar más
+                  </button>
                 </div>
-              </div>
-            </div>
+              }
+            }
           </div>
         </div>
       </div>
     </div>
-
-    <section class="seccion-cuestionarios mt-5" aria-labelledby="titulo-mis-cuestionarios">
-      <div class="d-flex flex-wrap justify-content-between align-items-end gap-3 mb-4">
-        <div>
-          <span class="page-eyebrow">Guardados</span>
-          <h2 class="h4 mb-1" id="titulo-mis-cuestionarios">Mis cuestionarios</h2>
-          <p class="small text-muted-soft mb-0">Resuelve los cuestionarios que has generado.</p>
-        </div>
-        <span class="badge badge-info">
-          <i class="bi bi-collection me-1" aria-hidden="true"></i>
-          {{ totalCuestionarios() }} {{ totalCuestionarios() === 1 ? 'cuestionario' : 'cuestionarios' }}
-        </span>
-      </div>
-
-      @if (cargandoCuestionarios() && cuestionarios().length === 0) {
-        <div class="app-card" role="status" aria-live="polite">
-          <div class="card-body p-5 text-center text-muted-soft">
-            <span class="spinner-border spinner-border-sm text-primary me-2" aria-hidden="true"></span>
-            Cargando cuestionarios...
-          </div>
-        </div>
-      } @else if (mostrarListaVacia()) {
-        <div class="app-card">
-          <div class="card-body p-5 text-center">
-            <span class="icon-badge icon-badge--ai icon-badge--xl mb-3" aria-hidden="true">
-              <i class="bi bi-journal-plus"></i>
-            </span>
-            <h3 class="h6 mb-1">Todavía no tienes cuestionarios</h3>
-            <p class="small text-muted-soft mb-0">
-              Genera el primero con el formulario de arriba para empezar a practicar.
-            </p>
-          </div>
-        </div>
-      } @else {
-        <div class="cuestionarios-grid">
-          @for (cuestionario of cuestionarios(); track cuestionario.id) {
-            <div class="app-card cuestionario-card">
-              <div class="card-body p-4">
-                <div class="d-flex flex-wrap justify-content-between align-items-start gap-2">
-                  <div class="flex-grow-1 min-w-0">
-                    <h3 class="h6 mb-1">{{ cuestionario.titulo }}</h3>
-                    <p class="small text-muted-soft mb-0">
-                      @if (cuestionario.materia_nombre) {
-                        <i class="bi bi-book me-1" aria-hidden="true"></i>
-                        {{ cuestionario.materia_nombre }} ·
-                      }
-                      <i class="bi bi-clock-history me-1" aria-hidden="true"></i>
-                      {{ cuestionario.fecha_creacion | date: 'dd/MM/yyyy' }}
-                    </p>
-                  </div>
-                  <span class="badge badge-success badge-sm">
-                    <i class="bi bi-check2-circle me-1" aria-hidden="true"></i>
-                    Listo
-                  </span>
-                </div>
-
-                <div class="meta-chips mt-3">
-                  <span class="meta-chip">
-                    <i class="bi bi-list-check" aria-hidden="true"></i>
-                    {{ cuestionario.cantidad_preguntas }} preguntas
-                  </span>
-                  <span class="meta-chip">
-                    <i class="bi bi-bar-chart" aria-hidden="true"></i>
-                    {{ etiquetaDificultad(cuestionario) }}
-                  </span>
-                </div>
-
-                <div class="d-flex flex-wrap gap-2 mt-4 pt-3 border-top">
-                  <button type="button" class="btn btn-aceptar btn-sm" (click)="resolver(cuestionario)">
-                    <i class="bi bi-play-fill me-1" aria-hidden="true"></i>
-                    Resolver
-                  </button>
-
-                  @if (confirmandoEliminar() === cuestionario.id) {
-                    <button
-                      type="button"
-                      class="btn btn-sm btn-danger"
-                      [disabled]="eliminandoId() === cuestionario.id"
-                      (click)="eliminar(cuestionario)"
-                    >
-                      @if (eliminandoId() === cuestionario.id) {
-                        <span class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span>
-                      }
-                      Confirmar eliminación
-                    </button>
-                    <button
-                      type="button"
-                      class="btn btn-sm btn-outline-info"
-                      (click)="cancelarEliminar()"
-                    >
-                      Cancelar
-                    </button>
-                  } @else {
-                    <button
-                      type="button"
-                      class="btn btn-sm btn-outline-danger"
-                      (click)="solicitarEliminar(cuestionario)"
-                    >
-                      <i class="bi bi-trash me-1" aria-hidden="true"></i>
-                      Eliminar
-                    </button>
-                  }
-                </div>
-              </div>
-            </div>
-          }
-        </div>
-
-        @if (hayMasCuestionarios()) {
-          <div class="text-center mt-4">
-            <button
-              type="button"
-              class="btn btn-outline-info btn-sm"
-              [disabled]="cargandoCuestionarios()"
-              (click)="cargarMas()"
-            >
-              @if (cargandoCuestionarios()) {
-                <span class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span>
-              } @else {
-                <i class="bi bi-chevron-down me-1" aria-hidden="true"></i>
-              }
-              Cargar más
-            </button>
-          </div>
-        }
-      }
-    </section>
   }
 </section>

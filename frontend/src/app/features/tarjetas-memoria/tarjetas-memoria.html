@@ -7,15 +7,24 @@
       (actualizado)="alActualizar()"
     />
   } @else {
-    <header class="mb-4">
-      <h1 class="h3 mb-1">Tarjetas de memoria</h1>
-      <p class="text-muted mb-0">
-        Genera tarjetas con IA a partir de tus apuntes y repásalas cuando quieras.
-      </p>
+    <header class="page-header mb-4">
+      <div class="d-flex flex-wrap justify-content-between align-items-start gap-3">
+        <div>
+          <span class="page-eyebrow">Práctica y repaso</span>
+          <h1 class="page-title mt-1 mb-2">Tarjetas de memoria</h1>
+          <p class="page-subtitle mb-0">
+            Genera tarjetas con IA a partir de tus apuntes y repásalas cuando quieras.
+          </p>
+        </div>
+        <span class="badge badge-info">
+          <i class="bi bi-lightning-charge me-1" aria-hidden="true"></i>
+          Hasta 10 conjuntos por día
+        </span>
+      </div>
     </header>
 
     @if (mensajeExito()) {
-      <div class="alert alert-success alert-dismissible d-flex align-items-center" role="status">
+      <div class="alert alert-success d-flex align-items-center mb-4" role="status">
         <i class="bi bi-check-circle me-2" aria-hidden="true"></i>
         <span class="flex-grow-1">{{ mensajeExito() }}</span>
         <button
@@ -28,26 +37,31 @@
     }
 
     @if (errorAccion()) {
-      <div class="alert alert-danger alert-dismissible d-flex align-items-center" role="alert">
+      <div class="alert alert-danger d-flex align-items-center mb-4" role="alert">
         <i class="bi bi-exclamation-triangle me-2" aria-hidden="true"></i>
         <span class="flex-grow-1">{{ errorAccion() }}</span>
         <button
           type="button"
           class="btn-close"
-          aria-label="Cerrar mensaje de error"
+          aria-label="Cerrar error"
           (click)="cerrarErrorAccion()"
         ></button>
       </div>
     }
 
     <div class="row g-4">
-      <div class="col-12 col-lg-4">
-        <div class="card border-0 shadow-sm h-100">
-          <div class="card-body">
-            <h2 class="h5 mb-3">
-              <i class="bi bi-layout-text-window me-2 text-primary" aria-hidden="true"></i>
-              Generar tarjetas
-            </h2>
+      <div class="col-12 col-xl-4">
+        <div class="app-card app-card--ai h-100">
+          <div class="card-body p-4">
+            <div class="panel-heading">
+              <span class="icon-badge icon-badge--ai icon-badge--lg" aria-hidden="true">
+                <i class="bi bi-layout-text-window"></i>
+              </span>
+              <div>
+                <h2 class="h5 mb-1">Generar tarjetas</h2>
+                <p class="small text-muted-soft mb-0">Convierte tus apuntes en tarjetas de repaso.</p>
+              </div>
+            </div>
 
             @if (sinMaterias()) {
               <div class="alert alert-info" role="status">
@@ -95,7 +109,7 @@
                 </div>
               </div>
 
-              <div class="mb-3">
+              <div class="mb-4">
                 <label for="cantidad" class="form-label">Cantidad de tarjetas</label>
                 <input
                   id="cantidad"
@@ -111,78 +125,101 @@
               </div>
 
               @if (error()) {
-                <div class="alert alert-danger" role="alert">{{ error() }}</div>
+                <div class="alert alert-danger mb-3" role="alert">{{ error() }}</div>
               }
 
-              <button type="submit" class="btn btn-primary w-100" [disabled]="!puedeGenerar()">
+              <button type="submit" class="btn btn-ai w-100" [disabled]="!puedeGenerar()">
                 @if (generando()) {
-                  <span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
+                  <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
                   Generando tarjetas...
                 } @else {
-                  <i class="bi bi-stars me-1" aria-hidden="true"></i>
+                  <i class="bi bi-stars me-2" aria-hidden="true"></i>
                   Generar tarjetas
                 }
               </button>
-              <p class="text-muted small text-center mt-2 mb-0">
-                Puedes generar hasta 10 conjuntos por día.
-              </p>
             </form>
           </div>
         </div>
       </div>
 
-      <div class="col-12 col-lg-8">
-        <div class="card border-0 shadow-sm h-100">
-          <div class="card-body">
-            <div class="d-flex justify-content-between align-items-center mb-3">
-              <h2 class="h5 mb-0">
-                <i class="bi bi-collection me-2 text-primary" aria-hidden="true"></i>
-                Mis conjuntos
-              </h2>
-              <span class="badge text-bg-light border">{{ totalConjuntos() }}</span>
+      <div class="col-12 col-xl-8">
+        <div class="app-card h-100">
+          <div class="card-body p-4 p-lg-5">
+            <div class="panel-heading">
+              <span class="icon-badge icon-badge--ai icon-badge--lg" aria-hidden="true">
+                <i class="bi bi-collection"></i>
+              </span>
+              <div class="flex-grow-1">
+                <h2 class="h5 mb-1" id="titulo-mis-conjuntos">Mis conjuntos</h2>
+                <p class="small text-muted-soft mb-0">Repasa tus tarjetas y sigue tu avance.</p>
+              </div>
+              <span class="badge badge-info">
+                <i class="bi bi-collection me-1" aria-hidden="true"></i>
+                {{ totalConjuntos() }} {{ totalConjuntos() === 1 ? 'conjunto' : 'conjuntos' }}
+              </span>
             </div>
 
             @if (cargandoConjuntos() && conjuntos().length === 0) {
-              <div class="text-center py-5" role="status">
-                <div class="spinner-border text-primary" aria-hidden="true"></div>
-                <p class="text-muted mt-3 mb-0">Cargando conjuntos...</p>
+              <div class="app-card" role="status" aria-live="polite">
+                <div class="card-body p-5 text-center text-muted-soft">
+                  <span class="spinner-border spinner-border-sm text-primary me-2" aria-hidden="true"></span>
+                  Cargando conjuntos...
+                </div>
               </div>
             } @else if (error() && conjuntos().length === 0) {
               <div class="alert alert-danger" role="alert">{{ error() }}</div>
             } @else if (conjuntos().length === 0) {
-              <div class="alert alert-info mb-0" role="status">
-                Todavía no tienes tarjetas. Genera tu primer conjunto con el formulario de la izquierda.
+              <div class="app-card">
+                <div class="card-body p-5 text-center">
+                  <span class="icon-badge icon-badge--ai icon-badge--xl mb-3" aria-hidden="true">
+                    <i class="bi bi-layout-text-window"></i>
+                  </span>
+                  <h3 class="h6 mb-1">Todavía no tienes tarjetas</h3>
+                  <p class="small text-muted-soft mb-0">
+                    Genera tu primer conjunto desde el panel de generación.
+                  </p>
+                </div>
               </div>
             } @else {
-              <div class="d-flex flex-column gap-3">
+              <div class="conjuntos-grid">
                 @for (conjunto of conjuntos(); track conjunto.id) {
-                  <article class="card border">
-                    <div class="card-body">
+                  <article class="app-card conjunto-card">
+                    <div class="card-body p-4">
                       <div class="d-flex flex-wrap justify-content-between align-items-start gap-2">
-                        <div>
+                        <div class="flex-grow-1 min-w-0">
                           <h3 class="h6 mb-1">{{ conjunto.titulo }}</h3>
-                          <p class="text-muted small mb-2">
+                          <p class="small text-muted-soft mb-0">
                             @if (conjunto.materia_nombre) {
+                              <i class="bi bi-book me-1" aria-hidden="true"></i>
                               {{ conjunto.materia_nombre }} ·
                             }
+                            <i class="bi bi-clock-history me-1" aria-hidden="true"></i>
                             {{ conjunto.fecha_creacion | date: 'dd/MM/yyyy' }}
                           </p>
                         </div>
-                        <div class="d-flex flex-wrap gap-1">
-                          <span class="badge text-bg-light border">
-                            {{ conjunto.cantidad_tarjetas }} tarjetas
-                          </span>
-                          <span class="badge text-bg-success">
-                            {{ conjunto.cantidad_conocidas }} conocidas
-                          </span>
-                          <span class="badge text-bg-warning">
-                            {{ conjunto.cantidad_pendientes }} pendientes
-                          </span>
-                        </div>
+                        <span class="badge badge-success badge-sm">
+                          <i class="bi bi-layers me-1" aria-hidden="true"></i>
+                          Listo
+                        </span>
+                      </div>
+
+                      <div class="meta-chips mt-3">
+                        <span class="meta-chip">
+                          <i class="bi bi-collection me-1" aria-hidden="true"></i>
+                          {{ conjunto.cantidad_tarjetas }} tarjetas
+                        </span>
+                        <span class="badge badge-success badge-sm">
+                          <i class="bi bi-check2-circle me-1" aria-hidden="true"></i>
+                          {{ conjunto.cantidad_conocidas }} conocidas
+                        </span>
+                        <span class="badge badge-warning badge-sm">
+                          <i class="bi bi-arrow-repeat me-1" aria-hidden="true"></i>
+                          {{ conjunto.cantidad_pendientes }} pendientes
+                        </span>
                       </div>
 
                       <div
-                        class="progress mt-3"
+                        class="progress conjunto-progress mt-3"
                         role="progressbar"
                         [attr.aria-valuenow]="conjunto.cantidad_conocidas"
                         aria-valuemin="0"
@@ -197,10 +234,10 @@
                         ></div>
                       </div>
 
-                      <div class="d-flex flex-wrap gap-2 mt-3">
+                      <div class="d-flex flex-wrap gap-2 mt-4 pt-3 border-top">
                         <button
                           type="button"
-                          class="btn btn-sm btn-primary"
+                          class="btn btn-aceptar btn-sm"
                           (click)="estudiar(conjunto)"
                         >
                           <i class="bi bi-play-fill me-1" aria-hidden="true"></i>
@@ -221,7 +258,7 @@
                           </button>
                           <button
                             type="button"
-                            class="btn btn-sm btn-outline-secondary"
+                            class="btn btn-sm btn-outline-info"
                             (click)="cancelarEliminar()"
                           >
                             Cancelar
@@ -243,15 +280,17 @@
               </div>
 
               @if (hayMasConjuntos()) {
-                <div class="text-center mt-3">
+                <div class="text-center mt-4">
                   <button
                     type="button"
-                    class="btn btn-outline-primary btn-sm"
+                    class="btn btn-outline-info btn-sm"
                     [disabled]="cargandoConjuntos()"
                     (click)="cargarMas()"
                   >
                     @if (cargandoConjuntos()) {
                       <span class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span>
+                    } @else {
+                      <i class="bi bi-chevron-down me-1" aria-hidden="true"></i>
                     }
                     Cargar más
                   </button>
