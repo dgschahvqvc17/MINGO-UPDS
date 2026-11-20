@@ -65,8 +65,8 @@
 }
 
 .login-hero .login-agente .mascota--grande {
-  width: clamp(14rem, 18vw, 17rem);
-  height: clamp(14rem, 18vw, 17rem);
+  width: clamp(15rem, 24vw, 20rem);
+  height: clamp(15rem, 24vw, 20rem);
 }
 
 .login-agente--movil {
