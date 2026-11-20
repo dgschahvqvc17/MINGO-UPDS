@@ -1,0 +1,239 @@
+<section class="notificaciones-page">
+  <header class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
+    <div>
+      <h1 class="h3 mb-1">Notificaciones</h1>
+      <p class="text-muted-soft mb-0">
+        Recordatorios de tareas, evaluaciones y sesiones de estudio.
+      </p>
+    </div>
+    <button
+      type="button"
+      class="btn btn-outline-primary btn-sm"
+      (click)="marcarTodasLeidas()"
+      [disabled]="total() === 0"
+    >
+      <i class="bi bi-check2-all" aria-hidden="true"></i> Marcar todas como leídas
+    </button>
+  </header>
+
+  @if (mensajeExito()) {
+    <div class="alert alert-success" role="status">{{ mensajeExito() }}</div>
+  }
+  @if (errorMessage()) {
+    <div class="alert alert-danger" role="alert">{{ errorMessage() }}</div>
+  }
+
+  <div class="row g-4">
+    <div class="col-12 col-xl-8">
+      <div class="card h-100">
+        <div class="card-body">
+          <div class="row g-2 mb-3">
+            <div class="col-12 col-md-6">
+              <label for="filtro-lectura" class="form-label small fw-semibold">Estado</label>
+              <select
+                id="filtro-lectura"
+                class="form-select form-select-sm"
+                [value]="filtroLectura()"
+                (change)="cambiarFiltroLectura($any($event.target).value)"
+              >
+                <option value="todas">Todas</option>
+                <option value="no-leidas">No leídas</option>
+                <option value="leidas">Leídas</option>
+              </select>
+            </div>
+            <div class="col-12 col-md-6">
+              <label for="filtro-tipo" class="form-label small fw-semibold">Tipo</label>
+              <select
+                id="filtro-tipo"
+                class="form-select form-select-sm"
+                [value]="filtroTipo()"
+                (change)="cambiarFiltroTipo($any($event.target).value)"
+              >
+                <option value="">Todos los tipos</option>
+                @for (tipo of tipos; track tipo) {
+                  <option [value]="tipo">{{ etiquetasTipo[tipo] }}</option>
+                }
+              </select>
+            </div>
+          </div>
+
+          @if (cargando()) {
+            <div class="text-center py-5" role="status">
+              <span class="spinner-border text-primary" aria-hidden="true"></span>
+              <p class="text-muted-soft mt-3 mb-0">Cargando notificaciones...</p>
+            </div>
+          } @else if (notificaciones().length === 0) {
+            <div class="text-center py-5">
+              <i class="bi bi-bell-slash fs-1 text-muted-soft" aria-hidden="true"></i>
+              <p class="fw-semibold mt-3 mb-1">No hay notificaciones en esta vista</p>
+              <p class="text-muted-soft small mb-0">
+                Los recordatorios aparecerán aquí cuando se acerque una actividad.
+              </p>
+            </div>
+          } @else {
+            <div class="list-group list-group-flush">
+              @for (notificacion of notificaciones(); track notificacion.id) {
+                <article
+                  class="list-group-item px-0"
+                  [class.notificacion-no-leida]="!notificacion.leida"
+                >
+                  <div class="d-flex flex-wrap justify-content-between gap-2">
+                    <div class="d-flex align-items-center gap-2">
+                      <span class="badge text-bg-light border">
+                        {{ etiquetasTipo[notificacion.tipo] }}
+                      </span>
+                      @if (!notificacion.leida) {
+                        <span class="badge text-bg-primary">Nueva</span>
+                      }
+                    </div>
+                    <time class="text-muted-soft small" [attr.datetime]="notificacion.fecha_programada">
+                      {{ notificacion.fecha_programada | date: 'medium' }}
+                    </time>
+                  </div>
+                  <h2 class="h6 mt-2 mb-1">{{ notificacion.titulo }}</h2>
+                  <p class="mb-2">{{ notificacion.mensaje }}</p>
+                  <div class="d-flex justify-content-between align-items-center gap-2">
+                    <span class="text-muted-soft small">
+                      Actividad:
+                      @if (notificacion.tarea_id) {
+                        Tarea
+                      } @else if (notificacion.evento_calendario_id) {
+                        Evaluación
+                      } @else if (notificacion.sesion_estudio_id) {
+                        Sesión de estudio
+                      } @else {
+                        Archivada
+                      }
+                    </span>
+                    @if (!notificacion.leida) {
+                      <button
+                        type="button"
+                        class="btn btn-sm btn-outline-secondary"
+                        (click)="marcarLeida(notificacion)"
+                      >
+                        Marcar como leída
+                      </button>
+                    }
+                  </div>
+                </article>
+              }
+            </div>
+
+            <div class="d-flex justify-content-between align-items-center mt-3">
+              <span class="text-muted-soft small">{{ total() }} notificaciones</span>
+              <div class="btn-group btn-group-sm" role="group" aria-label="Paginación">
+                <button
+                  type="button"
+                  class="btn btn-outline-secondary"
+                  [disabled]="pagina() <= 1"
+                  (click)="paginaAnterior()"
+                >
+                  Anterior
+                </button>
+                <button
+                  type="button"
+                  class="btn btn-outline-secondary"
+                  [disabled]="pagina() >= totalPaginas()"
+                  (click)="paginaSiguiente()"
+                >
+                  Siguiente
+                </button>
+              </div>
+            </div>
+          }
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-xl-4">
+      <div class="card">
+        <div class="card-body">
+          <h2 class="h5 mb-1">Preferencias</h2>
+          <p class="text-muted-soft small mb-3">
+            Configura la anticipación y los canales de tus recordatorios.
+          </p>
+
+          @if (errorPreferencias()) {
+            <div class="alert alert-danger small" role="alert">{{ errorPreferencias() }}</div>
+          }
+
+          <div class="form-check form-switch mb-2">
+            <input
+              id="notificaciones-activas"
+              class="form-check-input"
+              type="checkbox"
+              role="switch"
+              [checked]="notificacionesActivas()"
+              (change)="notificacionesActivas.set($any($event.target).checked)"
+            />
+            <label class="form-check-label" for="notificaciones-activas">
+              Activar notificaciones
+            </label>
+          </div>
+
+          <div class="form-check form-switch mb-3">
+            <input
+              id="canal-email"
+              class="form-check-input"
+              type="checkbox"
+              role="switch"
+              [checked]="canalEmail()"
+              (change)="canalEmail.set($any($event.target).checked)"
+            />
+            <label class="form-check-label" for="canal-email">
+              Enviar también por correo
+            </label>
+          </div>
+
+          <div class="mb-3">
+            <label for="anticipacion" class="form-label small fw-semibold">
+              Anticipación (minutos)
+            </label>
+            <input
+              id="anticipacion"
+              class="form-control form-control-sm"
+              type="number"
+              min="5"
+              max="10080"
+              [value]="anticipacionMinutos()"
+              (input)="cambiarAnticipacion($any($event.target).value)"
+              aria-describedby="anticipacion-ayuda"
+            />
+            @if (errorAnticipacion()) {
+              <div id="anticipacion-ayuda" class="invalid-feedback d-block" role="alert">
+                {{ errorAnticipacion() }}
+              </div>
+            } @else {
+              <div id="anticipacion-ayuda" class="form-text">
+                Entre 5 minutos y 7 días.
+              </div>
+            }
+          </div>
+
+          <div class="mb-3">
+            <label for="zona-horaria" class="form-label small fw-semibold">Zona horaria</label>
+            <select
+              id="zona-horaria"
+              class="form-select form-select-sm"
+              [value]="zonaHoraria()"
+              (change)="zonaHoraria.set($any($event.target).value)"
+            >
+              @for (zona of zonasHorarias; track zona) {
+                <option [value]="zona">{{ zona }}</option>
+              }
+            </select>
+          </div>
+
+          <button
+            type="button"
+            class="btn btn-primary btn-sm w-100"
+            [disabled]="guardandoPreferencias() || !!errorAnticipacion()"
+            (click)="guardarPreferencias()"
+          >
+            {{ guardandoPreferencias() ? 'Guardando...' : 'Guardar preferencias' }}
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>

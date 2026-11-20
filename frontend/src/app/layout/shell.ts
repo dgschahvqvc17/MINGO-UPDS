@@ -1,8 +1,9 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
-import { toSignal } from '@angular/core/rxjs-interop';
+import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { filter, map } from 'rxjs';
 import { AuthService } from '../core/services/auth.service';
+import { NotificacionService } from '../core/services/notificacion.service';
 import { AyudanteFlotanteComponent } from '../shared/components/ayudante-flotante/ayudante-flotante.component';
 
 interface NavItem {
@@ -11,6 +12,7 @@ interface NavItem {
   icon: string;
   adminOnly?: boolean;
   ai?: boolean;
+  badgeNotificaciones?: boolean;
 }
 
 interface NavSection {
@@ -26,6 +28,12 @@ const NAV_SECTIONS: NavSection[] = [
       { label: 'Materias', path: '/materias', icon: 'bi-journal-bookmark' },
       { label: 'Tareas', path: '/tareas', icon: 'bi-check2-square' },
       { label: 'Calendario', path: '/calendario', icon: 'bi-calendar3' },
+      {
+        label: 'Notificaciones',
+        path: '/notificaciones',
+        icon: 'bi-bell',
+        badgeNotificaciones: true,
+      },
     ],
   },
   {
@@ -62,8 +70,10 @@ const NAV_SECTIONS: NavSection[] = [
 export class ShellComponent {
   private readonly authService = inject(AuthService);
   private readonly router = inject(Router);
+  private readonly notificacionService = inject(NotificacionService);
 
   readonly menuOpen = signal(false);
+  readonly notificacionesNoLeidas = this.notificacionService.noLeidas;
   readonly collapsed = signal(false);
   readonly role = this.authService.role;
   readonly roleLabel = computed(() => {
@@ -115,6 +125,16 @@ export class ShellComponent {
 
   readonly sectionTitle = computed(() => this.activeNavItem()?.label ?? 'Panel académico');
   readonly sectionIcon = computed(() => this.activeNavItem()?.icon ?? 'bi-mortarboard');
+
+  constructor() {
+    this.notificacionService
+      .contarNoLeidas()
+      .pipe(takeUntilDestroyed())
+      .subscribe({
+        next: () => undefined,
+        error: () => undefined,
+      });
+  }
 
   closeMenu(): void {
     this.menuOpen.set(false);

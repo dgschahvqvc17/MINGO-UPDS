@@ -37,6 +37,11 @@
               @if (item.ai) {
                 <span class="nav-ai">IA</span>
               }
+              @if (item.badgeNotificaciones && notificacionesNoLeidas() > 0) {
+                <span class="nav-badge" [attr.aria-label]="notificacionesNoLeidas() + ' notificaciones no leídas'">
+                  {{ notificacionesNoLeidas() }}
+                </span>
+              }
             </a>
           }
         </div>

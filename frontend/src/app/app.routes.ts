@@ -161,6 +161,13 @@ export const routes: Routes = [
       },
 
       {
+        path: 'notificaciones',
+        title: 'Notificaciones | MINGO',
+        loadComponent: () =>
+          import('./features/notificaciones/notificaciones').then((m) => m.NotificacionesPage),
+      },
+
+      {
         path: 'asistente-ia',
         loadComponent: () =>
           import('./features/asistente-ia/asistente-ia').then((m) => m.AsistenteIaPage),

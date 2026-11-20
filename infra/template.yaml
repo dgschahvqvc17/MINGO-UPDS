@@ -1,9 +1,10 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
 Description: >-
-  MINGO - HU07 y HU09. Bucket privado de documentos academicos y procesamiento
-  asincrono serverless (S3 -> SQS -> Lambda). Sin servidores, sin VPC, sin
-  concurrencia provisionada y con DLQ acotada. Solo capa gratuita.
+  MINGO - HU07, HU09 y HU18. Bucket privado de documentos academicos,
+  procesamiento asincrono (S3 -> SQS -> Lambda) y recordatorios diarios
+  (Scheduler -> Lambda -> SNS). Sin servidores, sin VPC, sin concurrencia
+  provisionada y con DLQ acotada. Solo capa gratuita.
 
 Parameters:
   Environment:
@@ -89,8 +90,25 @@ Parameters:
       Dimension fija de la columna vector(1536). Cambiarla exige migracion y
       reprocesar todos los documentos.
 
+  NotificacionesEmail:
+    Type: String
+    Default: ''
+    Description: >
+      Correo del suscriptor del unico topic SNS. Vacio desactiva el envio por
+      email; la notificacion interna de la plataforma sigue funcionando.
+    AllowedPattern: '^$|[^@\s]+@[^@\s]+\.[^@\s]+$'
+    ConstraintDescription: Debe ser un correo valido o una cadena vacia.
+
+  RecordatorioCron:
+    Type: String
+    Default: 'cron(0 12 * * ? *)'
+    Description: >
+      Expresion cron UTC del unico schedule diario. Doce del mediodia UTC
+      equivale a las 07:00 en America/Bogota (hora estacional -05).
+
 Conditions:
   IsProd: !Equals [!Ref Environment, prod]
+  TieneCorreoNotificaciones: !Not [!Equals [!Ref NotificacionesEmail, '']]
 
 Resources:
   DocumentosBucket:
@@ -319,6 +337,152 @@ Resources:
         - ReportBatchItemFailures
       Enabled: true
 
+  # --- HU18: recordatorios programados ---------------------------------------
+  # Un solo topic para todos los avisos. Solo se publica si el estudiante
+  # activo `canal_email`; el servicio limita la ejecucion a 100 correos/dia.
+  # Sin suscripcion no se envia ningun correo.
+  NotificacionesTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: !Sub '${AWS::StackName}-notificaciones'
+      DisplayName: MINGO-recordatorios
+      Tags:
+        - { Key: Project, Value: MINGO }
+        - { Key: Environment, Value: !Ref Environment }
+        - { Key: Owner, Value: equipo-mingo }
+        - { Key: ManagedBy, Value: sam }
+        - { Key: CostCenter, Value: academico }
+
+  NotificacionesSuscripcion:
+    Type: AWS::SNS::Subscription
+    Condition: TieneCorreoNotificaciones
+    Properties:
+      Protocol: email
+      TopicArn: !Ref NotificacionesTopic
+      Endpoint: !Ref NotificacionesEmail
+      Tags:
+        - { Key: Project, Value: MINGO }
+        - { Key: Environment, Value: !Ref Environment }
+        - { Key: Owner, Value: equipo-mingo }
+        - { Key: ManagedBy, Value: sam }
+        - { Key: CostCenter, Value: academico }
+
+  RecordatoriosLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/lambda/${AWS::StackName}-recordatorios'
+      RetentionInDays: !If [IsProd, 30, 7]
+      Tags:
+        - { Key: Project, Value: MINGO }
+        - { Key: Environment, Value: !Ref Environment }
+        - { Key: Owner, Value: equipo-mingo }
+        - { Key: ManagedBy, Value: sam }
+        - { Key: CostCenter, Value: academico }
+
+  RecordatoriosRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: 'sts:AssumeRole'
+      ManagedPolicyArns:
+        - !Sub 'arn:${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole'
+      Policies:
+        - PolicyName: publicar-notificaciones
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: 'sns:Publish'
+                Resource: !Ref NotificacionesTopic
+      Tags:
+        - { Key: Project, Value: MINGO }
+        - { Key: Environment, Value: !Ref Environment }
+        - { Key: Owner, Value: equipo-mingo }
+        - { Key: ManagedBy, Value: sam }
+        - { Key: CostCenter, Value: academico }
+
+  RecordatoriosFunction:
+    Type: AWS::Serverless::Function
+    DependsOn: RecordatoriosLogGroup
+    Properties:
+      FunctionName: !Sub '${AWS::StackName}-recordatorios'
+      Description: Genera recordatorios de tareas, evaluaciones y sesiones de estudio.
+      CodeUri: ../backend/
+      Handler: src/lambda/recordatorios.handler
+      Runtime: nodejs22.x
+      Architectures: [arm64]
+      MemorySize: 512
+      Timeout: 30
+      # Una sola ejecucion al dia: sin concurrencia reservada ni provisionada.
+      Role: !GetAtt RecordatoriosRole.Arn
+      Environment:
+        Variables:
+          NODE_ENV: production
+          SUPABASE_URL: !Ref SupabaseUrl
+          SUPABASE_SERVICE_ROLE_KEY: !Ref SupabaseServiceRoleKey
+          SUPABASE_ANON_KEY: !Ref SupabaseAnonKey
+          AWS_SNS_TOPIC_ARN: !Ref NotificacionesTopic
+      Tags:
+        Project: MINGO
+        Environment: !Ref Environment
+        Owner: equipo-mingo
+        ManagedBy: sam
+        CostCenter: academico
+
+  SchedulerInvocationRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: scheduler.amazonaws.com
+            Action: 'sts:AssumeRole'
+      Policies:
+        - PolicyName: invocar-recordatorios
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: 'lambda:InvokeFunction'
+                Resource: !GetAtt RecordatoriosFunction.Arn
+      Tags:
+        - { Key: Project, Value: MINGO }
+        - { Key: Environment, Value: !Ref Environment }
+        - { Key: Owner, Value: equipo-mingo }
+        - { Key: ManagedBy, Value: sam }
+        - { Key: CostCenter, Value: academico }
+
+  RecordatoriosSchedule:
+    Type: AWS::Scheduler::Schedule
+    Properties:
+      Name: !Sub '${AWS::StackName}-recordatorios-diarios'
+      Description: Recordatorios academicos diarios de MINGO (maximo uno por dia).
+      ScheduleExpression: !Ref RecordatorioCron
+      ScheduleExpressionTimezone: UTC
+      FlexibleTimeWindow:
+        Mode: OFF
+      # En desarrollo queda deshabilitado; las reglas de AWS lo exigen.
+      State: !If [IsProd, ENABLED, DISABLED]
+      Target:
+        Arn: !GetAtt RecordatoriosFunction.Arn
+        RoleArn: !GetAtt SchedulerInvocationRole.Arn
+        # Sin reintentos: evita bucles y gasto accidental.
+        RetryPolicy:
+          MaximumRetryAttempts: 0
+      Tags:
+        - { Key: Project, Value: MINGO }
+        - { Key: Environment, Value: !Ref Environment }
+        - { Key: Owner, Value: equipo-mingo }
+        - { Key: ManagedBy, Value: sam }
+        - { Key: CostCenter, Value: academico }
+
 Outputs:
   BucketName:
     Description: Nombre del bucket de documentos.
@@ -359,3 +523,19 @@ Outputs:
     Value: !Ref ProcesadorFunction
     Export:
       Name: !Sub '${AWS::StackName}-ProcessorFunctionName'
+
+  NotificacionesTopicArn:
+    Description: ARN del topic SNS de notificaciones (HU18).
+    Value: !Ref NotificacionesTopic
+    Export:
+      Name: !Sub '${AWS::StackName}-NotificacionesTopicArn'
+
+  RecordatoriosFunctionName:
+    Description: Nombre de la Lambda de recordatorios (HU18).
+    Value: !Ref RecordatoriosFunction
+    Export:
+      Name: !Sub '${AWS::StackName}-RecordatoriosFunctionName'
+
+  RecordatoriosScheduleState:
+    Description: Estado del schedule unico de recordatorios.
+    Value: !If [IsProd, ENABLED, DISABLED]

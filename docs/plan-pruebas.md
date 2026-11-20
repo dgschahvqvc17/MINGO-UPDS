@@ -127,7 +127,7 @@ Reglas:
 | Próximos exámenes | Solo `tipo` `examen` o `parcial`, no completadas, en 30 días (máx. 5). |
 | Próximos eventos | Excluye `tipo_evento = 'entrega'`; ventana de 14 días (máx. 5). |
 | `progreso` | `porcentaje_completado` entre 0 y 100 y coherente con los contadores. |
-| Notificaciones | `[]` hasta HU18; el frontend muestra el estado vacío explícito. |
+| Notificaciones | `[]` en el dashboard; el frontend muestra el estado vacío y enlaza al historial real de HU18. |
 | Cambios recientes | Al pulsar "Actualizar" se reflejan los nuevos datos del usuario. |
 | Fallo de red o 5xx | Alerta con mensaje apto para el usuario y botón "Reintentar". |
 
@@ -311,12 +311,22 @@ Reglas:
 
 | Caso | Resultado esperado |
 |---|---|
-| Listar notificaciones propias | Solo las del usuario. |
-| Marcar como leída | Cambia el estado. |
-| Marcar todas | Todas quedan leídas. |
-| Preferencias | Se guardan y respetan. |
-| Notificación duplicada | No se envía dos veces. |
-| SNS deshabilitado | La app sigue funcionando; solo no envía email. |
+| `GET /api/notificaciones` sin filtros | Solo las del usuario del token, ordenadas por `fecha_creacion` descendente, con `meta` correcto. |
+| Filtros `leida`, `tipo`, `page` y `limit` | Se aplican en repositorio; `limit` máximo `100`; valores inválidos responden `400`. |
+| ID de notificación ajeno | `404` en `PATCH /:id/leida`; no se revela existencia. |
+| `PATCH /:id/leida` y `/leer-todas` | Cambian `leida` a `true`; el segundo devuelve `actualizadas`. |
+| Preferencias inexistentes | `GET` crea la fila con valores por defecto (`60` min, email apagado, `America/Bogota`, `es`). |
+| Actualizar preferencias | Acepta cambios parciales; anticipación fuera de `5–10080`, zona IANA inválida o cuerpo vacío responden `400`. |
+| Generación de recordatorios | Genera avisos para tareas no completadas, evaluaciones `examen` y sesiones `pendiente` dentro de la ventana de anticipación. |
+| `fecha_programada` | Igual a `fecha_actividad - anticipacion_minutos`, en ISO 8601. |
+| Ejecución repetida | La clave `(usuario_id, clave_idempotencia)` evita duplicados y reenvíos. |
+| Usuario con notificaciones desactivadas | No consulta actividades ni genera avisos. |
+| Sin topic SNS o `canal_email = false` | La notificación interna se conserva; no se publica ni se marca `fecha_envio`. |
+| Fallo de SNS | Se contabiliza en `erroresEnvio`; la notificación interna y la ejecución no fallan. |
+| Más de 100 correos en una ejecución | Se publican como máximo `100`; el resto queda solo en la plataforma. |
+| Lambda de recordatorios | Acepta el evento vacío del schedule y una lista opcional de usuarios acotada a `100`; devuelve el resumen. |
+| UI `/notificaciones` | Estados de carga, vacío y error; filtros de estado/tipo; paginación; marcar una/todas; formulario de preferencias con validación de anticipación. |
+| Contador del shell | Muestra `noLeidas` y se actualiza al consultar o marcar notificaciones. |
 
 ### 4.14. Administración
 
@@ -461,6 +471,7 @@ Responsable:
 | Fecha | Alcance | Entorno | Resultado |
 |---|---|---|---|
 | 2026-11-20 | E2E de HU17 contra la API real: crear, listar, consultar, cambiar estado y eliminar objetivos; consultar progreso con datos. Incluye validación de título corto (`400`) y `404` tras el borrado. | Supabase real con un usuario temporal aislado, eliminado al final. | PASS |
+| 2026-11-20 | HU18: lint y pruebas de backend (49 suites / 503 pruebas), build y pruebas de frontend (27 archivos / 191 pruebas). Cubre endpoints, preferencias, idempotencia, tope de 100 correos, Lambda, historial, filtros y contador. | Local con mocks de Supabase y SNS; sin despliegue AWS. | PASS |
 
 ## 13. Pruebas antes de desplegar
 

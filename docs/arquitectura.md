@@ -35,7 +35,8 @@ MINGO es una aplicación web académica con arquitectura cliente-servidor:
 │  ANGULAR 21 (frontend)                                      │
 │  core: guards, interceptors, services, models               │
 │  features: auth, dashboard, materias, tareas, calendario,   │
-│            biblioteca, centro-estudio, asistente-ia, admin  │
+│            notificaciones, biblioteca, centro-estudio,      │
+│            asistente-ia, admin                              │
 │  layout: shell con navegacion                               │
 └───────────────────────────┬─────────────────────────────────┘
                             │ /api + Bearer JWT
@@ -67,6 +68,19 @@ MINGO es una aplicación web académica con arquitectura cliente-servidor:
                     │ extrae texto, fragmenta, │
                     │ genera embeddings        │
                     └──────────────────────────┘
+```
+
+Flujo de recordatorios (HU18):
+
+```text
+EventBridge Scheduler (1 schedule diario; OFF en dev)
+  -> Lambda recordatorios (service_role, sin VPC, sin reintentos)
+      -> Supabase: tareas, evaluaciones, sesiones y preferencias
+      -> Supabase: notificaciones (ON CONFLICT DO NOTHING)
+      -> SNS email (solo si el usuario activó `canal_email`; máx. 100 correos/ejecución)
+
+Angular /notificaciones
+  -> API /api/notificaciones (JWT) -> Supabase con RLS
 ```
 
 ## 4. Flujo de una petición
@@ -128,8 +142,8 @@ Errores:
 | Frontend Angular | S3 privado + CloudFront (o hosting estático gratuito externo) |
 | Backend Express | Lambda + API Gateway HTTP API |
 | Procesamiento documental | S3 → SQS → Lambda |
-| Recordatorios | EventBridge Scheduler → Lambda |
-| Notificaciones | SNS email |
+| Recordatorios | Un EventBridge Scheduler diario → Lambda de recordatorios (deshabilitado en `dev`). |
+| Notificaciones | Historial en Supabase con RLS; SNS email solo para canales habilitados y con tope de 100 correos por ejecución. |
 | Base de datos | Supabase PostgreSQL |
 | Embeddings | pgvector en Supabase |
 | IA | API externa con cuota |
@@ -147,6 +161,7 @@ Errores:
 | AWS solo serverless | Evitar facturas por recursos encendidos y aprovechar Free Tier. |
 | RAG con pgvector | Respuestas basadas en los documentos del estudiante. |
 | IA desde el backend | Proteger claves y controlar consumo. |
+| Idempotencia de recordatorios | Clave única por usuario, actividad, fecha y anticipación. | Evita duplicados y reenvíos si el schedule se ejecuta más de una vez. |
 | Bootstrap | Interfaz rápida, responsiva y sin dependencias de pago. |
 
 ## 9. Fuera de alcance del MVP

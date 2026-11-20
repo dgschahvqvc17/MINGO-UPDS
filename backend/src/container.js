@@ -17,6 +17,10 @@ const PlanEstudioRepository = require('./repositories/plan-estudio.repository');
 const ObjetivoRepository = require('./repositories/objetivo.repository');
 const ProgresoRepository = require('./repositories/progreso.repository');
 const IdempotenciaRepository = require('./repositories/idempotencia.repository');
+const NotificacionRepository = require('./repositories/notificacion.repository');
+const PreferenciaNotificacionRepository = require('./repositories/preferencia-notificacion.repository');
+const ActividadRecordatorioRepository = require('./repositories/actividad-recordatorio.repository');
+const CanalNotificacionRepository = require('./repositories/canal-notificacion.repository');
 const ConsumoIaRepository = require('./repositories/consumo-ia.repository');
 const AlmacenamientoRepository = require('./repositories/almacenamiento.repository');
 const ColaRepository = require('./repositories/cola.repository');
@@ -42,6 +46,7 @@ const TarjetaIaService = require('./services/ia/tarjeta.ia.service');
 const PlanEstudioService = require('./services/plan-estudio.service');
 const ObjetivoService = require('./services/objetivo.service');
 const ProgresoService = require('./services/progreso.service');
+const NotificacionService = require('./services/notificacion.service');
 const PlanIaService = require('./services/ia/plan.ia.service');
 const AuthController = require('./controllers/auth.controller');
 const UsuarioAdminController = require('./controllers/usuario-admin.controller');
@@ -58,7 +63,9 @@ const TarjetaController = require('./controllers/tarjeta.controller');
 const PlanEstudioController = require('./controllers/plan-estudio.controller');
 const ObjetivoController = require('./controllers/objetivo.controller');
 const ProgresoController = require('./controllers/progreso.controller');
-const { s3Client, sqsClient } = require('./config/aws');
+const NotificacionController = require('./controllers/notificacion.controller');
+const config = require('./config/environment');
+const { s3Client, snsClient, sqsClient } = require('./config/aws');
 
 // Clientes de IA compartidos: no guardan estado por petición.
 const embeddingsServiceCompartido = new EmbeddingsService();
@@ -419,6 +426,60 @@ function createProgresoController(progresoService) {
 }
 
 /**
+ * Repositorios compartidos por el servicio de notificaciones y por el worker.
+ * El canal SNS se crea una sola vez y degrada a "no configurado" si no hay topic.
+ *
+ * @param {import('@supabase/supabase-js').SupabaseClient} supabaseClient
+ */
+function crearRepositoriosNotificacion(supabaseClient) {
+  return {
+    notificacionRepository: new NotificacionRepository({ supabase: supabaseClient }),
+    preferenciaRepository: new PreferenciaNotificacionRepository({ supabase: supabaseClient }),
+    actividadRepository: new ActividadRecordatorioRepository({ supabase: supabaseClient }),
+    canalRepository: new CanalNotificacionRepository({
+      snsClient,
+      topicArn: config.aws.snsTopicArn,
+    }),
+  };
+}
+
+/**
+ * Servicio de notificaciones del usuario autenticado.
+ *
+ * @param {string} usuarioActualId
+ * @param {string} accessToken
+ * @returns {NotificacionService}
+ */
+function createNotificacionService(usuarioActualId, accessToken) {
+  const supabaseClient = createSupabaseClient(accessToken);
+
+  return new NotificacionService({
+    ...crearRepositoriosNotificacion(supabaseClient),
+    usuarioActualId,
+  });
+}
+
+function createNotificacionController(notificacionService) {
+  return new NotificacionController({ notificacionService });
+}
+
+/**
+ * Servicio del worker de recordatorios (HU18). No hay usuario autenticado en
+ * la Lambda, por lo que usa service_role; la generacion filtra por usuario.
+ *
+ * @param {{ supabaseClient?: import('@supabase/supabase-js').SupabaseClient }} [dependencias]
+ * @returns {NotificacionService}
+ */
+function createRecordatoriosService({ supabaseClient } = {}) {
+  const client = supabaseClient ?? createSupabaseServiceRoleClient();
+
+  return new NotificacionService({
+    ...crearRepositoriosNotificacion(client),
+    usuarioActualId: null,
+  });
+}
+
+/**
  * Crea el servicio que ejecuta el worker de procesamiento.
  * Usa service_role porque no hay usuario autenticado en la Lambda; el servicio
  * valida la propiedad del documento y de la ruta antes de tocar nada.
@@ -459,6 +520,9 @@ module.exports = {
   createPlanEstudioService,
   createObjetivoService,
   createProgresoService,
+  createNotificacionService,
+  createNotificacionController,
+  createRecordatoriosService,
   createProcesamientoService,
   createTareaController,
   createCalendarioController,

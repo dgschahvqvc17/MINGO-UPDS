@@ -179,6 +179,18 @@
   letter-spacing: 0.08em;
 }
 
+.nav-badge {
+  margin-left: auto;
+  min-width: 1.35rem;
+  padding: 0.05rem 0.35rem;
+  border-radius: 999px;
+  background: #dc2626;
+  color: #ffffff;
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-align: center;
+}
+
 .ai-promo {
   margin-top: auto;
   padding: 1rem;
@@ -366,6 +378,7 @@
   .sidebar.collapsed .nav-section-title,
   .sidebar.collapsed .nav-label,
   .sidebar.collapsed .nav-ai,
+  .sidebar.collapsed .nav-badge,
   .sidebar.collapsed .ai-promo,
   .sidebar.collapsed .sidebar-user-meta {
     display: none;
