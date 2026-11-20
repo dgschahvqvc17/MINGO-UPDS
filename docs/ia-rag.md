@@ -472,6 +472,70 @@ Agente: confirma la creación y muestra el enlace
   con nota, temas y recomendaciones; `/centro-estudio` permite abrir cualquiera
   en modo revisión sin iniciar un intento nuevo.
 
+### 8.8. Mascota del agente (interfaz)
+
+La cara del agente MINGO es un componente presentacional reutilizable:
+`frontend/src/app/shared/components/mascota-agente/`. Es un cachorro blanco con
+audífonos azules, dibujado en SVG inline (sin imágenes externas ni fuentes
+remotas). Expone tres estados y sus animaciones:
+
+| Estado | Cuándo aparece | Movimiento |
+|---|---|---|
+| `inactivo` | Sin petición en curso ni resultado reciente. | Flotación suave e inclinación ligera. |
+| `pensando` | Mientras la petición de IA está en curso. | Inclina la cabeza y mira arriba. |
+| `hablando` | Justo después de recibir un resultado. | Asiente y mueve la boca y el micrófono. |
+| `durmiendo` | Sin actividad en el acceso flotante. | Respiración lenta, ojos cerrados y tres «z» animadas. |
+
+Detalles de implementación:
+
+- El ciclo `pensando → hablando → inactivo` lo deriva `crearEstadoMascota()` a
+  partir de la señal de carga real de cada pantalla. La fase `hablando` dura
+  2,4 s y se cancela al iniciar otra petición o al destruir el componente.
+- La mascota sigue el cursor con un desplazamiento acotado: mueve la cabeza y
+  las pupilas de ambos ojos, que permanecen abiertos. El párpado izquierdo
+  produce un guiño visible de forma periódica en reposo y dos veces durante el
+  saludo. Respeta `prefers-reduced-motion`: en ese caso se desactivan el
+  seguimiento y las animaciones, y el componente anuncia el estado por
+  `aria-label`.
+- Está conectada a chat (HU12), resúmenes (HU10), cuestionarios (HU13) y
+  evaluación (HU16), además de los estados vacíos de esas pantallas.
+- La biblioteca usa `bi-binoculars` en *Búsqueda inteligente* y el asistente usa
+  `bi-chat-dots` en la cabecera de una conversación nueva. En el área de mensajes
+  del asistente la mascota es grande y mantiene visible la burbuja «¿Qué quieres
+  preguntarme?» mientras no haya mensajes. Al abrir una conversación anterior,
+  la cabecera vuelve a mostrar la mascota compacta. Las tres mascotas del chat
+  reciben `[seguirCursor]="false"`: se quedan quietas, sin mover cuerpo, cabeza
+  ni pupilas con el mouse. El seguimiento sigue activo en el resto de pantallas
+  y el giro de cabeza solo se habilita en el login.
+- El shell incluye un acceso flotante abajo a la derecha en todas las pantallas
+  autenticadas: `app-ayudante-flotante`. Muestra la burbuja «¿En qué puedo
+  ayudarte?» y, al hacer clic, navega a `/asistente-ia`. El propio botón es la
+  cabeza de la mascota, sin círculo ni fondo: `soloCabeza` recorta el SVG a la
+  cara y oculta halo, anillo, partículas y pata. La mascota es quieta
+  (`seguirCursor=false`). Tras 12 s sin actividad se duerme; 6 s después
+  se produce el «sorpréndeme»: despierta hablando con «¡Sorpresa! ¿Qué quieres
+  preguntarme?» y vuelve al reposo. Mover el mouse, escribir o pasar el cursor
+  sobre el botón la despierta. Todo se cancela al destruir el componente.
+- En el centro de estudio, las tarjetas de memoria y los planes de estudio el
+  lugar del icono lo ocupa un `icon-badge` de Bootstrap, no la mascota:
+  `bi-patch-question`, `bi-journal-check` y `bi-clipboard-check` en el centro de estudio,
+  `bi-card-checklist` y `bi-collection` en tarjetas, y `bi-calendar2-check`,
+  `bi-lightbulb` y `bi-calendar3` en planes. El resultado del resolver de
+  cuestionarios conserva su mascota porque no ocupa un lugar de icono.
+- En el hero del dashboard y en el login se usa la variante `grande`: entra con
+  una animación de escala, levanta la pata y guiña un ojo durante 3,2 s al
+  saludar, muestra una burbuja con el nombre del estudiante o un mensaje de
+  bienvenida y conserva un halo pulsante y partículas. Todo se desactiva con
+  `prefers-reduced-motion`.
+- En el login hay una sola mascota visible por tamaño de pantalla: la del hero
+  en escritorio y una única copia sobre el formulario en móvil. El bloque de
+  credenciales no contiene ninguna mascota. Solo en el login se activan los
+  inputs `seguimientoCabeza` y `hablaAlSaludar`: la cabeza gira unos grados
+  siguiendo el cursor y el saludo pasa por `pensando` (0,5 s) y `hablando`
+  (2,7 s) antes de volver a `inactivo`, con boca y micrófono en movimiento.
+- No llama a la API de IA, no recibe secretos y no usa `innerHTML`. El costo es
+  el mismo que el de una etiqueta SVG: cero servicios nuevos.
+
 ## 9. Control de consumo y costos
 
 ### 9.1. Cuotas propuestas

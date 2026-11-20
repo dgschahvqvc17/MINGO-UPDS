@@ -47,7 +47,7 @@
         <div class="card-body p-4">
           <div class="panel-heading">
             <span class="icon-badge icon-badge--ai icon-badge--lg" aria-hidden="true">
-              <i class="bi bi-calendar2-week"></i>
+              <i class="bi bi-calendar2-check"></i>
             </span>
             <div>
               <h2 class="h5 mb-1">Nuevo plan</h2>
@@ -159,9 +159,11 @@
       @if (!propuesta()) {
         <div class="app-card h-100">
           <div class="card-body p-4 p-lg-5 d-flex flex-column align-items-center justify-content-center text-center">
-            <span class="icon-badge icon-badge--ai icon-badge--xl mb-3" aria-hidden="true">
-              <i class="bi bi-calendar2-check"></i>
-            </span>
+            <div class="d-flex justify-content-center mb-2">
+              <span class="icon-badge icon-badge--ai icon-badge--lg" aria-hidden="true">
+                <i class="bi bi-lightbulb"></i>
+              </span>
+            </div>
             <h2 class="h5 mb-2">Aún no hay una propuesta</h2>
             <p class="text-muted-soft mb-4">
               Completa los datos y genera una propuesta para distribuir tus temas en sesiones.
@@ -347,9 +349,11 @@
     } @else if (planes().length === 0) {
       <div class="app-card">
         <div class="card-body p-5 text-center">
-          <span class="icon-badge icon-badge--ai icon-badge--xl mb-3" aria-hidden="true">
-            <i class="bi bi-journal-plus"></i>
-          </span>
+          <div class="d-flex justify-content-center mb-2">
+            <span class="icon-badge icon-badge--ai icon-badge--lg" aria-hidden="true">
+              <i class="bi bi-calendar3"></i>
+            </span>
+          </div>
           <h3 class="h6 mb-1">Todavía no tienes planes guardados</h3>
           <p class="small text-muted-soft mb-0">
             Genera una propuesta arriba y guárdala para empezar a planificar tus sesiones.

@@ -42,6 +42,9 @@
     @if (hayResultado()) {
       <div class="card border-0 shadow-sm mb-4 resultado-evaluacion">
         <div class="card-body text-center">
+          <div class="d-flex justify-content-center mb-2">
+            <app-mascota-agente [estado]="estadoMascota()" />
+          </div>
           <p class="text-uppercase text-muted small mb-1">Resultado del intento</p>
           @if (puntuacion() !== null) {
             <p class="display-4 fw-semibold mb-1">{{ puntuacion() }}%</p>

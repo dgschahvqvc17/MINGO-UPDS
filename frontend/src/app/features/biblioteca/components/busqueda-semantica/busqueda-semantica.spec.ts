@@ -67,6 +67,11 @@ describe('BusquedaSemanticaComponent (HU11)', () => {
     expect(buscar).not.toHaveBeenCalled();
   });
 
+  it('usa un icono de búsqueda en lugar de la mascota', () => {
+    expect(fixture.nativeElement.querySelector('.busqueda-icono .bi-binoculars')).not.toBeNull();
+    expect(fixture.nativeElement.querySelector('app-mascota-agente')).toBeNull();
+  });
+
   it('muestra los fragmentos con origen, página, similitud y enlace al documento', () => {
     buscar.mockReturnValue(
       of({ resultados: [fragmento], mensaje: null }),

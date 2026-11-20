@@ -116,6 +116,8 @@ describe('DashboardPage (HU06)', () => {
     obtenerResumen.mockReset();
   });
 
+  afterEach(() => vi.useRealTimers());
+
   it('muestra los indicadores académicos del usuario autenticado', () => {
     configurarTestBed();
 
@@ -130,6 +132,22 @@ describe('DashboardPage (HU06)', () => {
     expect(fixture.nativeElement.textContent).toContain('Examen parcial');
     expect(fixture.nativeElement.textContent).toContain('Ana Pérez');
     expect(obtenerResumen).toHaveBeenCalledTimes(1);
+  });
+
+  it('muestra la mascota grande saludando al usuario autenticado', () => {
+    vi.useFakeTimers();
+    configurarTestBed();
+
+    const fixture = crearComponente();
+    const mascota = fixture.nativeElement.querySelector(
+      '.dashboard-hero app-mascota-agente',
+    ) as HTMLElement;
+
+    expect(mascota).not.toBeNull();
+    expect(mascota.classList.contains('mascota--grande')).toBe(true);
+    expect(mascota.querySelector('.mascota__burbuja')?.textContent).toContain('Ana Pérez');
+
+    fixture.destroy();
   });
 
   it('muestra los estados vacíos cuando el usuario no tiene datos', () => {

@@ -116,6 +116,7 @@ describe('TarjetasMemoriaPage (HU14)', () => {
     fixture.detectChanges();
 
     expect(fixture.nativeElement.textContent).toContain('Todavía no tienes tarjetas');
+    expect(fixture.nativeElement.querySelector('.bi-collection')).not.toBeNull();
   });
 
   it('muestra un mensaje seguro cuando falla la carga', () => {
@@ -140,6 +141,13 @@ describe('TarjetasMemoriaPage (HU14)', () => {
     });
     expect(componente.conjuntos()[0]).toEqual(conjuntoGenerado);
     expect(componente.estudiando()).toEqual({ id: CONJUNTO_ID, titulo: conjunto.titulo });
+  });
+
+  it('muestra un icono de tarjetas en lugar de la mascota en el panel de generación', () => {
+    const encabezado = fixture.nativeElement.querySelector('.panel-heading') as HTMLElement;
+
+    expect(encabezado.querySelector('.bi-card-checklist')).not.toBeNull();
+    expect(fixture.nativeElement.querySelector('app-mascota-agente')).toBeNull();
   });
 
   it('no genera si no se seleccionó una materia', () => {

@@ -1,0 +1,415 @@
+:host {
+  display: inline-flex;
+  width: 4.25rem;
+  height: 4.25rem;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+}
+
+:host(.mascota--compacta) {
+  width: 3rem;
+  height: 3rem;
+}
+
+:host(.mascota--grande) {
+  width: clamp(11rem, 20vw, 15.5rem);
+  height: clamp(11rem, 20vw, 15.5rem);
+}
+
+@media (max-width: 575.98px) {
+  :host(.mascota--grande) {
+    width: 9.5rem;
+    height: 9.5rem;
+  }
+}
+
+.mascota {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  user-select: none;
+}
+
+.mascota__halo {
+  position: absolute;
+  inset: 14%;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(56, 189, 248, 0.42), rgba(16, 185, 129, 0.12) 45%, transparent 72%);
+  filter: blur(10px);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.4s ease;
+}
+
+.mascota--grande .mascota__halo {
+  opacity: 0.65;
+  animation: mascota-halo 3.2s ease-in-out infinite;
+}
+
+.mascota--saludando .mascota__halo {
+  opacity: 1;
+}
+
+.mascota__burbuja {
+  position: absolute;
+  top: -0.5rem;
+  right: -1rem;
+  z-index: 2;
+  padding: 0.4rem 0.85rem;
+  border: 1px solid rgba(56, 189, 248, 0.5);
+  border-radius: 1.5rem;
+  background: var(--mingo-surface, #0f172a);
+  box-shadow: 0 10px 30px rgba(2, 132, 199, 0.28);
+  color: var(--mingo-text, #f8fafc);
+  font-size: 0.82rem;
+  font-weight: 600;
+  white-space: nowrap;
+  animation: mascota-burbuja 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.mascota__burbuja::after {
+  content: '';
+  position: absolute;
+  bottom: -0.35rem;
+  left: 1.5rem;
+  width: 0.65rem;
+  height: 0.65rem;
+  border-right: 1px solid rgba(56, 189, 248, 0.5);
+  border-bottom: 1px solid rgba(56, 189, 248, 0.5);
+  background: inherit;
+  transform: rotate(45deg);
+}
+
+.mascota__seguimiento {
+  width: 100%;
+  height: 100%;
+  transition: transform 0.16s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.mascota--grande .mascota__seguimiento {
+  animation: mascota-entrada 0.75s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.mascota__animacion {
+  width: 100%;
+  height: 100%;
+  transform-origin: center 75%;
+}
+
+.mascota svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  filter: drop-shadow(0 8px 14px rgba(2, 132, 199, 0.28));
+}
+
+/* Reposo: flotación suave e inclinación ligera. */
+.mascota--inactivo .mascota__animacion {
+  animation: mascota-reposo 3.4s ease-in-out infinite;
+}
+
+/* Pensando: inclinación curiosa con flotación lenta. */
+.mascota--pensando .mascota__animacion {
+  animation: mascota-pensar 2.6s ease-in-out infinite;
+}
+
+/* Hablando: asentimientos enérgicos y escala ligera. */
+.mascota--hablando .mascota__animacion {
+  animation: mascota-hablar 0.58s ease-in-out infinite;
+}
+
+.mascota__anillo {
+  transform-origin: 150px 150px;
+  animation: mascota-anillo 18s linear infinite;
+}
+
+.mascota__cabeza {
+  transform-origin: 150px 220px;
+  transition: transform 0.2s ease-out;
+}
+
+.mascota__pupila {
+  transition: transform 0.18s ease-out;
+}
+
+.mascota__pupila--izquierda {
+  transform-origin: 112px 147px;
+}
+
+.mascota__pupila--derecha {
+  transform-origin: 190px 147px;
+}
+
+.mascota__parpado {
+  transform: scaleY(0);
+}
+
+.mascota__parpado--izquierdo {
+  transform-origin: 114px 124px;
+}
+
+.mascota__parpado--derecho {
+  transform-origin: 192px 124px;
+}
+
+.mascota--inactivo .mascota__parpado--izquierdo {
+  animation: mascota-guiño 7s ease-in-out 2s infinite;
+}
+
+.mascota--saludando .mascota__parpado--izquierdo {
+  animation: mascota-guiño 1.6s ease-in-out 2;
+}
+
+.mascota--durmiendo .mascota__parpado {
+  transform: scaleY(1);
+}
+
+.mascota__particula {
+  fill: #7dd3fc;
+  opacity: 0;
+}
+
+.mascota--grande .mascota__particula {
+  animation: mascota-particula 2.8s ease-in-out infinite;
+}
+
+.mascota__particula:nth-child(2) { animation-delay: 0.4s; }
+.mascota__particula:nth-child(3) { animation-delay: 0.8s; }
+.mascota__particula:nth-child(4) { animation-delay: 1.2s; }
+.mascota__particula:nth-child(5) { animation-delay: 1.6s; }
+.mascota__particula:nth-child(6) { animation-delay: 2s; }
+
+.mascota--saludando .mascota__particula {
+  fill: #38bdf8;
+  animation-duration: 1.4s;
+}
+
+.mascota__pata {
+  transform-origin: 98px 222px;
+  opacity: 0;
+}
+
+.mascota--saludando .mascota__pata {
+  opacity: 1;
+  animation: mascota-saludo 0.42s ease-in-out infinite alternate;
+}
+
+.mascota__boca {
+  transform-origin: 150px 212px;
+}
+
+.mascota--hablando .mascota__boca {
+  animation: mascota-boca 0.32s ease-in-out infinite alternate;
+}
+
+.mascota--hablando .mascota__microfono {
+  animation: mascota-microfono 0.6s ease-in-out infinite alternate;
+}
+
+.mascota--durmiendo .mascota__animacion {
+  animation: mascota-dormir 4.2s ease-in-out infinite;
+}
+
+.mascota__z {
+  fill: #7dd3fc;
+  font-size: 22px;
+  opacity: 0;
+  animation: mascota-z 2.4s ease-in-out infinite;
+}
+
+.mascota__z--dos {
+  font-size: 18px;
+}
+
+.mascota__z--tres {
+  font-size: 14px;
+  animation-delay: 0.8s;
+}
+
+@keyframes mascota-reposo {
+  0%,
+  100% {
+    transform: translateY(0) rotate(-2.2deg);
+  }
+  50% {
+    transform: translateY(-7px) rotate(2.8deg);
+  }
+}
+
+@keyframes mascota-pensar {
+  0%,
+  100% {
+    transform: translateY(-2px) rotate(11deg) scale(0.99);
+  }
+  50% {
+    transform: translateY(-8px) rotate(14.5deg) scale(1.01);
+  }
+}
+
+@keyframes mascota-hablar {
+  0%,
+  100% {
+    transform: translateY(0) rotate(-3.5deg) scale(1);
+  }
+  25% {
+    transform: translateY(-5px) rotate(1.5deg) scale(1.03);
+  }
+  50% {
+    transform: translateY(1px) rotate(3.8deg) scale(1.01);
+  }
+  75% {
+    transform: translateY(-4px) rotate(-1deg) scale(1.035);
+  }
+}
+
+@keyframes mascota-dormir {
+  0%,
+  100% {
+    transform: translateY(2px) rotate(-3deg) scale(0.98);
+  }
+  50% {
+    transform: translateY(-2px) rotate(-1deg) scale(1.01);
+  }
+}
+
+@keyframes mascota-z {
+  0%,
+  100% {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+  50% {
+    opacity: 0.9;
+    transform: translateY(-5px);
+  }
+}
+
+@keyframes mascota-anillo {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes mascota-boca {
+  from {
+    transform: scaleY(0.65);
+  }
+  to {
+    transform: scaleY(1.18);
+  }
+}
+
+@keyframes mascota-microfono {
+  from {
+    opacity: 0.45;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes mascota-entrada {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.75) rotate(-12deg);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1) rotate(0deg);
+  }
+}
+
+@keyframes mascota-halo {
+  0%,
+  100% {
+    transform: scale(0.94);
+    opacity: 0.45;
+  }
+  50% {
+    transform: scale(1.08);
+    opacity: 0.8;
+  }
+}
+
+@keyframes mascota-burbuja {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.85);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes mascota-particula {
+  0%,
+  100% {
+    opacity: 0;
+    transform: translateY(6px) scale(0.6);
+  }
+  45% {
+    opacity: 0.9;
+    transform: translateY(-6px) scale(1.15);
+  }
+}
+
+@keyframes mascota-saludo {
+  from {
+    transform: rotate(-6deg);
+  }
+  to {
+    transform: rotate(-32deg);
+  }
+}
+
+@keyframes mascota-guiño {
+  0%,
+  40%,
+  58%,
+  100% {
+    transform: scaleY(0);
+  }
+  46%,
+  52% {
+    transform: scaleY(1);
+  }
+  72%,
+  78% {
+    transform: scaleY(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mascota__seguimiento {
+    transition: none;
+  }
+
+  .mascota__animacion,
+  .mascota__anillo,
+  .mascota__boca,
+  .mascota__microfono,
+  .mascota__halo,
+  .mascota__particula,
+  .mascota__pata,
+  .mascota__pupila,
+  .mascota__parpado,
+  .mascota__z,
+  .mascota__burbuja {
+    animation: none;
+  }
+
+  .mascota__particula,
+  .mascota__z {
+    display: none;
+  }
+
+  .mascota__pupila,
+  .mascota__cabeza {
+    transition: none;
+  }
+}

@@ -1,0 +1,121 @@
+:host {
+  position: fixed;
+  right: 1.25rem;
+  bottom: 1.25rem;
+  z-index: 1040;
+  display: block;
+}
+
+.ayudante {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  width: 4.25rem;
+  height: 4.25rem;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--mingo-text, #f8fafc);
+  font: inherit;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+}
+
+.ayudante:hover {
+  transform: translateY(-4px) scale(1.05);
+}
+
+.ayudante:active {
+  transform: translateY(-1px) scale(0.98);
+}
+
+.ayudante:focus-visible {
+  outline: 3px solid var(--mingo-ai);
+  outline-offset: 3px;
+}
+
+.ayudante--hablando {
+  animation: ayudante-pulso 1.1s ease-in-out infinite;
+}
+
+.ayudante--durmiendo {
+  opacity: 0.75;
+}
+
+.ayudante--pensando {
+  filter: drop-shadow(0 0 8px rgba(56, 189, 248, 0.75));
+}
+
+.ayudante__globo {
+  position: absolute;
+  right: calc(100% + 0.75rem);
+  bottom: 0.9rem;
+  max-width: 14rem;
+  padding: 0.6rem 0.9rem;
+  border: 1px solid rgba(56, 189, 248, 0.5);
+  border-radius: 1rem 1rem 0.25rem 1rem;
+  background: var(--mingo-surface, #0f172a);
+  box-shadow: 0 10px 26px rgba(2, 132, 199, 0.25);
+  color: var(--mingo-text, #f8fafc);
+  font-size: 0.82rem;
+  font-weight: 600;
+  line-height: 1.25;
+  white-space: nowrap;
+  animation: ayudante-globo 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.ayudante__globo::after {
+  content: '';
+  position: absolute;
+  right: -0.4rem;
+  bottom: 0.25rem;
+  width: 0.7rem;
+  height: 0.7rem;
+  border-top: 1px solid rgba(56, 189, 248, 0.5);
+  border-right: 1px solid rgba(56, 189, 248, 0.5);
+  background: inherit;
+  transform: rotate(45deg);
+}
+
+@keyframes ayudante-pulso {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.09);
+  }
+}
+
+@keyframes ayudante-globo {
+  from {
+    opacity: 0;
+    transform: translateX(8px) scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+@media (max-width: 420px) {
+  :host {
+    right: 0.85rem;
+    bottom: 0.85rem;
+  }
+
+  .ayudante__globo {
+    max-width: 10rem;
+    font-size: 0.75rem;
+    white-space: normal;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ayudante,
+  .ayudante__globo {
+    animation: none;
+    transition: none;
+  }
+}

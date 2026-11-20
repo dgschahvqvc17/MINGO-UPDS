@@ -19,6 +19,8 @@ import { ChatService } from '../../../../core/services/chat.service';
 import { DocumentoService, type Documento } from '../../../../core/services/documento.service';
 import { mensajeDeErrorHttp } from '../../../../core/utils/http-error';
 import { crearClaveIdempotencia } from '../../../../core/utils/idempotency-key';
+import { MascotaAgenteComponent } from '../../../../shared/components/mascota-agente/mascota-agente.component';
+import { crearEstadoMascota } from '../../../../shared/components/mascota-agente/estado-mascota';
 
 const LIMITE_DOCUMENTOS = 100;
 const MAXIMO_DOCUMENTOS_CHAT = 5;
@@ -30,7 +32,7 @@ type MensajeVista = Mensaje & { referencias: ReferenciaRespuesta[] };
 /** Interfaz de chat academico con citas documentales (HU12). */
 @Component({
   selector: 'app-chat',
-  imports: [DatePipe, ReactiveFormsModule],
+  imports: [DatePipe, ReactiveFormsModule, MascotaAgenteComponent],
   templateUrl: './chat.component.html',
   styleUrl: './chat.component.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -59,6 +61,10 @@ export class ChatComponent {
   readonly errorMensajes = signal<string | null>(null);
   readonly enviando = signal(false);
   readonly errorEnvio = signal<string | null>(null);
+
+  /** La mascota refleja el ciclo real de la petición, no una animación decorativa. */
+  private readonly controlMascota = crearEstadoMascota(this.enviando, this.destroyRef);
+  readonly estadoMascota = this.controlMascota.estado;
 
   readonly documentos = signal<Documento[]>([]);
   readonly documentoIds = signal<string[]>([]);
@@ -199,6 +205,7 @@ export class ChatComponent {
       referencias: [],
     };
 
+    this.controlMascota.reiniciar();
     this.enviando.set(true);
     this.errorEnvio.set(null);
     this.mensajes.update((mensajes) => [...mensajes, mensajeLocal]);
@@ -234,8 +241,10 @@ export class ChatComponent {
           this.conversacionActualId.set(respuesta.conversacion_id);
           this.cargarHistorial(respuesta.conversacion_id);
           this.cargarConversaciones();
+          this.controlMascota.anunciarResultado();
         },
         error: (error: unknown) => {
+          this.controlMascota.reiniciar();
           this.mensajes.update((mensajes) =>
             mensajes.filter((mensaje) => mensaje.id !== mensajeLocal.id),
           );

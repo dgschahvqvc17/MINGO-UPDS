@@ -1,5 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { of, throwError } from 'rxjs';
+import { Subject, of, throwError } from 'rxjs';
 import type { Conversacion } from '../../../../core/models/dominio.models';
 import { ChatService, type RespuestaChat } from '../../../../core/services/chat.service';
 import { DocumentoService } from '../../../../core/services/documento.service';
@@ -156,6 +156,64 @@ describe('ChatComponent (HU12)', () => {
       expect.objectContaining({ mensaje: '¿Qué es una derivada?' }),
       expect.any(String),
     );
+  });
+
+  it('muestra un icono en la cabecera y una mascota grande que invita a preguntar', () => {
+    componente.mensajes.set([]);
+    fixture.detectChanges();
+
+    const cuerpoChat = fixture.nativeElement
+      .querySelector('.chat-mensajes')
+      .closest('.card-body') as HTMLElement;
+    const cabecera = cuerpoChat.querySelector('.panel-heading') as HTMLElement;
+    expect(cabecera.querySelector('.bi-chat-dots')).not.toBeNull();
+    expect(cabecera.querySelector('app-mascota-agente')).toBeNull();
+
+    const mascota = fixture.nativeElement.querySelector(
+      '.chat-mensajes app-mascota-agente',
+    ) as HTMLElement;
+    expect(mascota.classList.contains('mascota--grande')).toBe(true);
+    expect(mascota.querySelector('.mascota__burbuja')?.textContent).toContain(
+      '¿Qué quieres preguntarme?',
+    );
+    expect(
+      (mascota.querySelector('.mascota__seguimiento') as HTMLElement).style.transform,
+    ).toBe('');
+  });
+
+  it('muestra la mascota pensando mientras espera y hablando al recibir la respuesta', () => {
+    const respuestaPendiente = new Subject<RespuestaChat>();
+    enviar.mockReturnValue(respuestaPendiente);
+    componente.mensajeControl.setValue('¿Qué es una derivada?');
+
+    componente.enviar();
+    fixture.detectChanges();
+
+    let mascota = fixture.nativeElement.querySelector(
+      'app-mascota-agente .mascota',
+    ) as HTMLElement;
+    expect(mascota.classList.contains('mascota--pensando')).toBe(true);
+
+    respuestaPendiente.next(respuesta);
+    respuestaPendiente.complete();
+    fixture.detectChanges();
+
+    mascota = fixture.nativeElement.querySelector('app-mascota-agente .mascota') as HTMLElement;
+    expect(mascota.classList.contains('mascota--hablando')).toBe(true);
+    fixture.destroy();
+  });
+
+  it('devuelve la mascota a reposo cuando falla el envio', () => {
+    enviar.mockReturnValue(throwError(() => ({})));
+    componente.mensajeControl.setValue('¿Qué es una derivada?');
+
+    componente.enviar();
+    fixture.detectChanges();
+
+    const mascota = fixture.nativeElement.querySelector(
+      'app-mascota-agente .mascota',
+    ) as HTMLElement;
+    expect(mascota.classList.contains('mascota--inactivo')).toBe(true);
   });
 
   it('muestra un error claro sin perder el mensaje cuando falla el envio', () => {

@@ -38,11 +38,48 @@ function createPage(options: PageOptions = {}) {
   const fixture = TestBed.createComponent(LoginPage);
   fixture.detectChanges();
 
-  return { page: fixture.componentInstance, signIn, navigateByUrl };
+  return { page: fixture.componentInstance, fixture, signIn, navigateByUrl };
 }
 
 describe('LoginPage', () => {
-  afterEach(() => TestBed.resetTestingModule());
+  afterEach(() => {
+    vi.useRealTimers();
+    TestBed.resetTestingModule();
+  });
+
+  it('muestra una sola mascota en el hero, fuera del bloque de credenciales', () => {
+    vi.useFakeTimers();
+    const { fixture } = createPage();
+    const hero = fixture.nativeElement.querySelector(
+      '.login-hero app-mascota-agente',
+    ) as HTMLElement;
+
+    expect(hero).not.toBeNull();
+    expect(hero.classList.contains('mascota--grande')).toBe(true);
+    expect(hero.querySelector('.mascota__burbuja')?.textContent).toContain('Bienvenido');
+    expect(hero.querySelector('.mascota__cabeza')).not.toBeNull();
+    expect(fixture.nativeElement.querySelector('.login-card app-mascota-agente')).toBeNull();
+
+    fixture.destroy();
+  });
+
+  it('hace que la mascota del hero piense, hable y luego descanse', () => {
+    vi.useFakeTimers();
+    const { fixture } = createPage();
+    const mascota = fixture.nativeElement.querySelector('.login-hero .mascota') as HTMLElement;
+
+    expect(mascota.classList.contains('mascota--pensando')).toBe(true);
+
+    vi.advanceTimersByTime(500);
+    fixture.detectChanges();
+    expect(mascota.classList.contains('mascota--hablando')).toBe(true);
+
+    vi.advanceTimersByTime(2700);
+    fixture.detectChanges();
+    expect(mascota.classList.contains('mascota--inactivo')).toBe(true);
+
+    fixture.destroy();
+  });
 
   it('no inicia sesion si el formulario es invalido', async () => {
     const { page, signIn } = createPage();

@@ -183,7 +183,14 @@ Reglas:
 | `backend/tests/chat.modelos.test.js` | Unitario (Zod) | Valores por defecto; UUIDs; mensaje vacío o largo; exceso de documentos; IDs inválidos; paginación. |
 | `backend/tests/chat.routes.test.js` | Integración (Supertest) | `POST /chat` con valores por defecto y filtros; validación `400`; cuota `429`; IA caída `503`; listado con `meta`; detalle y borrado de conversación; UUID inválido `400`. |
 | `frontend/src/app/core/services/chat.service.spec.ts` | Unitario (servicio HTTP) | Contrato de envío, listado paginado, historial y borrado. |
-| `frontend/src/app/features/asistente-ia/components/chat/chat.spec.ts` | Componente | Carga inicial; estado vacío; historial con citas; envío con filtros; error sin perder el mensaje; nueva conversación. |
+| `frontend/src/app/features/asistente-ia/components/chat/chat.spec.ts` | Componente | Carga inicial; estado vacío; historial con citas; envío con filtros; error sin perder el mensaje; icono en la cabecera de la conversación nueva; mascota grande con la burbuja «¿Qué quieres preguntarme?» y sin transformación por cursor; mascota pensando mientras espera, hablando al responder y en reposo si falla. |
+| `frontend/src/app/shared/components/mascota-agente/mascota-agente.component.spec.ts` | Componente | Etiqueta accesible por estado; transición entre estados; estado dormido con ojos cerrados y tres «z»; recorte a solo cabeza que oculta halo, anillo, partículas y pata; tamaño compacto; prefijos únicos; dos ojos con pupilas que siguen el cursor y un párpado por ojo; inclinación de cabeza; seguimiento desactivable que deja la mascota quieta; variante grande con halo y partículas; saludo temporal con burbuja, fase pensando/hablando opcional, mensaje persistente y vuelta al reposo. |
+| `frontend/src/app/shared/components/ayudante-flotante/ayudante-flotante.component.spec.ts` | Componente | Mensaje base, cabeza recortada y navegación a `/asistente-ia`; mascota quieta; ciclo inactivo → durmiendo → hablando con sorpresa → inactivo; despertar al pasar el cursor y volver al reposo. |
+| `frontend/src/app/features/dashboard/dashboard.spec.ts` | Componente | Indicadores, estados vacíos, error y recarga; mascota grande saludando con el nombre del usuario. |
+| `frontend/src/app/features/auth/login/login.spec.ts` | Componente | Validación, redirección y errores; una sola mascota en el hero, fuera del bloque de credenciales; cabeza que sigue el cursor y saludo animado que piensa, habla y vuelve al reposo. |
+| `frontend/src/app/shared/components/mascota-agente/estado-mascota.spec.ts` | Unitario (señales) | Reposo inicial; prioridad de la carga; fase hablando temporal; cancelación con `reiniciar`. |
+| `frontend/src/app/features/tarjetas-memoria/tarjetas-memoria.spec.ts` | Componente | Generación de tarjetas y estados vacíos; el panel usa `bi-card-checklist`, el estado vacío `bi-collection` y no hay mascota en la pantalla. |
+| `frontend/src/app/features/biblioteca/components/busqueda-semantica/busqueda-semantica.spec.ts` | Componente | Consultas válidas e inválidas, resultados con cita y encabezado con `bi-binoculars` sin mascota. |
 
 **Casos funcionales**
 
@@ -448,6 +455,12 @@ Costo AWS del sprint:
 Consumo de IA:
 Responsable:
 ```
+
+### 12.1. Ejecuciones registradas
+
+| Fecha | Alcance | Entorno | Resultado |
+|---|---|---|---|
+| 2026-11-20 | E2E de HU17 contra la API real: crear, listar, consultar, cambiar estado y eliminar objetivos; consultar progreso con datos. Incluye validación de título corto (`400`) y `404` tras el borrado. | Supabase real con un usuario temporal aislado, eliminado al final. | PASS |
 
 ## 13. Pruebas antes de desplegar
 
