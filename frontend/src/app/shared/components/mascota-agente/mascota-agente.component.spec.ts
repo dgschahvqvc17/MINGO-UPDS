@@ -45,6 +45,25 @@ describe('MascotaAgenteComponent', () => {
     );
   });
 
+  it('muestra dos ojos abiertos y mueve las pupilas con el cursor', () => {
+    expect(fixture.nativeElement.querySelectorAll('.mascota__pupila')).toHaveLength(2);
+    expect(fixture.nativeElement.querySelectorAll('.mascota__parpado')).toHaveLength(2);
+
+    fixture.componentInstance.mirada.set('translate(3.0px, 2.0px)');
+    fixture.detectChanges();
+
+    const pupilas = fixture.nativeElement.querySelectorAll(
+      '.mascota__pupila',
+    ) as NodeListOf<SVGGElement>;
+    expect(pupilas[0].style.transform).toBe('translate(3.0px, 2.0px)');
+    expect(pupilas[1].style.transform).toBe('translate(3.0px, 2.0px)');
+  });
+
+  it('prepara un párpado distinto por ojo para el guiño', () => {
+    expect(fixture.nativeElement.querySelectorAll('.mascota__parpado--izquierdo')).toHaveLength(1);
+    expect(fixture.nativeElement.querySelectorAll('.mascota__parpado--derecho')).toHaveLength(1);
+  });
+
   it('usa prefijos distintos para los degradados de cada instancia', () => {
     const otra = TestBed.createComponent(MascotaAgenteComponent);
 

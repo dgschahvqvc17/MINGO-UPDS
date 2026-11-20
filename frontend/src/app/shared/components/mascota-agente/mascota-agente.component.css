@@ -125,16 +125,35 @@
 }
 
 .mascota__pupila {
+  transition: transform 0.18s ease-out;
+}
+
+.mascota__pupila--izquierda {
+  transform-origin: 112px 147px;
+}
+
+.mascota__pupila--derecha {
   transform-origin: 190px 147px;
-  transition: transform 0.35s ease;
 }
 
-.mascota--pensando .mascota__pupila {
-  transform: translate(3px, -4px);
+.mascota__parpado {
+  transform: scaleY(0);
 }
 
-.mascota--saludando .mascota__pupila {
-  animation: mascota-guino 3.2s ease-in-out;
+.mascota__parpado--izquierdo {
+  transform-origin: 114px 124px;
+}
+
+.mascota__parpado--derecho {
+  transform-origin: 192px 124px;
+}
+
+.mascota--inactivo .mascota__parpado--izquierdo {
+  animation: mascota-guiño 7s ease-in-out 2s infinite;
+}
+
+.mascota--saludando .mascota__parpado--izquierdo {
+  animation: mascota-guiño 1.6s ease-in-out 2;
 }
 
 .mascota__particula {
@@ -297,15 +316,20 @@
   }
 }
 
-@keyframes mascota-guino {
+@keyframes mascota-guiño {
   0%,
-  78%,
+  40%,
+  58%,
   100% {
+    transform: scaleY(0);
+  }
+  46%,
+  52% {
     transform: scaleY(1);
   }
-  84%,
-  90% {
-    transform: scaleY(0.08);
+  72%,
+  78% {
+    transform: scaleY(1);
   }
 }
 
@@ -322,6 +346,7 @@
   .mascota__particula,
   .mascota__pata,
   .mascota__pupila,
+  .mascota__parpado,
   .mascota__burbuja {
     animation: none;
   }
@@ -332,9 +357,5 @@
 
   .mascota__pupila {
     transition: none;
-  }
-
-  .mascota--pensando .mascota__pupila {
-    transform: none;
   }
 }

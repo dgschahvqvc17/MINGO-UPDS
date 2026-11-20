@@ -490,17 +490,23 @@ Detalles de implementación:
 - El ciclo `pensando → hablando → inactivo` lo deriva `crearEstadoMascota()` a
   partir de la señal de carga real de cada pantalla. La fase `hablando` dura
   2,4 s y se cancela al iniciar otra petición o al destruir el componente.
-- La mascota sigue el cursor con un desplazamiento acotado y respeta
-  `prefers-reduced-motion`: en ese caso se desactivan el seguimiento y las
-  animaciones, y el componente anuncia el estado por `aria-label`.
+- La mascota sigue el cursor con un desplazamiento acotado: mueve la cabeza y
+  las pupilas de ambos ojos, que permanecen abiertos. El párpado izquierdo
+  produce un guiño visible de forma periódica en reposo y dos veces durante el
+  saludo. Respeta `prefers-reduced-motion`: en ese caso se desactivan el
+  seguimiento y las animaciones, y el componente anuncia el estado por
+  `aria-label`.
 - Está conectada a chat (HU12), resúmenes (HU10), búsqueda semántica (HU11),
   cuestionarios (HU13), evaluación (HU16), tarjetas (HU14) y planes (HU15),
   además de los estados vacíos de esas pantallas.
 - En el hero del dashboard y en el login se usa la variante `grande`: entra con
-  una animación de escala, levanta la pata y guiña durante 3,2 s al saludar,
-  muestra una burbuja con el nombre del estudiante o un mensaje de bienvenida y
-  conserva un halo pulsante y partículas. Todo se desactiva con
+  una animación de escala, levanta la pata y guiña un ojo durante 3,2 s al
+  saludar, muestra una burbuja con el nombre del estudiante o un mensaje de
+  bienvenida y conserva un halo pulsante y partículas. Todo se desactiva con
   `prefers-reduced-motion`.
+- En el login hay una sola mascota visible por tamaño de pantalla: la del hero
+  en escritorio (ampliada) y una única copia sobre el formulario en móvil. El
+  bloque de credenciales no contiene ninguna mascota.
 - No llama a la API de IA, no recibe secretos y no usa `innerHTML`. El costo es
   el mismo que el de una etiqueta SVG: cero servicios nuevos.
 

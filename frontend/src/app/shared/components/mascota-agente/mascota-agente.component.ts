@@ -17,6 +17,7 @@ export type EstadoMascota = 'inactivo' | 'pensando' | 'hablando';
 
 const MOVIMIENTO_MAXIMO = 12;
 const GIRO_MAXIMO = 8;
+const MIRADA_MAXIMA = 6;
 const INTERVALO_SEGUIMIENTO = 16;
 const DURACION_SALUDO = 3200;
 
@@ -56,6 +57,7 @@ export class MascotaAgenteComponent implements OnInit {
   /** Prefijo único para los degradados: permite varias mascotas en una misma página. */
   readonly prefijo = `mascota-${siguienteInstancia++}`;
   readonly desplazamiento = signal('');
+  readonly mirada = signal('');
   readonly saludando = signal(false);
 
   readonly etiquetaAccesible = computed(() => {
@@ -110,10 +112,13 @@ export class MascotaAgenteComponent implements OnInit {
     const desplazamientoX = this.limitar(deltaX * MOVIMIENTO_MAXIMO, MOVIMIENTO_MAXIMO);
     const desplazamientoY = this.limitar(deltaY * (MOVIMIENTO_MAXIMO - 2), MOVIMIENTO_MAXIMO - 2);
     const giro = this.limitar(deltaX * GIRO_MAXIMO, GIRO_MAXIMO);
+    const miradaX = this.limitar(deltaX * MIRADA_MAXIMA, MIRADA_MAXIMA);
+    const miradaY = this.limitar(deltaY * MIRADA_MAXIMA, MIRADA_MAXIMA);
 
     this.desplazamiento.set(
       `translate(${desplazamientoX.toFixed(1)}px, ${desplazamientoY.toFixed(1)}px) rotate(${giro.toFixed(1)}deg)`,
     );
+    this.mirada.set(`translate(${miradaX.toFixed(1)}px, ${miradaY.toFixed(1)}px)`);
   }
 
   private limitar(valor: number, limite: number): number {

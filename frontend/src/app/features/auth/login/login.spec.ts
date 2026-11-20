@@ -47,17 +47,17 @@ describe('LoginPage', () => {
     TestBed.resetTestingModule();
   });
 
-  it('muestra la mascota grande saludando bajo la marca', () => {
+  it('muestra una sola mascota en el hero, fuera del bloque de credenciales', () => {
     vi.useFakeTimers();
     const { fixture } = createPage();
-    const mascotas = fixture.nativeElement.querySelectorAll(
-      'app-mascota-agente',
-    ) as NodeListOf<HTMLElement>;
+    const hero = fixture.nativeElement.querySelector(
+      '.login-hero app-mascota-agente',
+    ) as HTMLElement;
 
-    expect(mascotas).toHaveLength(2);
-    expect(mascotas[0].classList.contains('mascota--grande')).toBe(true);
-    expect(mascotas[0].querySelector('.mascota__burbuja')?.textContent).toContain('Bienvenido');
-    expect(mascotas[1].querySelector('.mascota__burbuja')?.textContent).toContain('Hola');
+    expect(hero).not.toBeNull();
+    expect(hero.classList.contains('mascota--grande')).toBe(true);
+    expect(hero.querySelector('.mascota__burbuja')?.textContent).toContain('Bienvenido');
+    expect(fixture.nativeElement.querySelector('.login-card app-mascota-agente')).toBeNull();
 
     fixture.destroy();
   });
