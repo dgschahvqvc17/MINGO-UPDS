@@ -184,7 +184,9 @@ Reglas:
 | `backend/tests/chat.routes.test.js` | Integración (Supertest) | `POST /chat` con valores por defecto y filtros; validación `400`; cuota `429`; IA caída `503`; listado con `meta`; detalle y borrado de conversación; UUID inválido `400`. |
 | `frontend/src/app/core/services/chat.service.spec.ts` | Unitario (servicio HTTP) | Contrato de envío, listado paginado, historial y borrado. |
 | `frontend/src/app/features/asistente-ia/components/chat/chat.spec.ts` | Componente | Carga inicial; estado vacío; historial con citas; envío con filtros; error sin perder el mensaje; nueva conversación; mascota pensando mientras espera, hablando al responder y en reposo si falla. |
-| `frontend/src/app/shared/components/mascota-agente/mascota-agente.component.spec.ts` | Componente | Etiqueta accesible por estado; transición entre estados; tamaño compacto; prefijos únicos para degradados. |
+| `frontend/src/app/shared/components/mascota-agente/mascota-agente.component.spec.ts` | Componente | Etiqueta accesible por estado; transición entre estados; tamaño compacto; prefijos únicos; variante grande con halo y partículas; saludo temporal con burbuja y vuelta al reposo. |
+| `frontend/src/app/features/dashboard/dashboard.spec.ts` | Componente | Indicadores, estados vacíos, error y recarga; mascota grande saludando con el nombre del usuario. |
+| `frontend/src/app/features/auth/login/login.spec.ts` | Componente | Validación, redirección y errores; mascotas grandes de escritorio y móvil con mensaje de bienvenida. |
 | `frontend/src/app/shared/components/mascota-agente/estado-mascota.spec.ts` | Unitario (señales) | Reposo inicial; prioridad de la carga; fase hablando temporal; cancelación con `reiniciar`. |
 | `frontend/src/app/features/tarjetas-memoria/tarjetas-memoria.spec.ts` | Componente | Generación de tarjetas con la mascota pensando durante la petición y hablando al recibir el resultado. |
 

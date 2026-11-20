@@ -496,6 +496,11 @@ Detalles de implementación:
 - Está conectada a chat (HU12), resúmenes (HU10), búsqueda semántica (HU11),
   cuestionarios (HU13), evaluación (HU16), tarjetas (HU14) y planes (HU15),
   además de los estados vacíos de esas pantallas.
+- En el hero del dashboard y en el login se usa la variante `grande`: entra con
+  una animación de escala, levanta la pata y guiña durante 3,2 s al saludar,
+  muestra una burbuja con el nombre del estudiante o un mensaje de bienvenida y
+  conserva un halo pulsante y partículas. Todo se desactiva con
+  `prefers-reduced-motion`.
 - No llama a la API de IA, no recibe secretos y no usa `innerHTML`. El costo es
   el mismo que el de una etiqueta SVG: cero servicios nuevos.
 

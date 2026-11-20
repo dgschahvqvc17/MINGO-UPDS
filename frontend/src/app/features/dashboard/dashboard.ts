@@ -13,6 +13,7 @@ import { DashboardService, type DashboardResumen } from '../../core/services/das
 import { CalendarioService, type EventoCalendario } from '../../core/services/calendario.service';
 import { TareaService, type Tarea } from '../../core/services/tarea.service';
 import { CardComponent } from '../../shared/components/card/card.component';
+import { MascotaAgenteComponent } from '../../shared/components/mascota-agente/mascota-agente.component';
 import { mensajeDeErrorHttp } from '../../core/utils/http-error';
 
 const MILISEGUNDOS_POR_DIA = 86_400_000;
@@ -130,7 +131,7 @@ const ENLACES_ADMINISTRADOR: readonly EnlaceRapido[] = [
 
 @Component({
   selector: 'app-dashboard',
-  imports: [RouterLink, CardComponent],
+  imports: [RouterLink, CardComponent, MascotaAgenteComponent],
   templateUrl: './dashboard.html',
   styleUrl: './dashboard.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -168,6 +169,8 @@ export class DashboardPage {
   );
 
   readonly saludo = computed(() => `${this.saludoDelDia()}, ${this.nombre() || 'estudiante'}`);
+
+  readonly saludoMascota = computed(() => `¡Hola, ${this.nombre() || 'estudiante'}!`);
 
   readonly fechaHoy = this.formatearFechaLarga(new Date());
 

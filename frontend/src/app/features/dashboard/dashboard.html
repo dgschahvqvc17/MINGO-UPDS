@@ -1,25 +1,23 @@
 <div class="dashboard-page">
-  <header class="page-header mb-4">
-    <div class="d-flex flex-wrap justify-content-between align-items-start gap-3">
-      <div>
-        <span class="page-eyebrow">Panel principal</span>
-        <h1 class="page-title mt-1 mb-2">{{ saludo() }}</h1>
-        <p class="page-subtitle mb-0">{{ mensajeBienvenida() }}</p>
-        <div class="d-flex flex-wrap gap-3 mt-2 small text-muted-soft">
+  <header class="dashboard-hero mb-4">
+    <div class="dashboard-hero__contenido">
+      <span class="page-eyebrow">Panel principal</span>
+      <h1 class="page-title mt-1 mb-2">{{ saludo() }}</h1>
+      <p class="page-subtitle mb-0">{{ mensajeBienvenida() }}</p>
+      <div class="d-flex flex-wrap gap-3 mt-2 small text-muted-soft">
+        <span>
+          <i class="bi bi-calendar3 me-1" aria-hidden="true"></i>
+          {{ fechaHoy }}
+        </span>
+        @if (ultimaActualizacion()) {
           <span>
-            <i class="bi bi-calendar3 me-1" aria-hidden="true"></i>
-            {{ fechaHoy }}
+            <i class="bi bi-clock-history me-1" aria-hidden="true"></i>
+            Actualizado a las {{ horaActualizacion() }}
           </span>
-          @if (ultimaActualizacion()) {
-            <span>
-              <i class="bi bi-clock-history me-1" aria-hidden="true"></i>
-              Actualizado a las {{ horaActualizacion() }}
-            </span>
-          }
-        </div>
+        }
       </div>
 
-      <div class="d-flex align-items-center gap-2">
+      <div class="dashboard-hero__acciones mt-3">
         <span
           class="badge badge-sm role-badge"
           [class.role-administrador]="rol() === 'administrador'"
@@ -40,6 +38,10 @@
           <span>Actualizar</span>
         </button>
       </div>
+    </div>
+
+    <div class="dashboard-hero__agente">
+      <app-mascota-agente [grande]="true" [saludar]="true" [mensaje]="saludoMascota()" />
     </div>
   </header>
 

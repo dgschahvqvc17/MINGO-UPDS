@@ -10,6 +10,8 @@ describe('MascotaAgenteComponent', () => {
     fixture.detectChanges();
   });
 
+  afterEach(() => vi.useRealTimers());
+
   it('muestra la mascota en reposo con una etiqueta accesible', () => {
     const mascota = fixture.nativeElement.querySelector('.mascota') as HTMLElement;
 
@@ -48,5 +50,41 @@ describe('MascotaAgenteComponent', () => {
 
     expect(otra.componentInstance.prefijo).not.toBe(fixture.componentInstance.prefijo);
     otra.destroy();
+  });
+
+  it('muestra el halo y las partículas en tamaño grande', () => {
+    const grande = TestBed.createComponent(MascotaAgenteComponent);
+    grande.componentRef.setInput('grande', true);
+    grande.detectChanges();
+
+    const host = grande.nativeElement as HTMLElement;
+    expect(host.classList.contains('mascota--grande')).toBe(true);
+    expect(host.querySelector('.mascota__halo')).not.toBeNull();
+    expect(host.querySelectorAll('.mascota__particula')).toHaveLength(6);
+
+    grande.destroy();
+  });
+
+  it('saluda con un mensaje y vuelve al reposo al terminar', () => {
+    vi.useFakeTimers();
+    const saludo = TestBed.createComponent(MascotaAgenteComponent);
+    saludo.componentRef.setInput('grande', true);
+    saludo.componentRef.setInput('saludar', true);
+    saludo.componentRef.setInput('mensaje', '¡Hola!');
+    saludo.detectChanges();
+
+    let mascota = saludo.nativeElement.querySelector('.mascota') as HTMLElement;
+    expect(mascota.classList.contains('mascota--saludando')).toBe(true);
+    expect(mascota.getAttribute('aria-label')).toContain('saludando');
+    expect(saludo.nativeElement.querySelector('.mascota__burbuja')?.textContent).toContain('¡Hola!');
+
+    vi.advanceTimersByTime(3200);
+    saludo.detectChanges();
+
+    mascota = saludo.nativeElement.querySelector('.mascota') as HTMLElement;
+    expect(mascota.classList.contains('mascota--saludando')).toBe(false);
+    expect(saludo.nativeElement.querySelector('.mascota__burbuja')).toBeNull();
+
+    saludo.destroy();
   });
 });

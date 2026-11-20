@@ -12,6 +12,18 @@
   height: 3rem;
 }
 
+:host(.mascota--grande) {
+  width: clamp(11rem, 20vw, 15.5rem);
+  height: clamp(11rem, 20vw, 15.5rem);
+}
+
+@media (max-width: 575.98px) {
+  :host(.mascota--grande) {
+    width: 9.5rem;
+    height: 9.5rem;
+  }
+}
+
 .mascota {
   position: relative;
   width: 100%;
@@ -19,10 +31,64 @@
   user-select: none;
 }
 
+.mascota__halo {
+  position: absolute;
+  inset: 14%;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(56, 189, 248, 0.42), rgba(16, 185, 129, 0.12) 45%, transparent 72%);
+  filter: blur(10px);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.4s ease;
+}
+
+.mascota--grande .mascota__halo {
+  opacity: 0.65;
+  animation: mascota-halo 3.2s ease-in-out infinite;
+}
+
+.mascota--saludando .mascota__halo {
+  opacity: 1;
+}
+
+.mascota__burbuja {
+  position: absolute;
+  top: -0.5rem;
+  right: -1rem;
+  z-index: 2;
+  padding: 0.4rem 0.85rem;
+  border: 1px solid rgba(56, 189, 248, 0.5);
+  border-radius: 1.5rem;
+  background: var(--mingo-surface, #0f172a);
+  box-shadow: 0 10px 30px rgba(2, 132, 199, 0.28);
+  color: var(--mingo-text, #f8fafc);
+  font-size: 0.82rem;
+  font-weight: 600;
+  white-space: nowrap;
+  animation: mascota-burbuja 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.mascota__burbuja::after {
+  content: '';
+  position: absolute;
+  bottom: -0.35rem;
+  left: 1.5rem;
+  width: 0.65rem;
+  height: 0.65rem;
+  border-right: 1px solid rgba(56, 189, 248, 0.5);
+  border-bottom: 1px solid rgba(56, 189, 248, 0.5);
+  background: inherit;
+  transform: rotate(45deg);
+}
+
 .mascota__seguimiento {
   width: 100%;
   height: 100%;
   transition: transform 0.16s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.mascota--grande .mascota__seguimiento {
+  animation: mascota-entrada 0.75s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 .mascota__animacion {
@@ -59,11 +125,46 @@
 }
 
 .mascota__pupila {
+  transform-origin: 190px 147px;
   transition: transform 0.35s ease;
 }
 
 .mascota--pensando .mascota__pupila {
   transform: translate(3px, -4px);
+}
+
+.mascota--saludando .mascota__pupila {
+  animation: mascota-guino 3.2s ease-in-out;
+}
+
+.mascota__particula {
+  fill: #7dd3fc;
+  opacity: 0;
+}
+
+.mascota--grande .mascota__particula {
+  animation: mascota-particula 2.8s ease-in-out infinite;
+}
+
+.mascota__particula:nth-child(2) { animation-delay: 0.4s; }
+.mascota__particula:nth-child(3) { animation-delay: 0.8s; }
+.mascota__particula:nth-child(4) { animation-delay: 1.2s; }
+.mascota__particula:nth-child(5) { animation-delay: 1.6s; }
+.mascota__particula:nth-child(6) { animation-delay: 2s; }
+
+.mascota--saludando .mascota__particula {
+  fill: #38bdf8;
+  animation-duration: 1.4s;
+}
+
+.mascota__pata {
+  transform-origin: 98px 222px;
+  opacity: 0;
+}
+
+.mascota--saludando .mascota__pata {
+  opacity: 1;
+  animation: mascota-saludo 0.42s ease-in-out infinite alternate;
 }
 
 .mascota__boca {
@@ -141,6 +242,73 @@
   }
 }
 
+@keyframes mascota-entrada {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.75) rotate(-12deg);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1) rotate(0deg);
+  }
+}
+
+@keyframes mascota-halo {
+  0%,
+  100% {
+    transform: scale(0.94);
+    opacity: 0.45;
+  }
+  50% {
+    transform: scale(1.08);
+    opacity: 0.8;
+  }
+}
+
+@keyframes mascota-burbuja {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.85);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes mascota-particula {
+  0%,
+  100% {
+    opacity: 0;
+    transform: translateY(6px) scale(0.6);
+  }
+  45% {
+    opacity: 0.9;
+    transform: translateY(-6px) scale(1.15);
+  }
+}
+
+@keyframes mascota-saludo {
+  from {
+    transform: rotate(-6deg);
+  }
+  to {
+    transform: rotate(-32deg);
+  }
+}
+
+@keyframes mascota-guino {
+  0%,
+  78%,
+  100% {
+    transform: scaleY(1);
+  }
+  84%,
+  90% {
+    transform: scaleY(0.08);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .mascota__seguimiento {
     transition: none;
@@ -149,8 +317,17 @@
   .mascota__animacion,
   .mascota__anillo,
   .mascota__boca,
-  .mascota__microfono {
+  .mascota__microfono,
+  .mascota__halo,
+  .mascota__particula,
+  .mascota__pata,
+  .mascota__pupila,
+  .mascota__burbuja {
     animation: none;
+  }
+
+  .mascota__particula {
+    display: none;
   }
 
   .mascota__pupila {

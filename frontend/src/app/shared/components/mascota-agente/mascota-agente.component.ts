@@ -3,6 +3,7 @@ import {
   Component,
   DestroyRef,
   ElementRef,
+  OnInit,
   computed,
   inject,
   input,
@@ -17,6 +18,7 @@ export type EstadoMascota = 'inactivo' | 'pensando' | 'hablando';
 const MOVIMIENTO_MAXIMO = 12;
 const GIRO_MAXIMO = 8;
 const INTERVALO_SEGUIMIENTO = 16;
+const DURACION_SALUDO = 3200;
 
 let siguienteInstancia = 0;
 
@@ -41,15 +43,20 @@ const MOVIMIENTO_CURSOR =
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: {
     '[class.mascota--compacta]': 'compacta()',
+    '[class.mascota--grande]': 'grande()',
   },
 })
-export class MascotaAgenteComponent {
+export class MascotaAgenteComponent implements OnInit {
   readonly estado = input<EstadoMascota>('inactivo');
   readonly compacta = input(false);
+  readonly grande = input(false);
+  readonly saludar = input(false);
+  readonly mensaje = input('');
 
   /** Prefijo único para los degradados: permite varias mascotas en una misma página. */
   readonly prefijo = `mascota-${siguienteInstancia++}`;
   readonly desplazamiento = signal('');
+  readonly saludando = signal(false);
 
   readonly etiquetaAccesible = computed(() => {
     const etiquetas: Record<EstadoMascota, string> = {
@@ -58,7 +65,8 @@ export class MascotaAgenteComponent {
       hablando: 'Mascota del asistente MINGO hablando',
     };
 
-    return etiquetas[this.estado()];
+    const estado = etiquetas[this.estado()];
+    return this.saludando() ? `${estado} y saludando` : estado;
   });
 
   private readonly elemento = inject<ElementRef<HTMLElement>>(ElementRef);
@@ -67,6 +75,16 @@ export class MascotaAgenteComponent {
     typeof window !== 'undefined' &&
     typeof window.matchMedia === 'function' &&
     window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  ngOnInit(): void {
+    if (!this.saludar() || this.movimientoReducido) {
+      return;
+    }
+
+    this.saludando.set(true);
+    const temporizador = setTimeout(() => this.saludando.set(false), DURACION_SALUDO);
+    this.destroyRef.onDestroy(() => clearTimeout(temporizador));
+  }
 
   constructor() {
     if (this.movimientoReducido || !MOVIMIENTO_CURSOR) {

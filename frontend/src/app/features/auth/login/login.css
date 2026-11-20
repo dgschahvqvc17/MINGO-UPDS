@@ -44,6 +44,27 @@
   padding-right: 2rem;
 }
 
+.login-agente {
+  display: flex;
+  justify-content: center;
+  margin: -0.75rem 0 0.5rem;
+  filter: drop-shadow(0 14px 28px rgba(2, 132, 199, 0.3));
+}
+
+.login-hero .login-agente .mascota--grande {
+  width: 11.5rem;
+  height: 11.5rem;
+}
+
+.login-card .login-agente--movil {
+  margin: 0.5rem 0 1.25rem;
+}
+
+.login-card .login-agente--movil .mascota--grande {
+  width: 10rem;
+  height: 10rem;
+}
+
 .brand-lockup {
   display: flex;
   align-items: center;

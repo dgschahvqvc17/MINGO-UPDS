@@ -38,11 +38,29 @@ function createPage(options: PageOptions = {}) {
   const fixture = TestBed.createComponent(LoginPage);
   fixture.detectChanges();
 
-  return { page: fixture.componentInstance, signIn, navigateByUrl };
+  return { page: fixture.componentInstance, fixture, signIn, navigateByUrl };
 }
 
 describe('LoginPage', () => {
-  afterEach(() => TestBed.resetTestingModule());
+  afterEach(() => {
+    vi.useRealTimers();
+    TestBed.resetTestingModule();
+  });
+
+  it('muestra la mascota grande saludando bajo la marca', () => {
+    vi.useFakeTimers();
+    const { fixture } = createPage();
+    const mascotas = fixture.nativeElement.querySelectorAll(
+      'app-mascota-agente',
+    ) as NodeListOf<HTMLElement>;
+
+    expect(mascotas).toHaveLength(2);
+    expect(mascotas[0].classList.contains('mascota--grande')).toBe(true);
+    expect(mascotas[0].querySelector('.mascota__burbuja')?.textContent).toContain('Bienvenido');
+    expect(mascotas[1].querySelector('.mascota__burbuja')?.textContent).toContain('Hola');
+
+    fixture.destroy();
+  });
 
   it('no inicia sesion si el formulario es invalido', async () => {
     const { page, signIn } = createPage();
