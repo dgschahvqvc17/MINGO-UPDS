@@ -456,6 +456,12 @@ Consumo de IA:
 Responsable:
 ```
 
+### 12.1. Ejecuciones registradas
+
+| Fecha | Alcance | Entorno | Resultado |
+|---|---|---|---|
+| 2026-11-20 | E2E de HU17 contra la API real: crear, listar, consultar, cambiar estado y eliminar objetivos; consultar progreso con datos. Incluye validación de título corto (`400`) y `404` tras el borrado. | Supabase real con un usuario temporal aislado, eliminado al final. | PASS |
+
 ## 13. Pruebas antes de desplegar
 
 - [ ] `/api/health` responde.
