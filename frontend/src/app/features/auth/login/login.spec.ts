@@ -57,7 +57,26 @@ describe('LoginPage', () => {
     expect(hero).not.toBeNull();
     expect(hero.classList.contains('mascota--grande')).toBe(true);
     expect(hero.querySelector('.mascota__burbuja')?.textContent).toContain('Bienvenido');
+    expect(hero.querySelector('.mascota__cabeza')).not.toBeNull();
     expect(fixture.nativeElement.querySelector('.login-card app-mascota-agente')).toBeNull();
+
+    fixture.destroy();
+  });
+
+  it('hace que la mascota del hero piense, hable y luego descanse', () => {
+    vi.useFakeTimers();
+    const { fixture } = createPage();
+    const mascota = fixture.nativeElement.querySelector('.login-hero .mascota') as HTMLElement;
+
+    expect(mascota.classList.contains('mascota--pensando')).toBe(true);
+
+    vi.advanceTimersByTime(500);
+    fixture.detectChanges();
+    expect(mascota.classList.contains('mascota--hablando')).toBe(true);
+
+    vi.advanceTimersByTime(2700);
+    fixture.detectChanges();
+    expect(mascota.classList.contains('mascota--inactivo')).toBe(true);
 
     fixture.destroy();
   });

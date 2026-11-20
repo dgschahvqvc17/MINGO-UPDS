@@ -1,8 +1,8 @@
 <div
   class="mascota"
-  [class.mascota--inactivo]="estado() === 'inactivo'"
-  [class.mascota--pensando]="estado() === 'pensando'"
-  [class.mascota--hablando]="estado() === 'hablando'"
+  [class.mascota--inactivo]="estadoVisible() === 'inactivo'"
+  [class.mascota--pensando]="estadoVisible() === 'pensando'"
+  [class.mascota--hablando]="estadoVisible() === 'hablando'"
   [class.mascota--grande]="grande()"
   [class.mascota--saludando]="saludando()"
   role="img"
@@ -60,7 +60,8 @@
           <circle class="mascota__particula" cx="38" cy="214" r="2.2" />
         </g>
 
-        <path d="M 56 142 C 56 58, 244 58, 244 142" fill="none" [attr.stroke]="'url(#' + prefijo + '-audifono)'" stroke-width="16" stroke-linecap="round" />
+        <g class="mascota__cabeza" [style.transform]="cabeza()">
+          <path d="M 56 142 C 56 58, 244 58, 244 142" fill="none" [attr.stroke]="'url(#' + prefijo + '-audifono)'" stroke-width="16" stroke-linecap="round" />
         <path d="M 66 132 C 74 68, 226 68, 234 132" fill="none" stroke="#7dd3fc" stroke-width="2.5" stroke-linecap="round" opacity="0.7" />
 
         <g>
@@ -151,6 +152,7 @@
           <path d="M 246 178 C 246 212, 224 229, 196 229" fill="none" stroke="#7dd3fc" stroke-width="1.5" stroke-linecap="round" opacity="0.7" />
           <rect x="174" y="222" width="24" height="17" rx="8.5" transform="rotate(-10 186 230)" fill="#1d4ed8" stroke="#38bdf8" stroke-width="1.5" />
           <circle class="mascota__microfono" cx="180" cy="231" r="3" fill="#38bdf8" />
+        </g>
         </g>
       </svg>
     </div>

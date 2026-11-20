@@ -505,8 +505,11 @@ Detalles de implementación:
   bienvenida y conserva un halo pulsante y partículas. Todo se desactiva con
   `prefers-reduced-motion`.
 - En el login hay una sola mascota visible por tamaño de pantalla: la del hero
-  en escritorio (ampliada) y una única copia sobre el formulario en móvil. El
-  bloque de credenciales no contiene ninguna mascota.
+  en escritorio y una única copia sobre el formulario en móvil. El bloque de
+  credenciales no contiene ninguna mascota. Solo en el login se activan los
+  inputs `seguimientoCabeza` y `hablaAlSaludar`: la cabeza gira unos grados
+  siguiendo el cursor y el saludo pasa por `pensando` (0,5 s) y `hablando`
+  (2,7 s) antes de volver a `inactivo`, con boca y micrófono en movimiento.
 - No llama a la API de IA, no recibe secretos y no usa `innerHTML`. El costo es
   el mismo que el de una etiqueta SVG: cero servicios nuevos.
 

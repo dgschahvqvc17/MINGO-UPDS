@@ -9,20 +9,30 @@
         </div>
       </div>
 
-      <div class="login-agente">
-        <app-mascota-agente [grande]="true" [saludar]="true" mensaje="¡Bienvenido!" />
+      <div class="login-presentacion">
+        <div class="login-agente">
+          <app-mascota-agente
+            [grande]="true"
+            [saludar]="true"
+            [seguimientoCabeza]="true"
+            [hablaAlSaludar]="true"
+            mensaje="¡Bienvenido!"
+          />
+        </div>
+
+        <div class="login-presentacion__texto">
+          <span class="ai-badge"> <i class="bi bi-stars"></i> Potenciado con IA y RAG </span>
+
+          <h1 class="login-title">
+            Tu universidad,<br />
+            organizada y conectada.
+          </h1>
+          <p class="login-description">
+            Materias, tareas, documentos y un asistente que entiende tu material de estudio. Todo en
+            un solo espacio.
+          </p>
+        </div>
       </div>
-
-      <span class="ai-badge mt-4"> <i class="bi bi-stars"></i> Potenciado con IA y RAG </span>
-
-      <h1 class="login-title">
-        Tu universidad,<br />
-        organizada y conectada.
-      </h1>
-      <p class="login-description">
-        Materias, tareas, documentos y un asistente que entiende tu material de estudio. Todo en un
-        solo espacio.
-      </p>
 
       <ul class="login-features list-unstyled mb-0">
         <li>
@@ -51,7 +61,13 @@
     </section>
 
     <div class="login-agente login-agente--movil d-lg-none">
-      <app-mascota-agente [grande]="true" [saludar]="true" mensaje="¡Hola!" />
+      <app-mascota-agente
+        [grande]="true"
+        [saludar]="true"
+        [seguimientoCabeza]="true"
+        [hablaAlSaludar]="true"
+        mensaje="¡Hola!"
+      />
     </div>
 
     <section class="app-card login-card" aria-labelledby="login-title">

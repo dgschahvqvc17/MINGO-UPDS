@@ -64,6 +64,36 @@ describe('MascotaAgenteComponent', () => {
     expect(fixture.nativeElement.querySelectorAll('.mascota__parpado--derecho')).toHaveLength(1);
   });
 
+  it('inclina la cabeza cuando se activa el seguimiento', () => {
+    fixture.componentRef.setInput('seguimientoCabeza', true);
+    fixture.componentInstance.cabeza.set('rotate(4.0deg) translateY(1.0px)');
+    fixture.detectChanges();
+
+    const cabeza = fixture.nativeElement.querySelector('.mascota__cabeza') as SVGGElement;
+    expect(cabeza.style.transform).toBe('rotate(4.0deg) translateY(1.0px)');
+  });
+
+  it('piensa y habla durante el saludo cuando se solicita', () => {
+    vi.useFakeTimers();
+    const saludo = TestBed.createComponent(MascotaAgenteComponent);
+    saludo.componentRef.setInput('saludar', true);
+    saludo.componentRef.setInput('hablaAlSaludar', true);
+    saludo.detectChanges();
+
+    const mascota = saludo.nativeElement.querySelector('.mascota') as HTMLElement;
+    expect(mascota.classList.contains('mascota--pensando')).toBe(true);
+
+    vi.advanceTimersByTime(500);
+    saludo.detectChanges();
+    expect(mascota.classList.contains('mascota--hablando')).toBe(true);
+
+    vi.advanceTimersByTime(2700);
+    saludo.detectChanges();
+    expect(mascota.classList.contains('mascota--inactivo')).toBe(true);
+
+    saludo.destroy();
+  });
+
   it('usa prefijos distintos para los degradados de cada instancia', () => {
     const otra = TestBed.createComponent(MascotaAgenteComponent);
 

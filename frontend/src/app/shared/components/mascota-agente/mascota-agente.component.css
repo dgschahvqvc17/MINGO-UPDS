@@ -124,6 +124,11 @@
   animation: mascota-anillo 18s linear infinite;
 }
 
+.mascota__cabeza {
+  transform-origin: 150px 220px;
+  transition: transform 0.2s ease-out;
+}
+
 .mascota__pupila {
   transition: transform 0.18s ease-out;
 }
@@ -355,7 +360,8 @@
     display: none;
   }
 
-  .mascota__pupila {
+  .mascota__pupila,
+  .mascota__cabeza {
     transition: none;
   }
 }

@@ -18,8 +18,11 @@ export type EstadoMascota = 'inactivo' | 'pensando' | 'hablando';
 const MOVIMIENTO_MAXIMO = 12;
 const GIRO_MAXIMO = 8;
 const MIRADA_MAXIMA = 6;
+const GIRO_CABEZA_MAXIMO = 5;
+const INCLINACION_CABEZA_MAXIMA = 3;
 const INTERVALO_SEGUIMIENTO = 16;
 const DURACION_SALUDO = 3200;
+const RETARDO_HABLA = 500;
 
 let siguienteInstancia = 0;
 
@@ -53,12 +56,21 @@ export class MascotaAgenteComponent implements OnInit {
   readonly grande = input(false);
   readonly saludar = input(false);
   readonly mensaje = input('');
+  readonly seguimientoCabeza = input(false);
+  readonly hablaAlSaludar = input(false);
 
   /** Prefijo único para los degradados: permite varias mascotas en una misma página. */
   readonly prefijo = `mascota-${siguienteInstancia++}`;
   readonly desplazamiento = signal('');
   readonly mirada = signal('');
+  readonly cabeza = signal('');
   readonly saludando = signal(false);
+  private readonly estadoTemporal = signal<EstadoMascota | null>(null);
+  private readonly temporizadores: ReturnType<typeof setTimeout>[] = [];
+
+  readonly estadoVisible = computed<EstadoMascota>(
+    () => this.estadoTemporal() ?? this.estado(),
+  );
 
   readonly etiquetaAccesible = computed(() => {
     const etiquetas: Record<EstadoMascota, string> = {
@@ -67,7 +79,7 @@ export class MascotaAgenteComponent implements OnInit {
       hablando: 'Mascota del asistente MINGO hablando',
     };
 
-    const estado = etiquetas[this.estado()];
+    const estado = etiquetas[this.estadoVisible()];
     return this.saludando() ? `${estado} y saludando` : estado;
   });
 
@@ -84,8 +96,22 @@ export class MascotaAgenteComponent implements OnInit {
     }
 
     this.saludando.set(true);
-    const temporizador = setTimeout(() => this.saludando.set(false), DURACION_SALUDO);
-    this.destroyRef.onDestroy(() => clearTimeout(temporizador));
+
+    if (this.hablaAlSaludar()) {
+      this.estadoTemporal.set('pensando');
+      this.programar(() => this.estadoTemporal.set('hablando'), RETARDO_HABLA);
+    }
+
+    this.programar(() => {
+      this.saludando.set(false);
+      this.estadoTemporal.set(null);
+    }, DURACION_SALUDO);
+
+    this.destroyRef.onDestroy(() => this.temporizadores.forEach(clearTimeout));
+  }
+
+  private programar(tarea: () => void, demora: number): void {
+    this.temporizadores.push(setTimeout(tarea, demora));
   }
 
   constructor() {
@@ -119,6 +145,15 @@ export class MascotaAgenteComponent implements OnInit {
       `translate(${desplazamientoX.toFixed(1)}px, ${desplazamientoY.toFixed(1)}px) rotate(${giro.toFixed(1)}deg)`,
     );
     this.mirada.set(`translate(${miradaX.toFixed(1)}px, ${miradaY.toFixed(1)}px)`);
+
+    if (this.seguimientoCabeza()) {
+      const giro = this.limitar(deltaX * GIRO_CABEZA_MAXIMO, GIRO_CABEZA_MAXIMO);
+      const inclinacion = this.limitar(
+        deltaY * INCLINACION_CABEZA_MAXIMA,
+        INCLINACION_CABEZA_MAXIMA,
+      );
+      this.cabeza.set(`rotate(${giro.toFixed(1)}deg) translateY(${inclinacion.toFixed(1)}px)`);
+    }
   }
 
   private limitar(valor: number, limite: number): number {

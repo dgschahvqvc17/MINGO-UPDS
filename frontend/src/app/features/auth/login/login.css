@@ -40,25 +40,37 @@
 
 .login-hero {
   flex-direction: column;
-  justify-content: center;
   padding-right: 2rem;
+}
+
+.login-presentacion {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 1.5rem;
 }
 
 .login-agente {
   display: flex;
   justify-content: center;
-  margin: -0.75rem 0 0.5rem;
-  filter: drop-shadow(0 14px 28px rgba(2, 132, 199, 0.3));
+}
+
+.login-presentacion .login-title {
+  margin-top: 0.75rem;
+  font-size: 2rem;
+}
+
+.login-presentacion .login-description {
+  margin-bottom: 0;
 }
 
 .login-hero .login-agente .mascota--grande {
-  width: clamp(15rem, 24vw, 20rem);
-  height: clamp(15rem, 24vw, 20rem);
+  width: clamp(14rem, 18vw, 17rem);
+  height: clamp(14rem, 18vw, 17rem);
 }
 
 .login-agente--movil {
   justify-self: center;
-  margin: 0;
 }
 
 .login-agente--movil .mascota--grande {
