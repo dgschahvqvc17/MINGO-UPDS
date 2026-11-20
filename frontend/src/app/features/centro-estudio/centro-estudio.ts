@@ -18,12 +18,14 @@ import {
   type CuestionarioGenerado,
   type CuestionarioResumen,
   type DificultadCuestionario,
+  type IntentoHistorial,
   type TipoPreguntaCuestionario,
 } from '../../core/services/cuestionario.service';
 import { mensajeDeErrorHttp } from '../../core/utils/http-error';
 import { CuestionarioResolverComponent } from './components/cuestionario-resolver/cuestionario-resolver';
 
 const LIMITE_CUESTIONARIOS = 20;
+const LIMITE_INTENTOS = 10;
 const LIMITE_MATERIAS = 100;
 const LIMITE_DOCUMENTOS = 50;
 const CANTIDAD_PREGUNTAS_POR_DEFECTO = 10;
@@ -31,6 +33,7 @@ const CANTIDAD_PREGUNTAS_POR_DEFECTO = 10;
 interface CuestionarioEnResolucion {
   id: string;
   titulo: string;
+  intentoId?: string;
 }
 
 @Component({
@@ -50,12 +53,16 @@ export class CentroEstudioPage {
   readonly documentos = signal<Documento[]>([]);
   readonly cuestionarios = signal<CuestionarioResumen[]>([]);
   readonly totalCuestionarios = signal(0);
+  readonly intentos = signal<IntentoHistorial[]>([]);
+  readonly totalIntentos = signal(0);
 
   readonly cargandoMaterias = signal(false);
   readonly cargandoDocumentos = signal(false);
   readonly cargandoCuestionarios = signal(true);
+  readonly cargandoIntentos = signal(true);
   readonly generando = signal(false);
   readonly error = signal<string | null>(null);
+  readonly errorHistorial = signal<string | null>(null);
   readonly errorAccion = signal<string | null>(null);
   readonly mensajeExito = signal<string | null>(null);
   readonly confirmandoEliminar = signal<string | null>(null);
@@ -96,6 +103,12 @@ export class CentroEstudioPage {
     () => this.cuestionarios().length < this.totalCuestionarios(),
   );
 
+  readonly hayMasIntentos = computed(() => this.intentos().length < this.totalIntentos());
+
+  readonly mostrarListaVaciaIntentos = computed(
+    () => !this.cargandoIntentos() && this.intentos().length === 0,
+  );
+
   readonly sinMaterias = computed(
     () => !this.cargandoMaterias() && this.materiasActivas().length === 0,
   );
@@ -103,6 +116,7 @@ export class CentroEstudioPage {
   constructor() {
     this.cargarMaterias();
     this.cargarCuestionarios();
+    this.cargarIntentos();
   }
 
   cargarMaterias(): void {
@@ -166,6 +180,54 @@ export class CentroEstudioPage {
             mensajeDeErrorHttp(error, 'No se pudieron cargar más cuestionarios.'),
           );
           this.cargandoCuestionarios.set(false);
+        },
+      });
+  }
+
+  cargarIntentos(): void {
+    this.cargandoIntentos.set(true);
+    this.errorHistorial.set(null);
+
+    this.cuestionarioService
+      .listarIntentos({ limit: LIMITE_INTENTOS, offset: 0 })
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: ({ intentos, total }) => {
+          this.intentos.set(intentos);
+          this.totalIntentos.set(total);
+          this.cargandoIntentos.set(false);
+        },
+        error: (error: unknown) => {
+          this.errorHistorial.set(
+            mensajeDeErrorHttp(error, 'No se pudo cargar tu historial de evaluaciones.'),
+          );
+          this.intentos.set([]);
+          this.cargandoIntentos.set(false);
+        },
+      });
+  }
+
+  cargarMasIntentos(): void {
+    if (this.cargandoIntentos() || !this.hayMasIntentos()) {
+      return;
+    }
+
+    this.cargandoIntentos.set(true);
+
+    this.cuestionarioService
+      .listarIntentos({ limit: LIMITE_INTENTOS, offset: this.intentos().length })
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: ({ intentos, total }) => {
+          this.intentos.update((actuales) => [...actuales, ...intentos]);
+          this.totalIntentos.set(total);
+          this.cargandoIntentos.set(false);
+        },
+        error: (error: unknown) => {
+          this.errorHistorial.set(
+            mensajeDeErrorHttp(error, 'No se pudieron cargar más evaluaciones.'),
+          );
+          this.cargandoIntentos.set(false);
         },
       });
   }
@@ -265,8 +327,18 @@ export class CentroEstudioPage {
     this.resolviendo.set(null);
   }
 
+  abrirEvaluacion(intento: IntentoHistorial): void {
+    this.errorAccion.set(null);
+    this.resolviendo.set({
+      id: intento.cuestionario_id,
+      titulo: intento.cuestionario_titulo ?? 'Evaluación guardada',
+      intentoId: intento.id,
+    });
+  }
+
   alCompletar(): void {
     this.cargarCuestionarios();
+    this.cargarIntentos();
   }
 
   solicitarEliminar(cuestionario: CuestionarioResumen): void {

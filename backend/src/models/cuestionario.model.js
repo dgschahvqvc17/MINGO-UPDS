@@ -50,8 +50,7 @@ const cuestionarioParamSchema = z.object({
   id: z.string().uuid('El identificador no es valido'),
 });
 
-/** Query de GET /asistente/cuestionarios. */
-const cuestionarioListarQuerySchema = z.object({
+const paginacionQuerySchema = z.object({
   limit: z.coerce
     .number()
     .int()
@@ -60,6 +59,12 @@ const cuestionarioListarQuerySchema = z.object({
     .default(20),
   offset: z.coerce.number().int().min(0).default(0),
 });
+
+/** Query de GET /asistente/cuestionarios. */
+const cuestionarioListarQuerySchema = paginacionQuerySchema;
+
+/** Query de GET /asistente/intentos. */
+const intentoListarQuerySchema = paginacionQuerySchema;
 
 const respuestaSchema = z.object({
   pregunta_id: z.string().uuid('El identificador de la pregunta no es valido'),
@@ -95,5 +100,6 @@ module.exports = {
   cuestionarioGenerarSchema,
   cuestionarioParamSchema,
   cuestionarioListarQuerySchema,
+  intentoListarQuerySchema,
   intentoResponderSchema,
 };

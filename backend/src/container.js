@@ -34,6 +34,7 @@ const ResumenService = require('./services/resumen.service');
 const ChatService = require('./services/chat.service');
 const CuestionarioService = require('./services/cuestionario.service');
 const CuestionarioIaService = require('./services/ia/cuestionario.ia.service');
+const EvaluadorIaService = require('./services/ia/evaluador.ia.service');
 const TarjetaService = require('./services/tarjeta.service');
 const TarjetaIaService = require('./services/ia/tarjeta.ia.service');
 const PlanEstudioService = require('./services/plan-estudio.service');
@@ -57,6 +58,7 @@ const { s3Client, sqsClient } = require('./config/aws');
 const embeddingsServiceCompartido = new EmbeddingsService();
 const agenteIaServiceCompartido = new AgenteIaService();
 const cuestionarioIaServiceCompartido = new CuestionarioIaService();
+const evaluadorIaServiceCompartido = new EvaluadorIaService();
 const tarjetaIaServiceCompartido = new TarjetaIaService();
 const planIaServiceCompartido = new PlanIaService();
 const {
@@ -302,6 +304,7 @@ function createCuestionarioService(usuarioActualId, accessToken) {
     cuestionarioRepository: new CuestionarioRepository({ supabase: supabaseClient }),
     consumoRepository: new ConsumoIaRepository({ supabase: supabaseClient }),
     iaService: cuestionarioIaServiceCompartido,
+    evaluadorIaService: evaluadorIaServiceCompartido,
     usuarioActualId,
   });
 }

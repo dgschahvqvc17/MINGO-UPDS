@@ -77,8 +77,15 @@ const resultado: ResultadoIntento = {
   intento: {
     ...intento,
     estado: 'finalizado',
-    respuestas_correctas: 1,
-    puntuacion: 100,
+    respuestas_correctas: 2,
+    puntuacion: 95,
+    retroalimentacion_general: 'Buena base conceptual; repasa el concepto de límite.',
+    temas_reforzar: ['Derivadas'],
+    recomendaciones: ['Repasa el concepto de límite antes de volver a intentarlo.'],
+    dominio_por_tema: [
+      { tema: 'Derivadas', dominio: 0, aciertos: 0, total: 1 },
+      { tema: 'Continuidad', dominio: 90, aciertos: 0.9, total: 1 },
+    ],
     fecha_finalizacion: '2026-11-19T10:10:00.000Z',
   },
   cuestionario,
@@ -104,31 +111,47 @@ const resultado: ResultadoIntento = {
       orden: 2,
       enunciado: 'Explica la continuidad.',
       tipo_pregunta: 'abierta',
+      tema: 'Continuidad',
       opciones: [],
       respuesta_usuario: 'Sin saltos.',
-      es_correcta: null,
+      es_correcta: true,
       respuesta_correcta: 'Una función sin cortes.',
       explicacion: 'La gráfica no se interrumpe.',
+      evaluacion: {
+        es_correcta: true,
+        puntaje: 9,
+        retroalimentacion: 'Explicaste la idea central con claridad.',
+        criterios: [
+          {
+            nombre: 'precision_conceptual',
+            cumplido: true,
+            observacion: 'Uso correcto del concepto.',
+          },
+        ],
+        temas_reforzar: ['Continuidad'],
+      },
     },
   ],
 };
 
-describe('CuestionarioResolverComponent (HU13)', () => {
+describe('CuestionarioResolverComponent (HU13/HU16)', () => {
   let fixture: ComponentFixture<CuestionarioResolverComponent>;
   let componente: CuestionarioResolverComponent;
   const iniciarIntento = vi.fn();
   const responder = vi.fn();
+  const obtenerIntento = vi.fn();
 
   beforeEach(() => {
     iniciarIntento.mockReset().mockReturnValue(of(iniciado));
     responder.mockReset().mockReturnValue(of(resultado));
+    obtenerIntento.mockReset().mockReturnValue(of(resultado));
 
     TestBed.configureTestingModule({
       imports: [CuestionarioResolverComponent],
       providers: [
         {
           provide: CuestionarioService,
-          useValue: { iniciarIntento, responder },
+          useValue: { iniciarIntento, responder, obtenerIntento },
         },
       ],
     });
@@ -172,9 +195,54 @@ describe('CuestionarioResolverComponent (HU13)', () => {
       { pregunta_id: PREGUNTA_ID, respuesta: 'La tasa de cambio' },
       { pregunta_id: ABIERTA_ID, respuesta: 'Una función sin saltos.' },
     ]);
-    expect(componente.puntuacion()).toBe(100);
-    expect(fixture.nativeElement.textContent).toContain('100%');
+    expect(componente.puntuacion()).toBe(95);
+    expect(fixture.nativeElement.textContent).toContain('95%');
     expect(fixture.nativeElement.textContent).toContain('Respuesta correcta:');
+  });
+
+  it('muestra la retroalimentación, los criterios y las recomendaciones de la evaluación', () => {
+    componente.seleccionar(PREGUNTA_ID, 'La tasa de cambio');
+    componente.seleccionar(ABIERTA_ID, 'Una función sin saltos.');
+    componente.enviar();
+    fixture.detectChanges();
+
+    const texto = fixture.nativeElement.textContent;
+    expect(texto).toContain('Buena base conceptual');
+    expect(texto).toContain('Evaluación de tu respuesta');
+    expect(texto).toContain('Explicaste la idea central con claridad.');
+    expect(texto).toContain('Precisión conceptual');
+    expect(texto).toContain('Tu dominio por tema');
+    expect(texto).toContain('Recomendaciones de repaso');
+    expect(texto).toContain('Repasa el concepto de límite');
+    expect(componente.evaluacionesAbiertas()).toHaveLength(1);
+  });
+
+  it('avisa cuando la evaluación de respuestas abiertas no estuvo disponible', () => {
+    responder.mockReturnValue(of({ ...resultado, aviso_evaluacion: 'Límite diario alcanzado.' }));
+
+    componente.seleccionar(PREGUNTA_ID, 'La tasa de cambio');
+    componente.seleccionar(ABIERTA_ID, 'Una función sin saltos.');
+    componente.enviar();
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.textContent).toContain('Límite diario alcanzado.');
+  });
+
+  it('revisa un intento finalizado sin iniciar uno nuevo', () => {
+    fixture.destroy();
+    iniciarIntento.mockClear();
+    fixture = TestBed.createComponent(CuestionarioResolverComponent);
+    componente = fixture.componentInstance;
+    fixture.componentRef.setInput('cuestionarioId', CUESTIONARIO_ID);
+    fixture.componentRef.setInput('intentoId', INTENTO_ID);
+    fixture.detectChanges();
+
+    expect(obtenerIntento).toHaveBeenCalledWith(INTENTO_ID);
+    expect(iniciarIntento).not.toHaveBeenCalled();
+    expect(componente.esRevision()).toBe(true);
+    expect(componente.hayResultado()).toBe(true);
+    expect(responder).not.toHaveBeenCalled();
+    expect(fixture.nativeElement.textContent).toContain('Evaluación guardada');
   });
 
   it('muestra un error seguro si no se puede iniciar el intento', () => {

@@ -76,6 +76,25 @@ class CuestionarioController {
 
     res.status(200).json({ success: true, data: resultado });
   };
+
+  listarIntentos = async (req, res) => {
+    const { limit, offset } = req.validated.query;
+    const { items, total } = await this.cuestionarioService.listarIntentos({
+      limite: limit,
+      desplazamiento: offset,
+    });
+
+    res.status(200).json({
+      success: true,
+      data: items,
+      meta: {
+        page: Math.floor(offset / limit) + 1,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    });
+  };
 }
 
 module.exports = CuestionarioController;

@@ -18,6 +18,9 @@ const TIPOS_PREGUNTA = ['opcion_multiple', 'verdadero_falso', 'abierta'];
 
 const MINIMO_OPCIONES = 2;
 const MAXIMO_OPCIONES = 4;
+const MAXIMO_CARACTERES_TEMA = 120;
+/** La IA puede omitir el tema; no se descarta una pregunta valida por eso (HU16). */
+const TEMA_POR_DEFECTO = 'Tema general';
 
 const ETIQUETAS_TIPO = Object.freeze({
   opcion_multiple: 'opcion multiple',
@@ -61,6 +64,7 @@ const opcionSchema = z.object({
 const preguntaSchema = z.object({
   enunciado: z.string().trim().min(10).max(800),
   tipo_pregunta: z.enum(TIPOS_PREGUNTA),
+  tema: z.string().trim().max(MAXIMO_CARACTERES_TEMA).optional().default(''),
   explicacion: z.string().trim().min(10).max(1200),
   respuesta_correcta: z.string().trim().max(2000).optional().default(''),
   opciones: z.array(opcionSchema).max(MAXIMO_OPCIONES).default([]),
@@ -201,6 +205,7 @@ function construirEjemploJson(tipo) {
       {
         enunciado: '...',
         tipo_pregunta: tipo,
+        tema: 'Tema breve de la pregunta',
         explicacion: '...',
         respuesta_correcta: '...',
         opciones: OPCIONES_EJEMPLO[tipo] ?? [],
@@ -235,6 +240,7 @@ function construirPrompt({ cantidad, dificultad, tipos }) {
     'Reglas de formato, aplicables unicamente a los tipos pedidos:',
     reglasTexto,
     'Cada pregunta debe incluir una explicacion clara de por que la respuesta es correcta.',
+    `Cada pregunta debe incluir un tema breve de 2 a ${MAXIMO_CARACTERES_TEMA} caracteres que identifique el concepto evaluado dentro del MATERIAL.`,
     reglaCobertura,
     'Devuelve unicamente un objeto JSON valido, sin texto adicional ni bloques de codigo, con esta estructura exacta:',
     construirEjemploJson(tipoEjemplo),
@@ -333,6 +339,7 @@ function normalizarPregunta(pregunta) {
   const enunciado = normalizarEspacios(pregunta.enunciado);
   const explicacion = normalizarEspacios(pregunta.explicacion);
   const respuestaCorrecta = normalizarEspacios(pregunta.respuesta_correcta);
+  const tema = normalizarEspacios(pregunta.tema).slice(0, MAXIMO_CARACTERES_TEMA) || TEMA_POR_DEFECTO;
 
   if (!enunciado || !explicacion) {
     throw new CuestionarioIaError('El proveedor devolvio una pregunta incompleta.', {
@@ -375,6 +382,7 @@ function normalizarPregunta(pregunta) {
     return {
       enunciado,
       tipo_pregunta: 'opcion_multiple',
+      tema,
       explicacion,
       respuesta_correcta: correcta.contenido,
       opciones: corregidas,
@@ -394,6 +402,7 @@ function normalizarPregunta(pregunta) {
     return {
       enunciado,
       tipo_pregunta: 'verdadero_falso',
+      tema,
       explicacion,
       respuesta_correcta: esVerdadero ? 'Verdadero' : 'Falso',
       opciones: [
@@ -413,6 +422,7 @@ function normalizarPregunta(pregunta) {
   return {
     enunciado,
     tipo_pregunta: 'abierta',
+    tema,
     explicacion,
     respuesta_correcta: respuestaCorrecta,
     opciones: [],
@@ -565,6 +575,7 @@ module.exports.TIPOS_PREGUNTA = TIPOS_PREGUNTA;
 module.exports.MAXIMO_TOKENS_SALIDA = MAXIMO_TOKENS_SALIDA;
 module.exports.construirPrompt = construirPrompt;
 module.exports.extraerJson = extraerJson;
+module.exports.crearCliente = crearCliente;
 module.exports.normalizarCuestionario = normalizarCuestionario;
 module.exports.normalizarPregunta = normalizarPregunta;
 module.exports.interpretarVerdaderoFalso = interpretarVerdaderoFalso;

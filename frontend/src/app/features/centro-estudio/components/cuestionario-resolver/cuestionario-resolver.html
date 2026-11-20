@@ -7,6 +7,12 @@
           {{ actual.total_preguntas }} preguntas · {{ actual.preguntas_objetivas }} objetivas
         </p>
       }
+      @if (esRevision()) {
+        <span class="badge badge-info mt-2">
+          <i class="bi bi-clock-history me-1" aria-hidden="true"></i>
+          Evaluación guardada
+        </span>
+      }
     </div>
     <button type="button" class="btn btn-outline-secondary" (click)="volver.emit()">
       <i class="bi bi-arrow-left me-1" aria-hidden="true"></i>
@@ -34,17 +40,93 @@
     }
 
     @if (hayResultado()) {
-      <div class="card border-0 shadow-sm mb-4">
+      <div class="card border-0 shadow-sm mb-4 resultado-evaluacion">
         <div class="card-body text-center">
           <p class="text-uppercase text-muted small mb-1">Resultado del intento</p>
           @if (puntuacion() !== null) {
             <p class="display-4 fw-semibold mb-1">{{ puntuacion() }}%</p>
           } @else {
-            <p class="h3 mb-1">Sin preguntas objetivas</p>
+            <p class="h3 mb-1">Sin nota calculada</p>
           }
           <p class="text-muted mb-0">{{ mensajeResultado() }}</p>
+          @if (retroalimentacionGeneral()) {
+            <p class="retroalimentacion-general mt-3 mb-0">{{ retroalimentacionGeneral() }}</p>
+          }
         </div>
       </div>
+
+      @if (avisoEvaluacion()) {
+        <div class="alert alert-warning" role="status" aria-live="polite">
+          <i class="bi bi-exclamation-triangle me-2" aria-hidden="true"></i>
+          {{ avisoEvaluacion() }}
+        </div>
+      }
+
+      @if (dominioPorTema().length > 0 || recomendaciones().length > 0) {
+        <div class="card border-0 shadow-sm mb-4">
+          <div class="card-body">
+            <div class="panel-heading">
+              <span class="icon-badge icon-badge--ai" aria-hidden="true">
+                <i class="bi bi-bar-chart-line"></i>
+              </span>
+              <div>
+                <h3 class="h6 mb-1">Tu dominio por tema</h3>
+                <p class="small text-muted-soft mb-0">
+                  Basado en las preguntas que pudieron ser calificadas.
+                </p>
+              </div>
+            </div>
+
+            @if (dominioPorTema().length > 0) {
+              <div class="d-flex flex-column gap-3">
+                @for (tema of dominioPorTema(); track tema.tema) {
+                  <div>
+                    <div class="d-flex justify-content-between align-items-center gap-2 mb-1">
+                      <span class="small fw-semibold">{{ tema.tema }}</span>
+                      <span
+                        class="badge"
+                        [class.text-bg-success]="tema.dominio >= 70"
+                        [class.text-bg-warning]="tema.dominio < 70"
+                      >
+                        {{ tema.dominio }}% · {{ tema.aciertos }}/{{ tema.total }}
+                      </span>
+                    </div>
+                    <div
+                      class="progress"
+                      role="progressbar"
+                      [attr.aria-valuenow]="tema.dominio"
+                      aria-valuemin="0"
+                      aria-valuemax="100"
+                      [attr.aria-label]="'Dominio en ' + tema.tema + ': ' + tema.dominio + '%'"
+                    >
+                      <div
+                        class="progress-bar"
+                        [class.bg-success]="tema.dominio >= 70"
+                        [class.bg-warning]="tema.dominio < 70"
+                        [style.width.%]="tema.dominio"
+                      ></div>
+                    </div>
+                  </div>
+                }
+              </div>
+            }
+
+            @if (recomendaciones().length > 0) {
+              <div class="mt-4 pt-3 border-top">
+                <p class="small fw-semibold mb-2">
+                  <i class="bi bi-lightbulb me-1" aria-hidden="true"></i>
+                  Recomendaciones de repaso
+                </p>
+                <ul class="small text-muted-soft mb-0">
+                  @for (recomendacion of recomendaciones(); track $index) {
+                    <li>{{ recomendacion }}</li>
+                  }
+                </ul>
+              </div>
+            }
+          </div>
+        </div>
+      }
     }
 
     @if (!hayResultado()) {
@@ -78,6 +160,12 @@
               <h3 class="h6 mb-3">
                 <span class="badge text-bg-light border me-2">{{ indice + 1 }}</span>
                 {{ pregunta.enunciado }}
+                @if (pregunta.tema) {
+                  <span class="d-block small text-muted-soft fw-normal mt-1">
+                    <i class="bi bi-tag me-1" aria-hidden="true"></i>
+                    {{ pregunta.tema }}
+                  </span>
+                }
               </h3>
               @if (hayResultado()) {
                 <span class="badge text-bg-light border d-inline-flex align-items-center gap-1">
@@ -141,6 +229,47 @@
               }
               @if (pregunta.explicacion) {
                 <p class="text-muted mb-0">{{ pregunta.explicacion }}</p>
+              }
+              @if (pregunta.evaluacion; as evaluacion) {
+                <div class="evaluacion-abierta mt-3 p-3">
+                  <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+                    <span class="small fw-semibold">
+                      <i class="bi bi-stars me-1" aria-hidden="true"></i>
+                      Evaluación de tu respuesta
+                    </span>
+                    <span
+                      class="badge"
+                      [class.text-bg-success]="evaluacion.es_correcta"
+                      [class.text-bg-danger]="!evaluacion.es_correcta"
+                    >
+                      {{ evaluacion.puntaje }}/10
+                    </span>
+                  </div>
+                  <p class="small mb-2">{{ evaluacion.retroalimentacion }}</p>
+                  @if (evaluacion.criterios.length > 0) {
+                    <div class="d-flex flex-wrap gap-2 mb-2">
+                      @for (criterio of evaluacion.criterios; track criterio.nombre) {
+                        <span
+                          class="meta-chip"
+                          [class.text-success]="criterio.cumplido"
+                          [class.text-danger]="!criterio.cumplido"
+                        >
+                          <i
+                            class="bi {{ criterio.cumplido ? 'bi-check-circle' : 'bi-x-circle' }}"
+                            aria-hidden="true"
+                          ></i>
+                          {{ etiquetaCriterio(criterio.nombre) }}
+                        </span>
+                      }
+                    </div>
+                  }
+                  @if (evaluacion.temas_reforzar.length > 0) {
+                    <p class="small text-muted-soft mb-0">
+                      <i class="bi bi-book me-1" aria-hidden="true"></i>
+                      Refuerza: {{ evaluacion.temas_reforzar.join(', ') }}
+                    </p>
+                  }
+                </div>
               }
             }
           </div>

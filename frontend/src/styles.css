@@ -3545,6 +3545,36 @@ pre {
   font-size: 0.75rem;
   font-weight: 600;
 }
+
+.centro-estudio .intentos-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1rem;
+}
+
+.centro-estudio .intento-card {
+  transition: border-color var(--mingo-transition-normal);
+}
+
+.centro-estudio .intento-card:hover {
+  border-color: rgba(37, 99, 235, 0.45);
+}
+
+.centro-estudio .cuestionario-resolver .resultado-evaluacion {
+  background: linear-gradient(135deg, rgba(37, 99, 235, 0.1), rgba(16, 185, 129, 0.07));
+}
+
+.centro-estudio .cuestionario-resolver .retroalimentacion-general {
+  max-width: 65ch;
+  margin-inline: auto;
+  color: var(--mingo-text-muted);
+}
+
+.centro-estudio .cuestionario-resolver .evaluacion-abierta {
+  border: 1px solid var(--mingo-border-soft);
+  border-radius: var(--mingo-radius-md);
+  background: rgba(148, 163, 184, 0.06);
+}
 /* ==========================================================================
    Tarjetas de memoria (extension del design system, prefijada por feature)
    ========================================================================== */

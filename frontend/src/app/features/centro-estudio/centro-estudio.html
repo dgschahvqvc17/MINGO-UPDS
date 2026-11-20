@@ -3,6 +3,7 @@
     <app-cuestionario-resolver
       [cuestionarioId]="actual.id"
       [titulo]="actual.titulo"
+      [intentoId]="actual.intentoId ?? null"
       (volver)="cerrarResolver()"
       (completado)="alCompletar()"
     />
@@ -301,6 +302,143 @@
                     (click)="cargarMas()"
                   >
                     @if (cargandoCuestionarios()) {
+                      <span class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span>
+                    } @else {
+                      <i class="bi bi-chevron-down me-1" aria-hidden="true"></i>
+                    }
+                    Cargar más
+                  </button>
+                </div>
+              }
+            }
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="row g-4 mt-1">
+      <div class="col-12">
+        <div class="app-card h-100">
+          <div class="card-body p-4 p-lg-5">
+            <div class="panel-heading">
+              <span class="icon-badge icon-badge--ai icon-badge--lg" aria-hidden="true">
+                <i class="bi bi-clipboard2-check"></i>
+              </span>
+              <div class="flex-grow-1">
+                <h2 class="h5 mb-1" id="titulo-historial-evaluaciones">
+                  Historial de evaluaciones
+                </h2>
+                <p class="small text-muted-soft mb-0">
+                  Revisa tus intentos, tus notas y las recomendaciones de repaso.
+                </p>
+              </div>
+              <span class="badge badge-info">
+                <i class="bi bi-clock-history me-1" aria-hidden="true"></i>
+                {{ totalIntentos() }} {{ totalIntentos() === 1 ? 'intento' : 'intentos' }}
+              </span>
+            </div>
+
+            @if (errorHistorial()) {
+              <div class="alert alert-danger d-flex align-items-center mb-4" role="alert">
+                <i class="bi bi-exclamation-triangle me-2" aria-hidden="true"></i>
+                <span class="flex-grow-1">{{ errorHistorial() }}</span>
+                <button
+                  type="button"
+                  class="btn btn-sm btn-outline-danger"
+                  (click)="cargarIntentos()"
+                >
+                  Reintentar
+                </button>
+              </div>
+            }
+
+            @if (cargandoIntentos() && intentos().length === 0) {
+              <div class="app-card" role="status" aria-live="polite">
+                <div class="card-body p-5 text-center text-muted-soft">
+                  <span class="spinner-border spinner-border-sm text-primary me-2" aria-hidden="true"></span>
+                  Cargando evaluaciones...
+                </div>
+              </div>
+            } @else if (mostrarListaVaciaIntentos()) {
+              <div class="app-card">
+                <div class="card-body p-5 text-center">
+                  <span class="icon-badge icon-badge--ai icon-badge--xl mb-3" aria-hidden="true">
+                    <i class="bi bi-clipboard2-pulse"></i>
+                  </span>
+                  <h3 class="h6 mb-1">Todavía no tienes evaluaciones</h3>
+                  <p class="small text-muted-soft mb-0">
+                    Resuelve un cuestionario para ver aquí tu nota, tus errores y tus temas a repasar.
+                  </p>
+                </div>
+              </div>
+            } @else {
+              <div class="intentos-grid">
+                @for (intento of intentos(); track intento.id) {
+                  <article class="app-card intento-card">
+                    <div class="card-body p-4">
+                      <div class="d-flex flex-wrap justify-content-between align-items-start gap-2">
+                        <div class="flex-grow-1 min-w-0">
+                          <h3 class="h6 mb-1">{{ intento.cuestionario_titulo ?? 'Cuestionario' }}</h3>
+                          <p class="small text-muted-soft mb-0">
+                            @if (intento.materia_nombre) {
+                              <i class="bi bi-book me-1" aria-hidden="true"></i>
+                              {{ intento.materia_nombre }} ·
+                            }
+                            <i class="bi bi-clock-history me-1" aria-hidden="true"></i>
+                            {{ intento.fecha_finalizacion | date: 'dd/MM/yyyy HH:mm' }}
+                          </p>
+                        </div>
+                        @if (intento.puntuacion !== null) {
+                          <span class="badge badge-success badge-sm">
+                            <i class="bi bi-trophy me-1" aria-hidden="true"></i>
+                            {{ intento.puntuacion }}%
+                          </span>
+                        }
+                      </div>
+
+                      <div class="meta-chips mt-3">
+                        <span class="meta-chip">
+                          <i class="bi bi-list-check" aria-hidden="true"></i>
+                          {{ intento.respuestas_correctas }}/{{ intento.total_preguntas }} aciertos
+                        </span>
+                        @for (tema of intento.temas_reforzar ?? []; track tema) {
+                          <span class="meta-chip text-warning-emphasis">
+                            <i class="bi bi-exclamation-circle" aria-hidden="true"></i>
+                            {{ tema }}
+                          </span>
+                        }
+                      </div>
+
+                      @if (intento.recomendaciones && intento.recomendaciones.length > 0) {
+                        <p class="small text-muted-soft mt-3 mb-0">
+                          {{ intento.recomendaciones[0] }}
+                        </p>
+                      }
+
+                      <div class="mt-4 pt-3 border-top">
+                        <button
+                          type="button"
+                          class="btn btn-outline-info btn-sm"
+                          (click)="abrirEvaluacion(intento)"
+                        >
+                          <i class="bi bi-eye me-1" aria-hidden="true"></i>
+                          Ver evaluación
+                        </button>
+                      </div>
+                    </div>
+                  </article>
+                }
+              </div>
+
+              @if (hayMasIntentos()) {
+                <div class="text-center mt-4">
+                  <button
+                    type="button"
+                    class="btn btn-outline-info btn-sm"
+                    [disabled]="cargandoIntentos()"
+                    (click)="cargarMasIntentos()"
+                  >
+                    @if (cargandoIntentos()) {
                       <span class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span>
                     } @else {
                       <i class="bi bi-chevron-down me-1" aria-hidden="true"></i>

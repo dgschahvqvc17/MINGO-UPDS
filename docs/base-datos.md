@@ -655,17 +655,25 @@ Intentos de resolución de un cuestionario (HU13).
 | `estado` | `VARCHAR(20)` | No | | `en_progreso` o `finalizado`. |
 | `total_preguntas` | `INTEGER` | No | | Preguntas del cuestionario (1–20). |
 | `preguntas_objetivas` | `INTEGER` | No | | Preguntas corregibles de forma determinista. |
-| `respuestas_correctas` | `INTEGER` | No | | Aciertos en preguntas objetivas. |
-| `puntuacion` | `NUMERIC(5,2)` | Sí | | Porcentaje de aciertos (0–100); `NULL` si no hay objetivas o sigue en progreso. |
+| `respuestas_correctas` | `INTEGER` | No | | Aciertos en preguntas calificadas (objetivas y abiertas evaluadas). |
+| `puntuacion` | `NUMERIC(5,2)` | Sí | | Porcentaje de logro (0–100); `NULL` si sigue en progreso o si ninguna pregunta pudo calificarse. |
+| `retroalimentacion_general` | `TEXT` | Sí | | Resumen de la evaluación de respuestas abiertas (HU16). |
+| `temas_reforzar` | `JSONB` | No | | Arreglo de temas con menor dominio (HU16). |
+| `recomendaciones` | `JSONB` | No | | Arreglo de recomendaciones de repaso (HU16). |
+| `modelo_evaluacion` | `VARCHAR(100)` | Sí | | Modelo usado para evaluar las abiertas (HU16). |
+| `tokens_entrada_evaluacion` | `INTEGER` | No | | Tokens de entrada consumidos en la evaluación (HU16). |
+| `tokens_salida_evaluacion` | `INTEGER` | No | | Tokens de salida consumidos en la evaluación (HU16). |
 | `fecha_inicio` | `TIMESTAMPTZ` | No | | Inicio del intento. |
 | `fecha_finalizacion` | `TIMESTAMPTZ` | Sí | | Cierre del intento. |
 
 Reglas:
 
 - Un intento `finalizado` no admite más respuestas: responde `409`.
-- `puntuacion` se calcula sobre las preguntas objetivas; las abiertas quedan
-  pendientes hasta HU16.
-- DDL: `supabase/migrations/0010_hu13_cuestionarios.sql` (idempotente).
+- `puntuacion` se calcula sobre las preguntas calificadas: objetivas exactas y
+  abiertas con evaluación guardada (`puntaje / 10`). Las abiertas sin evaluar
+  no cuentan como acierto ni como error (HU16).
+- DDL: `supabase/migrations/0010_hu13_cuestionarios.sql` y los campos de HU16 en
+  `supabase/migrations/0014_hu16_evaluacion.sql` (idempotentes).
 
 ### 3.19. `respuestas_usuario`
 
@@ -677,7 +685,7 @@ Respuestas registradas en un intento.
 | `intento_id` | `UUID` | No | FK → `intentos_cuestionario.id` | Intento al que pertenece. |
 | `pregunta_id` | `UUID` | No | FK → `preguntas.id` | Pregunta respondida. |
 | `respuesta` | `TEXT` | No | | Texto enviado por el estudiante. |
-| `es_correcta` | `BOOLEAN` | Sí | | Resultado de la corrección; `NULL` en preguntas abiertas. |
+| `es_correcta` | `BOOLEAN` | Sí | | Resultado de la corrección; en abiertas se completa desde `evaluaciones_respuesta` (HU16). |
 | `fecha_creacion` | `TIMESTAMPTZ` | No | | Fecha de registro. |
 
 Reglas:
@@ -685,6 +693,8 @@ Reglas:
 - `(intento_id, pregunta_id)` es único: no se responde dos veces la misma pregunta.
 - Las preguntas objetivas se corrigen comparando el texto normalizado con
   `preguntas.respuesta_correcta`.
+- Las abiertas se evalúan con IA al finalizar el intento; el detalle vive en
+  `evaluaciones_respuesta` (HU16).
 - DDL: `supabase/migrations/0010_hu13_cuestionarios.sql` (idempotente).
 
 ### 3.20. `solicitudes_idempotentes`
@@ -1307,6 +1317,18 @@ Las estructuras de HU13 (`cuestionarios`, `preguntas`, `opciones_pregunta`,
 de `fecha_actualizacion`. `sesiones_estudio.evento_calendario_id` referencia
 `eventos_calendario` con `on delete set null`; la relación inversa no existe.
 
+Las estructuras de HU16 se implementan en
+`supabase/migrations/0014_hu16_evaluacion.sql`: `preguntas.tema` para agrupar el
+dominio por concepto; `intentos_cuestionario.retroalimentacion_general`,
+`temas_reforzar`, `recomendaciones`, `modelo_evaluacion` y los contadores de
+tokens de evaluación; y la tabla `evaluaciones_respuesta`, con el detalle de
+cada respuesta abierta corregida (`es_correcta`, `puntaje`, retroalimentación,
+criterios y temas a reforzar). Usa UUID, unicidad por
+`(intento_id, pregunta_id)`, borrado en cascada desde intentos y preguntas,
+índices por usuario/fecha, intento y tema, y RLS por
+`auth.uid() = usuario_id`. La migración es idempotente; la aplica el usuario de
+forma manual (Dashboard de Supabase o `npm run migrate`), nunca el agente.
+
 Las estructuras de HU12 (`mensajes.modelo_utilizado`,
 `conversaciones.tipo_conversacion` y `fecha_actualizacion`, además de
 `mensajes.intencion` y `referencias_respuesta.documento_nombre`/`extracto`) ya
@@ -1336,11 +1358,13 @@ están implementadas en `supabase/migrations/0009_hu12_chat.sql`.
 | `supabase/migrations/0011_hu12_idempotencia_chat.sql` | Tabla `solicitudes_idempotentes` con unicidad por `(usuario_id, endpoint, clave)`, índice de fecha y RLS (HU12, idempotente). |
 | `supabase/migrations/0012_hu14_tarjetas_memoria.sql` | Tablas `conjuntos_tarjetas` y `tarjetas` con índices, restricciones y RLS (HU14, idempotente). |
 | `supabase/migrations/0013_hu15_planes_estudio.sql` | Tablas `planes_estudio` y `sesiones_estudio`, vínculo con `eventos_calendario`, índices, restricciones y RLS (HU15, idempotente). |
+| `supabase/migrations/0014_hu16_evaluacion.sql` | `preguntas.tema`, campos de retroalimentación en `intentos_cuestionario` y tabla `evaluaciones_respuesta` con índices, restricciones y RLS (HU16, idempotente). |
 
 - El script `backend/scripts/run-migrations.js` (`npm run migrate`) aplica estas
   migraciones en orden: identidad, materias, tareas, calendario, documentos,
   fragmentos, reemplazo de fragmentos, resumenes, búsqueda semántica, chat,
-  cuestionarios, idempotencia, tarjetas de memoria y planes de estudio.
+  cuestionarios, idempotencia, tarjetas de memoria, planes de estudio y
+  evaluación.
 
 - Flujo:
 
@@ -1394,6 +1418,7 @@ on conflict (nombre) do nothing;
 
 | Fecha | Cambio |
 |---|---|
+| 2026-11-19 | HU16: `preguntas.tema`, campos de retroalimentación en `intentos_cuestionario` y tabla `evaluaciones_respuesta` con índices, restricciones y RLS. Migración `0014_hu16_evaluacion.sql`. |
 | 2026-11-19 | HU15: tablas `planes_estudio` y `sesiones_estudio` con vínculo opcional a `eventos_calendario`, índices, restricciones y RLS. Migración `0013_hu15_planes_estudio.sql`. |
 | 2026-11-19 | HU14: tablas `conjuntos_tarjetas` y `tarjetas` con índices, restricciones y RLS. Migración `0012_hu14_tarjetas_memoria.sql`. |
 | 2026-11-19 | HU12: tablas de chat con UUID, `documento_nombre` y `extracto` en referencias, trigger de actividad y RLS. Migración `0009_hu12_chat.sql`. |

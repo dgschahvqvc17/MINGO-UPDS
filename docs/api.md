@@ -787,15 +787,15 @@ GET /api/documentos/buscar?q=derivadas%20de%20funciones&materia_id=6d1c2a53-4f7e
 | GET | `/api/asistente/cuestionarios/:id` | HU13 | Detalle con preguntas e intentos. |
 | DELETE | `/api/asistente/cuestionarios/:id` | HU13 | Elimina un cuestionario propio. |
 | POST | `/api/asistente/cuestionarios/:id/intentos` | HU13 | Inicia un intento del cuestionario. |
-| GET | `/api/asistente/intentos/:id` | HU13 | Devuelve el intento con sus respuestas. |
-| POST | `/api/asistente/intentos/:id/responder` | HU13 | Registra respuestas y finaliza el intento. |
+| GET | `/api/asistente/intentos` | HU16 | Lista el historial de evaluaciones del usuario. |
+| GET | `/api/asistente/intentos/:id` | HU13/HU16 | Devuelve el intento con respuestas, corrección y evaluación. |
+| POST | `/api/asistente/intentos/:id/responder` | HU13/HU16 | Registra respuestas, evalúa y finaliza el intento. |
 | POST | `/api/asistente/tarjetas` | HU14 | Genera y guarda un conjunto de tarjetas. |
 | GET | `/api/asistente/tarjetas/conjuntos` | HU14 | Lista los conjuntos propios. |
 | GET | `/api/asistente/tarjetas/conjuntos/:id` | HU14 | Detalle con tarjetas y filtro `estado`. |
 | DELETE | `/api/asistente/tarjetas/conjuntos/:id` | HU14 | Elimina un conjunto propio. |
 | PATCH | `/api/asistente/tarjetas/:id/estado` | HU14 | Registra el avance de estudio de una tarjeta. |
 | POST | `/api/asistente/plan` | HU15 | Propone plan de estudio. |
-| POST | `/api/asistente/evaluar` | HU16 | Evalúa respuestas abiertas. |
 
 **Body `POST /api/asistente/chat`**
 
@@ -985,6 +985,7 @@ usuario, aplica cuota de 10 cuestionarios por día y registra el consumo en
         "orden": 1,
         "enunciado": "¿Qué mide la derivada de una función?",
         "tipo_pregunta": "opcion_multiple",
+        "tema": "Derivadas",
         "opciones": [
           { "id": "a1b2...", "contenido": "La tasa de cambio instantánea.", "orden": 1 },
           { "id": "b2c3...", "contenido": "El área bajo la curva.", "orden": 2 }
@@ -999,7 +1000,9 @@ usuario, aplica cuota de 10 cuestionarios por día y registra el consumo en
 
 `respuesta_correcta`, `es_correcta` y `explicacion` no se exponen al generar ni
 al consultar un cuestionario: solo aparecen en el resultado cuando el intento
-está `finalizado`.
+está `finalizado`. `tema` es el tema breve que la IA asignó a la pregunta y
+permite agrupar el dominio; si el proveedor no lo entrega, se usa
+`"Tema general"`.
 
 **`GET /api/asistente/cuestionarios`**
 
@@ -1024,11 +1027,27 @@ Crea un intento en estado `en_progreso` y devuelve `intento` y `cuestionario`
 con sus preguntas, sin revelar la corrección. Un cuestionario sin preguntas
 responde `422`.
 
+**`GET /api/asistente/intentos`**
+
+Lista los intentos finalizados del usuario de todos sus cuestionarios, de más
+reciente a más antiguo, con la misma paginación que
+`GET /api/asistente/cuestionarios` (`limit` 1–50, por defecto 20; `offset` por
+defecto 0). Cada elemento incluye `id`, `cuestionario_id`,
+`cuestionario_titulo`, `materia_nombre`, `estado`, `total_preguntas`,
+`preguntas_objetivas`, `respuestas_correctas`, `puntuacion`,
+`retroalimentacion_general`, `temas_reforzar`, `recomendaciones`,
+`dominio_por_tema` y las fechas de inicio y finalización. `meta` contiene
+`page`, `limit`, `total` y `totalPages`. No expone respuestas ni correcciones.
+
 **`GET /api/asistente/intentos/:id`**
 
-Devuelve `intento`, `cuestionario` y `preguntas`. Mientras el intento sigue
-`en_progreso` no se revelan `respuesta_correcta`, `explicacion` ni
-`es_correcta`; al estar `finalizado` sí. Un intento ajeno responde `404`.
+Devuelve `intento`, `cuestionario` y `preguntas` de un intento propio. Mientras
+sigue `en_progreso` no se revelan `respuesta_correcta`, `explicacion`,
+`es_correcta` ni `evaluacion`. Al estar `finalizado` se incluyen, además, la
+`retroalimentacion_general`, los `temas_reforzar`, las `recomendaciones` y el
+`dominio_por_tema` calculados al enviar las respuestas. Este mismo endpoint
+alimenta la revisión de evaluaciones anteriores en `/centro-estudio`. Un intento
+ajeno o inexistente responde `404`.
 
 **Body `POST /api/asistente/intentos/:id/responder`**
 
@@ -1040,12 +1059,36 @@ Devuelve `intento`, `cuestionario` y `preguntas`. Mientras el intento sigue
 }
 ```
 
-Registra las respuestas, corrige de forma determinista las preguntas objetivas
-(comparando el texto normalizado con `respuesta_correcta`) y finaliza el
-intento. Las preguntas `abierta` quedan con `es_correcta: null` hasta la
-evaluación de HU16. La `puntuacion` es el porcentaje de aciertos sobre las
-preguntas objetivas y es `null` si no hay objetivas. Un intento ya finalizado
-responde `409`; una pregunta que no pertenece al cuestionario, `400`.
+Registra las respuestas y finaliza el intento. Corrige de forma determinista
+las objetivas (comparando el texto normalizado con `respuesta_correcta`) y, en
+el mismo llamado, evalúa todas las abiertas con una única solicitud a la IA,
+según los criterios de [ia-rag.md](ia-rag.md) §8.7. No existe un endpoint
+independiente para evaluar: la evaluación ocurre al enviar el intento.
+
+La `puntuacion` es el porcentaje de logro sobre las **preguntas calificadas**:
+las objetivas valen 1 o 0 y las abiertas, `puntaje / 10`. Es `null` cuando
+ninguna pregunta pudo calificarse. `respuestas_correctas` cuenta objetivas
+exactas y abiertas con `es_correcta: true`. Un intento ya finalizado responde
+`409`; una pregunta que no pertenece al cuestionario, `400`.
+
+La evaluación de abiertas está limitada a 10 intentos por usuario y día
+(`consumo_ia`, `operacion = 'evaluacion'`). Si el proveedor no está
+configurado, se agota la cuota o falla, el intento se finaliza igual con las
+objetivas y la respuesta incluye `aviso_evaluacion` y `codigo_aviso` con un
+mensaje seguro; no se reintentan llamadas en bucle.
+
+**Respuesta de error de cuota de evaluación (parcial)**
+
+```json
+{
+  "success": true,
+  "data": {
+    "intento": { "id": "<uuid>", "estado": "finalizado", "puntuacion": 60 },
+    "aviso_evaluacion": "Alcanzaste el límite diario de evaluaciones. Tus respuestas quedaron registradas.",
+    "codigo_aviso": "AI_QUOTA_EXCEEDED"
+  }
+}
+```
 
 **Respuesta `200` de `responder` y `GET /intentos/:id` (finalizado)**
 
@@ -1055,11 +1098,21 @@ responde `409`; una pregunta que no pertenece al cuestionario, `400`.
   "data": {
     "intento": {
       "id": "d4e5f6a7-b8c9-4d0e-8f1a-2b3c4d5e6f7a",
+      "cuestionario_id": "8a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d",
       "estado": "finalizado",
       "total_preguntas": 10,
       "preguntas_objetivas": 7,
       "respuestas_correctas": 5,
       "puntuacion": 71.43,
+      "retroalimentacion_general": "Dominas la definición; repasa los casos de continuidad.",
+      "temas_reforzar": ["Continuidad"],
+      "recomendaciones": [
+        "Repasa \"Continuidad\" (dominio 33.33%): vuelve a tus apuntes y practica preguntas de ese tema."
+      ],
+      "dominio_por_tema": [
+        { "tema": "Continuidad", "dominio": 33.33, "aciertos": 0.33, "total": 3 },
+        { "tema": "Derivadas", "dominio": 90, "aciertos": 0.9, "total": 1 }
+      ],
       "fecha_inicio": "2026-11-19T19:00:00.000Z",
       "fecha_finalizacion": "2026-11-19T19:12:00.000Z"
     },
@@ -1067,20 +1120,54 @@ responde `409`; una pregunta que no pertenece al cuestionario, `400`.
     "preguntas": [
       {
         "id": "9b8c7d6e-5f4a-4b3c-8d2e-1f0a9b8c7d6e",
+        "cuestionario_id": "8a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d",
+        "orden": 1,
         "tipo_pregunta": "opcion_multiple",
+        "tema": "Derivadas",
         "enunciado": "¿Qué mide la derivada de una función?",
         "opciones": [
-          { "id": "a1b2...", "contenido": "La tasa de cambio instantánea.", "es_correcta": true }
+          { "id": "a1b2...", "contenido": "La tasa de cambio instantánea.", "orden": 1, "es_correcta": true }
         ],
         "respuesta_usuario": "La tasa de cambio instantánea.",
         "es_correcta": true,
         "respuesta_correcta": "La tasa de cambio instantánea.",
-        "explicacion": "La derivada describe cómo cambia la función en un punto."
+        "explicacion": "La derivada describe cómo cambia la función en un punto.",
+        "evaluacion": null
+      },
+      {
+        "id": "7c6d5e4f-3a2b-4c1d-8e0f-1a2b3c4d5e6f",
+        "cuestionario_id": "8a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d",
+        "orden": 2,
+        "tipo_pregunta": "abierta",
+        "tema": "Continuidad",
+        "enunciado": "Explica qué significa que una función sea continua.",
+        "opciones": [],
+        "respuesta_usuario": "No tiene saltos ni cortes.",
+        "es_correcta": true,
+        "respuesta_correcta": "El límite existe y coincide con el valor de la función.",
+        "explicacion": "La continuidad exige que no haya interrupciones en la gráfica.",
+        "evaluacion": {
+          "es_correcta": true,
+          "puntaje": 8.5,
+          "retroalimentacion": "Identificaste la idea central; añade la condición del límite.",
+          "criterios": [
+            { "nombre": "precision_conceptual", "cumplido": true, "observacion": "Uso correcto del concepto." },
+            { "nombre": "completitud", "cumplido": false, "observacion": "Falta mencionar el límite." },
+            { "nombre": "claridad", "cumplido": true, "observacion": "Explicación clara." }
+          ],
+          "temas_reforzar": ["Continuidad"]
+        }
       }
     ]
   }
 }
 ```
+
+`tema` se asigna a cada pregunta durante la generación (por defecto
+`"Tema general"`) y permite calcular el dominio. `evaluacion` es `null` en
+objetivas y contiene el detalle de la corrección en abiertas. Los campos
+`aviso_evaluacion` y `codigo_aviso` solo aparecen en `responder` cuando la IA
+no pudo evaluar; ver el ejemplo anterior.
 
 **Notas de idempotencia**
 
@@ -1225,16 +1312,20 @@ Cuota: 5 propuestas por usuario y día, registradas en `consumo_ia` con
 `operacion = 'plan'` (`429 AI_QUOTA_EXCEEDED`). La interfaz está en
 `/planes-estudio`.
 
-**Body `POST /api/asistente/evaluar`**
+**Evaluación de respuestas abiertas (HU16)**
 
-```json
-{
-  "intento_id": 1,
-  "pregunta_id": 1,
-  "respuesta": "Texto de la respuesta abierta",
-  "criterios": ["claridad", "precisión conceptual"]
-}
-```
+No hay un endpoint `POST /api/asistente/evaluar`. La evaluación se ejecuta de
+forma automática dentro de `POST /api/asistente/intentos/:id/responder`, con un
+solo llamado al proveedor para todas las respuestas abiertas del intento. El
+resultado se persiste y se puede volver a consultar con
+`GET /api/asistente/intentos/:id`.
+
+Los criterios son fijos y los devuelve el proveedor por cada respuesta:
+`precision_conceptual`, `completitud` y `claridad`. Cada uno incluye `cumplido`
+y una `observacion` opcional. El `puntaje` va de 0 a 10 y `es_correcta` es
+`true` cuando el puntaje es mayor o igual a 6 y no hay errores conceptuales
+graves. Ningún identificador de pregunta es inventado por el modelo: el backend
+valida que haya exactamente una evaluación por cada abierta enviada.
 
 ## 12. Estudio, planes y progreso
 

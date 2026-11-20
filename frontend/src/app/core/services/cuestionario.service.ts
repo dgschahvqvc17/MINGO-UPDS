@@ -41,17 +41,40 @@ export interface OpcionCuestionario {
   es_correcta?: boolean;
 }
 
+export interface CriterioEvaluacion {
+  nombre: 'precision_conceptual' | 'completitud' | 'claridad';
+  cumplido: boolean;
+  observacion: string;
+}
+
+export interface EvaluacionPregunta {
+  es_correcta: boolean;
+  puntaje: number;
+  retroalimentacion: string;
+  criterios: CriterioEvaluacion[];
+  temas_reforzar: string[];
+}
+
+export interface DominioTema {
+  tema: string;
+  dominio: number;
+  aciertos: number;
+  total: number;
+}
+
 export interface PreguntaCuestionario {
   id: string;
   cuestionario_id: string;
   orden: number;
   enunciado: string;
   tipo_pregunta: TipoPreguntaCuestionario;
+  tema?: string;
   opciones: OpcionCuestionario[];
   respuesta_usuario: string | null;
   es_correcta: boolean | null;
   respuesta_correcta?: string | null;
   explicacion?: string | null;
+  evaluacion?: EvaluacionPregunta | null;
 }
 
 export interface IntentoCuestionarioResumen {
@@ -62,8 +85,17 @@ export interface IntentoCuestionarioResumen {
   preguntas_objetivas: number;
   respuestas_correctas: number;
   puntuacion: number | null;
+  retroalimentacion_general?: string | null;
+  temas_reforzar?: string[];
+  recomendaciones?: string[];
+  dominio_por_tema?: DominioTema[];
   fecha_inicio: string;
   fecha_finalizacion: string | null;
+}
+
+export interface IntentoHistorial extends IntentoCuestionarioResumen {
+  cuestionario_titulo: string | null;
+  materia_nombre: string | null;
 }
 
 export interface CuestionarioGenerado extends CuestionarioResumen {
@@ -89,6 +121,13 @@ export interface ResultadoIntento {
   intento: IntentoCuestionarioResumen;
   cuestionario: CuestionarioResumen;
   preguntas: PreguntaCuestionario[];
+  aviso_evaluacion?: string;
+  codigo_aviso?: string | null;
+}
+
+export interface IntentoListado {
+  intentos: IntentoHistorial[];
+  total: number;
 }
 
 export interface SolicitudCuestionario {
@@ -164,6 +203,20 @@ export class CuestionarioService {
     return this.api.get<ResultadoIntento>(
       `/asistente/intentos/${encodeURIComponent(intentoId)}`,
     );
+  }
+
+  listarIntentos({ limit, offset }: PaginacionCuestionarios): Observable<IntentoListado> {
+    return this.api
+      .getWithMeta<IntentoHistorial[], { total: number }>('/asistente/intentos', {
+        limit,
+        offset,
+      })
+      .pipe(
+        map(({ data, meta }) => ({
+          intentos: data ?? [],
+          total: meta.total ?? 0,
+        })),
+      );
   }
 
   etiquetaTipo(tipo: TipoPreguntaCuestionario): string {

@@ -364,19 +364,23 @@ Agente: confirma la creación y muestra el enlace
 - Tipos: `opcion_multiple`, `verdadero_falso` y `abierta`, sin repetir; por
   defecto los tres.
 - Dificultad: `basica`, `intermedia` o `avanzada`.
-- Cada pregunta incluye `respuesta_correcta` y `explicacion`, pero no se
-  exponen al cliente hasta finalizar el intento.
+- Cada pregunta incluye `tema` (2 a 120 caracteres, `"Tema general"` si el
+  modelo lo omite), `respuesta_correcta` y `explicacion`; estas dos últimas no
+  se exponen al cliente hasta finalizar el intento. El tema permite medir el
+  dominio por concepto en HU16.
 - El backend valida el esquema de salida; si el modelo devuelve JSON inválido o
   menos preguntas de las pedidas, se descarta y se responde `422`.
 - Corrección de preguntas objetivas determinista, comparando el texto
-  normalizado con `respuesta_correcta`. Las abiertas quedan con
-  `es_correcta: null` hasta HU16.
-- `puntuacion` es el porcentaje de aciertos sobre las preguntas objetivas y es
-  `null` cuando no hay objetivas o el intento sigue en progreso.
+  normalizado con `respuesta_correcta`. Las abiertas se evalúan con IA al
+  enviar el intento (ver §8.7).
+- `puntuacion` es el porcentaje de logro sobre las preguntas calificadas:
+  objetivas exactas y abiertas con evaluación guardada (`puntaje / 10`). Es
+  `null` mientras el intento sigue en progreso o si ninguna pregunta pudo
+  calificarse.
 - Cuota: 10 cuestionarios por usuario y día, registrados en `consumo_ia` con
   `operacion = 'cuestionario'` (`429 AI_QUOTA_EXCEEDED` al agotarla).
 - UI: `/centro-estudio` permite generar, listar, resolver y revisar
-  cuestionarios, con estados de carga, vacío y error.
+  cuestionarios y evaluaciones, con estados de carga, vacío y error.
 
 ### 8.5. Tarjetas de memoria (HU14)
 
@@ -431,11 +435,42 @@ Agente: confirma la creación y muestra el enlace
 - No promete resultados académicos: es una sugerencia de organización basada en
   el material del usuario.
 
-### 8.7. Evaluación (HU16)
+### 8.7. Evaluación y retroalimentación (HU16)
 
-- Preguntas objetivas: corrección determinista en backend.
-- Preguntas abiertas: IA con criterios definidos; nunca solo IA para la nota final.
-- Retroalimentación con explicación y temas a reforzar.
+- No hay un endpoint separado: la evaluación se ejecuta dentro de
+  `POST /api/asistente/intentos/:id/responder`, cuando el estudiante envía sus
+  respuestas. El resultado se persiste y se recupera con
+  `GET /api/asistente/intentos/:id`.
+- **Objetivas:** corrección determinista en el backend, sin intervención de IA.
+- **Abiertas:** un único llamado al proveedor para todas las respuestas
+  abiertas del intento. El material se acota a 24 000 caracteres con el tema,
+  el enunciado, la respuesta modelo, la explicación y la respuesta del
+  estudiante por pregunta; el contenido se trata como datos no confiables.
+- **Criterios fijos:** `precision_conceptual`, `completitud` y `claridad`. El
+  modelo debe devolver, por cada pregunta, `puntaje` de 0 a 10, `es_correcta`,
+  retroalimentación de 10 a 800 caracteres, hasta 3 temas a reforzar y el
+  cumplimiento de cada criterio con una observación breve. Es correcta si el
+  puntaje es ≥ 6 y no hay errores conceptuales graves.
+- **Validación:** Zod comprueba el esquema y que haya exactamente una
+  evaluación por cada `pregunta_id` enviado, sin identificadores inventados. Un
+  JSON inválido o incompleto se reintenta una sola vez; después se degradada
+  con un aviso seguro. Los mensajes crudos del SDK nunca llegan al cliente.
+- **Nota final:** se calcula sobre las preguntas calificadas (objetivas más
+  abiertas evaluadas). Las abiertas sin evaluar no cuentan como acierto ni como
+  error. La IA nunca decide por sí sola la nota de las objetivas.
+- **Dominio y repaso:** se agrupa el logro por `tema`; los temas con dominio
+  menor a 70 % (hasta 3) se guardan en `temas_reforzar` y alimentan
+  `recomendaciones`. La retroalimentación general se guarda en el intento.
+- **Cuota:** 10 evaluaciones por usuario y día, registradas en `consumo_ia` con
+  `operacion = 'evaluacion'`. Es una evaluación por intento, no por pregunta.
+- **Degradación:** si el proveedor no está configurado, se agota la cuota o
+  falla, el intento se finaliza de todas formas con las objetivas y la respuesta
+  incluye `aviso_evaluacion` y `codigo_aviso` (por ejemplo
+  `AI_QUOTA_EXCEEDED`). No hay reintentos en bucle ni exposición de errores
+  internos.
+- **Historial:** `GET /api/asistente/intentos` lista los intentos finalizados
+  con nota, temas y recomendaciones; `/centro-estudio` permite abrir cualquiera
+  en modo revisión sin iniciar un intento nuevo.
 
 ## 9. Control de consumo y costos
 
@@ -448,6 +483,7 @@ Agente: confirma la creación y muestra el enlace
 | Cuestionarios | 10 / día |
 | Flashcards | 10 / día |
 | Planes (implementado en HU15, `operacion = 'plan'`) | 5 / día |
+| Evaluaciones de respuestas abiertas (HU16, `operacion = 'evaluacion'`) | 10 / día |
 | Embeddings | Solo en procesamiento de documentos (una vez por fragmento) |
 
 Los valores son configurables y deben poder ajustarse sin desplegar código (variables de entorno o tabla de configuración).
@@ -458,6 +494,8 @@ Los valores son configurables y deben poder ajustarse sin desplegar código (var
 |---|---|
 | Tokens de entrada por solicitud | 6000 |
 | Tokens de salida por solicitud | 1200 |
+| Tokens de salida por evaluación de abiertas (HU16) | 2000 |
+| Caracteres de material por evaluación (HU16) | 24 000 |
 | Tokens por documento (resumen) | 12000 |
 | Tokens mensuales por usuario (MVP) | 200 000 |
 
