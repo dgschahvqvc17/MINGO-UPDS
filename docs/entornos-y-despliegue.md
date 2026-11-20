@@ -265,7 +265,7 @@ necesita un ZIP manual, se construye en un directorio limpio con
 | `AWS::SQS::Queue` | Cola y DLQ. |
 | `AWS::SNS::Topic` | Un topic privado para notificaciones email; suscripción solo si se pasa `NotificacionesEmail`. |
 | `AWS::Scheduler::Schedule` | Un schedule horario de recordatorios, deshabilitado en `dev`. |
-| `AWS::IAM::Role` | Roles mínimos para invocar la Lambda y publicar en el topic. |
+| `AWS::IAM::Role` | Solo el rol ya existente del procesador; los roles de HU18 los crea el usuario y se pasan por ARN. |
 | `AWS::Logs::LogGroup` | Logs con retención (7 días en `dev`, 30 en `prod`). |
 | `AWS::Budgets::Budget` | Presupuesto (crear una vez). |
 
@@ -415,13 +415,15 @@ En el primer despliegue:
 - Revisar los recursos del change set antes de aprobar.
 - Verificar etiquetas y límites.
 
-Parámetros SAM de HU18: `NotificacionesEmail` (vacío desactiva la suscripción)
-y `RecordatorioCron` (por defecto `cron(0 * * * ? *)`, cada hora en punto en UTC).
+Parámetros SAM de HU18: `NotificacionesEmail` (vacío desactiva la suscripción),
+`RecordatorioCron` (por defecto `cron(0 * * * ? *)`, cada hora en punto en UTC),
+`RecordatoriosRoleArn` y `SchedulerInvocationRoleArn` (ARN de roles que crea el
+usuario; el agente no crea roles IAM).
 
 Recursos de HU18 incluidos en la plantilla: un topic SNS con suscripción email
-opcional, un log group, dos roles IAM mínimos, una Lambda ARM64 de 512 MB con
-timeout de 30 s y un schedule horario sin reintentos. El schedule queda
-`DISABLED` en `dev` y `ENABLED` en `prod`.
+opcional, un log group, una Lambda ARM64 de 512 MB con timeout de 30 s y un
+schedule horario sin reintentos. El schedule queda `DISABLED` en `dev` y
+`ENABLED` en `prod`.
 
 Costo verificado para el cambio horario: 744 invocaciones/mes de Scheduler
 (free tier de 14 millones), 744 invocaciones de Lambda con 512 MB ARM64 (free

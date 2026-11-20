@@ -107,6 +107,25 @@ Parameters:
       en punto para cubrir vencimientos durante todo el dia (744 invocaciones
       al mes, dentro del free tier de 14 millones de EventBridge Scheduler).
 
+  RecordatoriosRoleArn:
+    Type: String
+    Description: >
+      ARN de un rol IAM existente para la Lambda de recordatorios. Debe confiar
+      en lambda.amazonaws.com, incluir AWSLambdaBasicExecutionRole y permitir
+      sns:Publish sobre el topic de notificaciones. MINGO no crea roles IAM.
+    AllowedPattern: '^arn:aws:iam::[0-9]{12}:role/.+$'
+    ConstraintDescription: Debe ser el ARN de un rol IAM existente.
+
+  SchedulerInvocationRoleArn:
+    Type: String
+    Description: >
+      ARN de un rol IAM existente para que EventBridge Scheduler invoque la
+      Lambda. Debe confiar en scheduler.amazonaws.com y permitir
+      lambda:InvokeFunction sobre la funcion de recordatorios. MINGO no crea
+      roles IAM.
+    AllowedPattern: '^arn:aws:iam::[0-9]{12}:role/.+$'
+    ConstraintDescription: Debe ser el ARN de un rol IAM existente.
+
 Conditions:
   IsProd: !Equals [!Ref Environment, prod]
   TieneCorreoNotificaciones: !Not [!Equals [!Ref NotificacionesEmail, '']]
@@ -381,33 +400,6 @@ Resources:
         - { Key: ManagedBy, Value: sam }
         - { Key: CostCenter, Value: academico }
 
-  RecordatoriosRole:
-    Type: AWS::IAM::Role
-    Properties:
-      AssumeRolePolicyDocument:
-        Version: '2012-10-17'
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service: lambda.amazonaws.com
-            Action: 'sts:AssumeRole'
-      ManagedPolicyArns:
-        - !Sub 'arn:${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole'
-      Policies:
-        - PolicyName: publicar-notificaciones
-          PolicyDocument:
-            Version: '2012-10-17'
-            Statement:
-              - Effect: Allow
-                Action: 'sns:Publish'
-                Resource: !Ref NotificacionesTopic
-      Tags:
-        - { Key: Project, Value: MINGO }
-        - { Key: Environment, Value: !Ref Environment }
-        - { Key: Owner, Value: equipo-mingo }
-        - { Key: ManagedBy, Value: sam }
-        - { Key: CostCenter, Value: academico }
-
   RecordatoriosFunction:
     Type: AWS::Serverless::Function
     DependsOn: RecordatoriosLogGroup
@@ -421,7 +413,8 @@ Resources:
       MemorySize: 512
       Timeout: 30
       # Una ejecucion por hora: sin concurrencia reservada ni provisionada.
-      Role: !GetAtt RecordatoriosRole.Arn
+      # El rol lo crea el usuario; MINGO solo lo referencia.
+      Role: !Ref RecordatoriosRoleArn
       Environment:
         Variables:
           NODE_ENV: production
@@ -436,31 +429,6 @@ Resources:
         ManagedBy: sam
         CostCenter: academico
 
-  SchedulerInvocationRole:
-    Type: AWS::IAM::Role
-    Properties:
-      AssumeRolePolicyDocument:
-        Version: '2012-10-17'
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service: scheduler.amazonaws.com
-            Action: 'sts:AssumeRole'
-      Policies:
-        - PolicyName: invocar-recordatorios
-          PolicyDocument:
-            Version: '2012-10-17'
-            Statement:
-              - Effect: Allow
-                Action: 'lambda:InvokeFunction'
-                Resource: !GetAtt RecordatoriosFunction.Arn
-      Tags:
-        - { Key: Project, Value: MINGO }
-        - { Key: Environment, Value: !Ref Environment }
-        - { Key: Owner, Value: equipo-mingo }
-        - { Key: ManagedBy, Value: sam }
-        - { Key: CostCenter, Value: academico }
-
   RecordatoriosSchedule:
     Type: AWS::Scheduler::Schedule
     Properties:
@@ -474,7 +442,7 @@ Resources:
       State: !If [IsProd, ENABLED, DISABLED]
       Target:
         Arn: !GetAtt RecordatoriosFunction.Arn
-        RoleArn: !GetAtt SchedulerInvocationRole.Arn
+        RoleArn: !Ref SchedulerInvocationRoleArn
         # Sin reintentos: evita bucles y gasto accidental.
         RetryPolicy:
           MaximumRetryAttempts: 0
