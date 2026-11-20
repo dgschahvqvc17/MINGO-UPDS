@@ -268,6 +268,7 @@ Reglas:
 | Sesión posterior a la evaluación al confirmar o editar | `400` y no se guarda. |
 | Más de 30 sesiones | `400` al confirmar; `409` al agregar una sesión extra. |
 | Eliminar una sesión | Desaparecen la sesión y su evento. |
+| Eliminar una sesión intermedia y agregar otra | El nuevo `orden` es `max(orden) + 1`; no hay conflicto con el índice único ni 500. |
 | Descartar un plan | Estado `descartado`; se eliminan sus sesiones y eventos. |
 | Plan, sesión o materia de otro usuario | `404`. |
 | Listado de planes | Devuelve solo los propios con `meta.total` correcto y paginación por `limit`/`offset`. |

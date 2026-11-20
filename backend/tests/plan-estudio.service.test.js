@@ -272,6 +272,26 @@ describe('PlanEstudioService (HU15)', () => {
     ).rejects.toThrow(ApiError);
   });
 
+  it('agrega una sesion sin reutilizar el orden de una sesion eliminada', async () => {
+    const { service, planRepository } = crearServicio();
+    planRepository.listarSesiones.mockResolvedValue([
+      { id: 'sesion-1', orden: 1 },
+      { id: 'sesion-3', orden: 3 },
+    ]);
+
+    await service.agregarSesion('plan-id', {
+      tema: 'Concurrencia',
+      actividades: 'Resolver la guia de semaforos',
+      fechaInicio: '2026-12-05T10:00:00Z',
+      duracionMinutos: 45,
+    });
+
+    expect(planRepository.crearSesion).toHaveBeenCalledWith(
+      USUARIO_ID,
+      expect.objectContaining({ orden: 4, plan_id: 'plan-id' }),
+    );
+  });
+
   it('devuelve 404 para un plan ajeno', async () => {
     const { service, planRepository } = crearServicio();
     planRepository.obtenerPlanPorId.mockResolvedValue(null);

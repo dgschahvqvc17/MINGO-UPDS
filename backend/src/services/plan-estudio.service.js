@@ -105,6 +105,17 @@ function armarTexto(fragmentos) {
 }
 
 /**
+ * Calcula el siguiente orden sin reutilizar huecos de sesiones eliminadas.
+ * El indice unico (plan_id, orden) de la base exige que sea monotonico.
+ *
+ * @param {Array<{ orden: number }>} sesiones
+ * @returns {number}
+ */
+function siguienteOrden(sesiones) {
+  return sesiones.reduce((maximo, sesion) => Math.max(maximo, sesion.orden), 0) + 1;
+}
+
+/**
  * @param {object} fila Fila de `planes_estudio` con la relacion `materias`.
  * @returns {object}
  */
@@ -367,7 +378,7 @@ class PlanEstudioService {
       plan_id: planId,
       fecha_inicio: new Date(sesion.fechaInicio),
       duracion_minutos: sesion.duracionMinutos,
-      orden: sesiones.length + 1,
+      orden: siguienteOrden(sesiones),
     });
 
     const conEvento = await this.sincronizarSesion(plan, guardada);
