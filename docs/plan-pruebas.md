@@ -183,12 +183,13 @@ Reglas:
 | `backend/tests/chat.modelos.test.js` | Unitario (Zod) | Valores por defecto; UUIDs; mensaje vacío o largo; exceso de documentos; IDs inválidos; paginación. |
 | `backend/tests/chat.routes.test.js` | Integración (Supertest) | `POST /chat` con valores por defecto y filtros; validación `400`; cuota `429`; IA caída `503`; listado con `meta`; detalle y borrado de conversación; UUID inválido `400`. |
 | `frontend/src/app/core/services/chat.service.spec.ts` | Unitario (servicio HTTP) | Contrato de envío, listado paginado, historial y borrado. |
-| `frontend/src/app/features/asistente-ia/components/chat/chat.spec.ts` | Componente | Carga inicial; estado vacío; historial con citas; envío con filtros; error sin perder el mensaje; nueva conversación; mascota pensando mientras espera, hablando al responder y en reposo si falla. |
-| `frontend/src/app/shared/components/mascota-agente/mascota-agente.component.spec.ts` | Componente | Etiqueta accesible por estado; transición entre estados; tamaño compacto; prefijos únicos; dos ojos con pupilas que siguen el cursor y un párpado por ojo; inclinación de cabeza; variante grande con halo y partículas; saludo temporal con burbuja, fase pensando/hablando opcional y vuelta al reposo. |
+| `frontend/src/app/features/asistente-ia/components/chat/chat.spec.ts` | Componente | Carga inicial; estado vacío; historial con citas; envío con filtros; error sin perder el mensaje; icono en la cabecera de la conversación nueva; mascota grande con la burbuja «¿Qué quieres preguntarme?»; mascota pensando mientras espera, hablando al responder y en reposo si falla. |
+| `frontend/src/app/shared/components/mascota-agente/mascota-agente.component.spec.ts` | Componente | Etiqueta accesible por estado; transición entre estados; tamaño compacto; prefijos únicos; dos ojos con pupilas que siguen el cursor y un párpado por ojo; inclinación de cabeza; variante grande con halo y partículas; saludo temporal con burbuja, fase pensando/hablando opcional, mensaje persistente y vuelta al reposo. |
 | `frontend/src/app/features/dashboard/dashboard.spec.ts` | Componente | Indicadores, estados vacíos, error y recarga; mascota grande saludando con el nombre del usuario. |
 | `frontend/src/app/features/auth/login/login.spec.ts` | Componente | Validación, redirección y errores; una sola mascota en el hero, fuera del bloque de credenciales; cabeza que sigue el cursor y saludo animado que piensa, habla y vuelve al reposo. |
 | `frontend/src/app/shared/components/mascota-agente/estado-mascota.spec.ts` | Unitario (señales) | Reposo inicial; prioridad de la carga; fase hablando temporal; cancelación con `reiniciar`. |
 | `frontend/src/app/features/tarjetas-memoria/tarjetas-memoria.spec.ts` | Componente | Generación de tarjetas y estados vacíos; el panel usa `bi-card-checklist`, el estado vacío `bi-collection` y no hay mascota en la pantalla. |
+| `frontend/src/app/features/biblioteca/components/busqueda-semantica/busqueda-semantica.spec.ts` | Componente | Consultas válidas e inválidas, resultados con cita y encabezado con `bi-binoculars` sin mascota. |
 
 **Casos funcionales**
 

@@ -64,6 +64,16 @@ describe('MascotaAgenteComponent', () => {
     expect(fixture.nativeElement.querySelectorAll('.mascota__parpado--derecho')).toHaveLength(1);
   });
 
+  it('mantiene visible el mensaje mientras se solicite', () => {
+    fixture.componentRef.setInput('mensaje', '¿Qué quieres preguntarme?');
+    fixture.componentRef.setInput('mostrarMensaje', true);
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('.mascota__burbuja')?.textContent).toContain(
+      '¿Qué quieres preguntarme?',
+    );
+  });
+
   it('inclina la cabeza cuando se activa el seguimiento', () => {
     fixture.componentRef.setInput('seguimientoCabeza', true);
     fixture.componentInstance.cabeza.set('rotate(4.0deg) translateY(1.0px)');

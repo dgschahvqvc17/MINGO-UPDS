@@ -158,6 +158,26 @@ describe('ChatComponent (HU12)', () => {
     );
   });
 
+  it('muestra un icono en la cabecera y una mascota grande que invita a preguntar', () => {
+    componente.mensajes.set([]);
+    fixture.detectChanges();
+
+    const cuerpoChat = fixture.nativeElement
+      .querySelector('.chat-mensajes')
+      .closest('.card-body') as HTMLElement;
+    const cabecera = cuerpoChat.querySelector('.panel-heading') as HTMLElement;
+    expect(cabecera.querySelector('.bi-chat-dots')).not.toBeNull();
+    expect(cabecera.querySelector('app-mascota-agente')).toBeNull();
+
+    const mascota = fixture.nativeElement.querySelector(
+      '.chat-mensajes app-mascota-agente',
+    ) as HTMLElement;
+    expect(mascota.classList.contains('mascota--grande')).toBe(true);
+    expect(mascota.querySelector('.mascota__burbuja')?.textContent).toContain(
+      '¿Qué quieres preguntarme?',
+    );
+  });
+
   it('muestra la mascota pensando mientras espera y hablando al recibir la respuesta', () => {
     const respuestaPendiente = new Subject<RespuestaChat>();
     enviar.mockReturnValue(respuestaPendiente);

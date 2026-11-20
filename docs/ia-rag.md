@@ -496,9 +496,12 @@ Detalles de implementación:
   saludo. Respeta `prefers-reduced-motion`: en ese caso se desactivan el
   seguimiento y las animaciones, y el componente anuncia el estado por
   `aria-label`.
-- Está conectada a chat (HU12), resúmenes (HU10), búsqueda semántica (HU11),
-  cuestionarios (HU13) y evaluación (HU16), además de los estados vacíos de esas
-  pantallas.
+- Está conectada a chat (HU12), resúmenes (HU10), cuestionarios (HU13) y
+  evaluación (HU16), además de los estados vacíos de esas pantallas.
+- La biblioteca usa `bi-binoculars` en *Búsqueda inteligente* y el asistente usa
+  `bi-chat-dots` en la cabecera de una conversación nueva. En el área de mensajes
+  del asistente la mascota es grande y mantiene visible la burbuja «¿Qué quieres
+  preguntarme?» mientras no haya mensajes.
 - En el centro de estudio, las tarjetas de memoria y los planes de estudio el
   lugar del icono lo ocupa un `icon-badge` de Bootstrap, no la mascota:
   `bi-patch-question`, `bi-journal-check` y `bi-clipboard-check` en el centro de estudio,

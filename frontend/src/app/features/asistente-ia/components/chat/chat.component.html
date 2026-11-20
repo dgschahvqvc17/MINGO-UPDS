@@ -124,9 +124,15 @@
     <div class="app-card h-100">
       <div class="card-body p-4 p-lg-5 d-flex flex-column">
         <div class="panel-heading">
-          <span class="chat-mascota">
-            <app-mascota-agente [estado]="estadoMascota()" [compacta]="true" />
-          </span>
+          @if (sinMensajes()) {
+            <span class="chat-icono" aria-hidden="true">
+              <i class="bi bi-chat-dots"></i>
+            </span>
+          } @else {
+            <span class="chat-mascota">
+              <app-mascota-agente [estado]="estadoMascota()" [compacta]="true" />
+            </span>
+          }
           <div class="flex-grow-1 min-w-0">
             <h2 class="h5 mb-1">
               {{ conversacionActual()?.titulo ?? 'Nueva conversación' }}
@@ -154,7 +160,12 @@
           } @else if (sinMensajes()) {
             <div class="text-center chat-texto-secundario py-5">
               <div class="d-flex justify-content-center mb-2">
-                <app-mascota-agente estado="inactivo" />
+                <app-mascota-agente
+                  [estado]="estadoMascota()"
+                  [grande]="true"
+                  [mostrarMensaje]="true"
+                  mensaje="¿Qué quieres preguntarme?"
+                />
               </div>
               <p class="mb-1">Haz una pregunta sobre tus apuntes.</p>
               <p class="small mb-0">El asistente citará las páginas que use para responderte.</p>

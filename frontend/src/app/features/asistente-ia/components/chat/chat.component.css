@@ -11,6 +11,18 @@
   background-color: var(--mingo-ai-soft);
 }
 
+.chat-icono {
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 3.5rem;
+  height: 3.5rem;
+  border-radius: var(--mingo-radius);
+  background-color: var(--mingo-ai-soft);
+  color: var(--mingo-ai);
+  font-size: 1.4rem;
+}
+
 .list-group-item.active {
   background-color: var(--mingo-primary);
   border-color: var(--mingo-primary);

@@ -9,7 +9,7 @@
   [attr.aria-label]="etiquetaAccesible()"
 >
   <div class="mascota__halo" aria-hidden="true"></div>
-  @if (mensaje() && saludando()) {
+  @if (mensaje() && (saludando() || mostrarMensaje())) {
     <div class="mascota__burbuja" aria-hidden="true">{{ mensaje() }}</div>
   }
   <div class="mascota__seguimiento" [style.transform]="desplazamiento()">

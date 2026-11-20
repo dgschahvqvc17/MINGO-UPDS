@@ -56,6 +56,7 @@ export class MascotaAgenteComponent implements OnInit {
   readonly grande = input(false);
   readonly saludar = input(false);
   readonly mensaje = input('');
+  readonly mostrarMensaje = input(false);
   readonly seguimientoCabeza = input(false);
   readonly hablaAlSaludar = input(false);
 
