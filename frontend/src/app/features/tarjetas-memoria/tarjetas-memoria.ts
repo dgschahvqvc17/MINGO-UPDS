@@ -21,6 +21,8 @@ import {
   type ConjuntoTarjetasResumen,
 } from '../../core/services/tarjeta.service';
 import { mensajeDeErrorHttp } from '../../core/utils/http-error';
+import { MascotaAgenteComponent } from '../../shared/components/mascota-agente/mascota-agente.component';
+import { crearEstadoMascota } from '../../shared/components/mascota-agente/estado-mascota';
 import { EstudiadorTarjetasComponent } from './components/estudiador-tarjetas/estudiador-tarjetas';
 
 const LIMITE_MATERIAS = 100;
@@ -33,7 +35,7 @@ interface ConjuntoEnEstudio {
 
 @Component({
   selector: 'app-tarjetas-memoria',
-  imports: [DatePipe, RouterLink, EstudiadorTarjetasComponent],
+  imports: [DatePipe, RouterLink, EstudiadorTarjetasComponent, MascotaAgenteComponent],
   templateUrl: './tarjetas-memoria.html',
   styleUrl: './tarjetas-memoria.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -53,6 +55,8 @@ export class TarjetasMemoriaPage {
   readonly cargandoDocumentos = signal(false);
   readonly cargandoConjuntos = signal(true);
   readonly generando = signal(false);
+  private readonly controlMascota = crearEstadoMascota(this.generando, this.destroyRef);
+  readonly estadoMascota = this.controlMascota.estado;
   readonly error = signal<string | null>(null);
   readonly errorAccion = signal<string | null>(null);
   readonly mensajeExito = signal<string | null>(null);
@@ -182,6 +186,7 @@ export class TarjetasMemoriaPage {
     this.error.set(null);
     this.errorAccion.set(null);
     this.mensajeExito.set(null);
+    this.controlMascota.reiniciar();
 
     this.tarjetaService
       .generar({
@@ -196,6 +201,7 @@ export class TarjetasMemoriaPage {
           this.mensajeExito.set(`"${conjunto.titulo}" se generó correctamente.`);
           this.agregarConjunto(conjunto);
           this.estudiar(conjunto);
+          this.controlMascota.anunciarResultado();
         },
         error: (error: unknown) => {
           this.error.set(

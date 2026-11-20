@@ -17,9 +17,12 @@ import {
   type ResultadoIntento,
 } from '../../../../core/services/cuestionario.service';
 import { mensajeDeErrorHttp } from '../../../../core/utils/http-error';
+import { MascotaAgenteComponent } from '../../../../shared/components/mascota-agente/mascota-agente.component';
+import { crearEstadoMascota } from '../../../../shared/components/mascota-agente/estado-mascota';
 
 @Component({
   selector: 'app-cuestionario-resolver',
+  imports: [MascotaAgenteComponent],
   templateUrl: './cuestionario-resolver.html',
   styleUrl: './cuestionario-resolver.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -38,6 +41,8 @@ export class CuestionarioResolverComponent implements OnInit {
 
   readonly cargando = signal(true);
   readonly enviando = signal(false);
+  private readonly controlMascota = crearEstadoMascota(this.enviando, this.destroyRef);
+  readonly estadoMascota = this.controlMascota.estado;
   readonly error = signal<string | null>(null);
   readonly intento = signal<IntentoCuestionarioResumen | null>(null);
   readonly preguntas = signal<PreguntaCuestionario[]>([]);
@@ -177,6 +182,7 @@ export class CuestionarioResolverComponent implements OnInit {
 
     this.enviando.set(true);
     this.error.set(null);
+    this.controlMascota.reiniciar();
 
     const respuestas = this.preguntas().map((pregunta) => ({
       pregunta_id: pregunta.id,
@@ -191,6 +197,7 @@ export class CuestionarioResolverComponent implements OnInit {
           this.resultado.set(resultado);
           this.preguntas.set(resultado.preguntas);
           this.enviando.set(false);
+          this.controlMascota.anunciarResultado();
           this.completado.emit();
         },
         error: (error: unknown) => {

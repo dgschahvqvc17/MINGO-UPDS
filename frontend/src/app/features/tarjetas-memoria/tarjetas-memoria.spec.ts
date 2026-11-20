@@ -1,5 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { of, throwError } from 'rxjs';
+import { Subject, of, throwError } from 'rxjs';
 import { DocumentoService } from '../../core/services/documento.service';
 import { MateriaService, type Materia } from '../../core/services/materia.service';
 import {
@@ -140,6 +140,26 @@ describe('TarjetasMemoriaPage (HU14)', () => {
     });
     expect(componente.conjuntos()[0]).toEqual(conjuntoGenerado);
     expect(componente.estudiando()).toEqual({ id: CONJUNTO_ID, titulo: conjunto.titulo });
+  });
+
+  it('muestra la mascota pensando y luego hablando al generar tarjetas', () => {
+    const generacionPendiente = new Subject<typeof conjuntoGenerado>();
+    generar.mockReturnValue(generacionPendiente);
+    componente.cambiarMateria(MATERIA_ID);
+
+    componente.generar();
+    fixture.detectChanges();
+
+    expect(componente.estadoMascota()).toBe('pensando');
+    const mascota = fixture.nativeElement.querySelector('app-mascota-agente .mascota') as HTMLElement;
+    expect(mascota.classList.contains('mascota--pensando')).toBe(true);
+
+    generacionPendiente.next(conjuntoGenerado);
+    generacionPendiente.complete();
+    fixture.detectChanges();
+
+    expect(componente.estadoMascota()).toBe('hablando');
+    fixture.destroy();
   });
 
   it('no genera si no se seleccionó una materia', () => {

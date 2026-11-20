@@ -1,5 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { of, throwError } from 'rxjs';
+import { Subject, of, throwError } from 'rxjs';
 import type { Conversacion } from '../../../../core/models/dominio.models';
 import { ChatService, type RespuestaChat } from '../../../../core/services/chat.service';
 import { DocumentoService } from '../../../../core/services/documento.service';
@@ -156,6 +156,41 @@ describe('ChatComponent (HU12)', () => {
       expect.objectContaining({ mensaje: '¿Qué es una derivada?' }),
       expect.any(String),
     );
+  });
+
+  it('muestra la mascota pensando mientras espera y hablando al recibir la respuesta', () => {
+    const respuestaPendiente = new Subject<RespuestaChat>();
+    enviar.mockReturnValue(respuestaPendiente);
+    componente.mensajeControl.setValue('¿Qué es una derivada?');
+
+    componente.enviar();
+    fixture.detectChanges();
+
+    let mascota = fixture.nativeElement.querySelector(
+      'app-mascota-agente .mascota',
+    ) as HTMLElement;
+    expect(mascota.classList.contains('mascota--pensando')).toBe(true);
+
+    respuestaPendiente.next(respuesta);
+    respuestaPendiente.complete();
+    fixture.detectChanges();
+
+    mascota = fixture.nativeElement.querySelector('app-mascota-agente .mascota') as HTMLElement;
+    expect(mascota.classList.contains('mascota--hablando')).toBe(true);
+    fixture.destroy();
+  });
+
+  it('devuelve la mascota a reposo cuando falla el envio', () => {
+    enviar.mockReturnValue(throwError(() => ({})));
+    componente.mensajeControl.setValue('¿Qué es una derivada?');
+
+    componente.enviar();
+    fixture.detectChanges();
+
+    const mascota = fixture.nativeElement.querySelector(
+      'app-mascota-agente .mascota',
+    ) as HTMLElement;
+    expect(mascota.classList.contains('mascota--inactivo')).toBe(true);
   });
 
   it('muestra un error claro sin perder el mensaje cuando falla el envio', () => {

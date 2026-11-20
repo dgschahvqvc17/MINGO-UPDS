@@ -19,6 +19,8 @@ import {
 } from '../../core/services/resumen.service';
 import { mensajeDeErrorHttp } from '../../core/utils/http-error';
 import { ChatComponent } from './components/chat/chat.component';
+import { MascotaAgenteComponent } from '../../shared/components/mascota-agente/mascota-agente.component';
+import { crearEstadoMascota } from '../../shared/components/mascota-agente/estado-mascota';
 
 const LIMITE_DOCUMENTOS = 100;
 
@@ -33,7 +35,7 @@ interface OpcionProfundidad {
 /** Pagina del asistente academico: chat RAG (HU12) y resumenes (HU10). */
 @Component({
   selector: 'app-asistente-ia',
-  imports: [DatePipe, RouterLink, ChatComponent],
+  imports: [DatePipe, RouterLink, ChatComponent, MascotaAgenteComponent],
   templateUrl: './asistente-ia.html',
   styleUrl: './asistente-ia.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -71,6 +73,10 @@ export class AsistenteIaPage {
       !this.errorDocumentos() &&
       this.documentos().length === 0,
   );
+
+  /** La mascota acompaña la generación de resúmenes con su estado real. */
+  private readonly controlMascota = crearEstadoMascota(this.cargandoResumen, this.destroyRef);
+  readonly estadoMascota = this.controlMascota.estado;
 
   constructor() {
     if (this.pestana() === 'resumenes') {
@@ -143,6 +149,7 @@ export class AsistenteIaPage {
     this.cargandoResumen.set(true);
     this.errorResumen.set(null);
     this.mensaje.set(null);
+    this.controlMascota.reiniciar();
 
     this.resumenService
       .obtenerGuardado(documentoId)
@@ -174,6 +181,7 @@ export class AsistenteIaPage {
     this.cargandoResumen.set(true);
     this.errorResumen.set(null);
     this.mensaje.set(null);
+    this.controlMascota.reiniciar();
 
     this.resumenService
       .generar({
@@ -193,6 +201,7 @@ export class AsistenteIaPage {
               ? 'Se reutilizó el resumen guardado para este contenido.'
               : 'Resumen generado y guardado correctamente.',
           );
+          this.controlMascota.anunciarResultado();
         },
         error: (error: unknown) => {
           this.resumen.set(null);

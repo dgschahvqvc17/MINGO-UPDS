@@ -1,7 +1,7 @@
 <section class="mat-filters busqueda-semantica" aria-labelledby="titulo-busqueda-semantica">
   <div class="mat-filters-head">
-    <span class="mat-filters-title" id="titulo-busqueda-semantica">
-      <i class="bi bi-stars" aria-hidden="true"></i>
+    <span class="mat-filters-title busqueda-mascota" id="titulo-busqueda-semantica">
+      <app-mascota-agente [estado]="estadoMascota()" [compacta]="true" />
       Búsqueda inteligente
     </span>
     <span class="text-muted-soft small">Busca por significado en tus documentos procesados</span>

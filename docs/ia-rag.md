@@ -472,6 +472,33 @@ Agente: confirma la creación y muestra el enlace
   con nota, temas y recomendaciones; `/centro-estudio` permite abrir cualquiera
   en modo revisión sin iniciar un intento nuevo.
 
+### 8.8. Mascota del agente (interfaz)
+
+La cara del agente MINGO es un componente presentacional reutilizable:
+`frontend/src/app/shared/components/mascota-agente/`. Es un cachorro blanco con
+audífonos azules, dibujado en SVG inline (sin imágenes externas ni fuentes
+remotas). Expone tres estados y sus animaciones:
+
+| Estado | Cuándo aparece | Movimiento |
+|---|---|---|
+| `inactivo` | Sin petición en curso ni resultado reciente. | Flotación suave e inclinación ligera. |
+| `pensando` | Mientras la petición de IA está en curso. | Inclina la cabeza y mira arriba. |
+| `hablando` | Justo después de recibir un resultado. | Asiente y mueve la boca y el micrófono. |
+
+Detalles de implementación:
+
+- El ciclo `pensando → hablando → inactivo` lo deriva `crearEstadoMascota()` a
+  partir de la señal de carga real de cada pantalla. La fase `hablando` dura
+  2,4 s y se cancela al iniciar otra petición o al destruir el componente.
+- La mascota sigue el cursor con un desplazamiento acotado y respeta
+  `prefers-reduced-motion`: en ese caso se desactivan el seguimiento y las
+  animaciones, y el componente anuncia el estado por `aria-label`.
+- Está conectada a chat (HU12), resúmenes (HU10), búsqueda semántica (HU11),
+  cuestionarios (HU13), evaluación (HU16), tarjetas (HU14) y planes (HU15),
+  además de los estados vacíos de esas pantallas.
+- No llama a la API de IA, no recibe secretos y no usa `innerHTML`. El costo es
+  el mismo que el de una etiqueta SVG: cero servicios nuevos.
+
 ## 9. Control de consumo y costos
 
 ### 9.1. Cuotas propuestas

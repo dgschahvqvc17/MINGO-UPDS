@@ -2,6 +2,15 @@
   color: var(--mingo-text-muted);
 }
 
+.chat-mascota {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.2rem;
+  border-radius: var(--mingo-radius);
+  background-color: var(--mingo-ai-soft);
+}
+
 .list-group-item.active {
   background-color: var(--mingo-primary);
   border-color: var(--mingo-primary);

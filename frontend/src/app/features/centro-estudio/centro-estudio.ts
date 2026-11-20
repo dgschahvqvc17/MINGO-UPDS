@@ -22,6 +22,8 @@ import {
   type TipoPreguntaCuestionario,
 } from '../../core/services/cuestionario.service';
 import { mensajeDeErrorHttp } from '../../core/utils/http-error';
+import { MascotaAgenteComponent } from '../../shared/components/mascota-agente/mascota-agente.component';
+import { crearEstadoMascota } from '../../shared/components/mascota-agente/estado-mascota';
 import { CuestionarioResolverComponent } from './components/cuestionario-resolver/cuestionario-resolver';
 
 const LIMITE_CUESTIONARIOS = 20;
@@ -38,7 +40,7 @@ interface CuestionarioEnResolucion {
 
 @Component({
   selector: 'app-centro-estudio',
-  imports: [DatePipe, RouterLink, CuestionarioResolverComponent],
+  imports: [DatePipe, RouterLink, CuestionarioResolverComponent, MascotaAgenteComponent],
   templateUrl: './centro-estudio.html',
   styleUrl: './centro-estudio.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -61,6 +63,8 @@ export class CentroEstudioPage {
   readonly cargandoCuestionarios = signal(true);
   readonly cargandoIntentos = signal(true);
   readonly generando = signal(false);
+  private readonly controlMascota = crearEstadoMascota(this.generando, this.destroyRef);
+  readonly estadoMascota = this.controlMascota.estado;
   readonly error = signal<string | null>(null);
   readonly errorHistorial = signal<string | null>(null);
   readonly errorAccion = signal<string | null>(null);
@@ -292,6 +296,7 @@ export class CentroEstudioPage {
     this.error.set(null);
     this.errorAccion.set(null);
     this.mensajeExito.set(null);
+    this.controlMascota.reiniciar();
 
     this.cuestionarioService
       .generar({
@@ -308,6 +313,7 @@ export class CentroEstudioPage {
           this.mensajeExito.set(`"${cuestionario.titulo}" se generó correctamente.`);
           this.agregarCuestionario(cuestionario);
           this.resolviendo.set({ id: cuestionario.id, titulo: cuestionario.titulo });
+          this.controlMascota.anunciarResultado();
         },
         error: (error: unknown) => {
           this.error.set(

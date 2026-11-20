@@ -30,6 +30,8 @@ import {
 } from '../../core/services/plan-estudio.service';
 import { MateriaService, type Materia } from '../../core/services/materia.service';
 import { mensajeDeErrorHttp } from '../../core/utils/http-error';
+import { MascotaAgenteComponent } from '../../shared/components/mascota-agente/mascota-agente.component';
+import { crearEstadoMascota } from '../../shared/components/mascota-agente/estado-mascota';
 import { CalendarioSesionesComponent } from './components/calendario-sesiones/calendario-sesiones';
 
 const LIMITE_MATERIAS = 100;
@@ -37,7 +39,7 @@ const LIMITE_PLANES = 20;
 
 @Component({
   selector: 'app-planes-estudio',
-  imports: [DatePipe, RouterLink, CalendarioSesionesComponent],
+  imports: [DatePipe, RouterLink, CalendarioSesionesComponent, MascotaAgenteComponent],
   templateUrl: './planes-estudio.html',
   styleUrl: './planes-estudio.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -89,6 +91,8 @@ export class PlanesEstudioPage {
   readonly cargandoMaterias = signal(false);
   readonly cargandoPlanes = signal(true);
   readonly generando = signal(false);
+  private readonly controlMascota = crearEstadoMascota(this.generando, this.destroyRef);
+  readonly estadoMascota = this.controlMascota.estado;
   readonly guardando = signal(false);
   readonly error = signal<string | null>(null);
   readonly errorFormulario = signal<string | null>(null);
@@ -253,6 +257,7 @@ export class PlanesEstudioPage {
     this.generando.set(true);
     this.errorFormulario.set(null);
     this.mensajeExito.set(null);
+    this.controlMascota.reiniciar();
     this.propuesta.set(null);
     this.sesionesEditables.set([]);
 
@@ -275,6 +280,7 @@ export class PlanesEstudioPage {
               fecha_inicio: aFechaLocal(sesion.fecha_inicio),
             })),
           );
+          this.controlMascota.anunciarResultado();
         },
         error: (error: unknown) => {
           this.generando.set(false);

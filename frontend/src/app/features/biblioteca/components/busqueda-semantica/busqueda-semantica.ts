@@ -14,6 +14,8 @@ import {
 } from '../../../../core/services/busqueda.service';
 import type { Materia } from '../../../../core/services/materia.service';
 import { mensajeDeErrorHttp } from '../../../../core/utils/http-error';
+import { MascotaAgenteComponent } from '../../../../shared/components/mascota-agente/mascota-agente.component';
+import { crearEstadoMascota } from '../../../../shared/components/mascota-agente/estado-mascota';
 
 const LONGITUD_MINIMA_CONSULTA = 2;
 const LIMITE_RESULTADOS = 8;
@@ -21,7 +23,7 @@ const LIMITE_RESULTADOS = 8;
 /** Buscador semántico de la biblioteca (HU11). Solo consulta fragmentos propios. */
 @Component({
   selector: 'app-busqueda-semantica',
-  imports: [RouterLink],
+  imports: [RouterLink, MascotaAgenteComponent],
   templateUrl: './busqueda-semantica.html',
   styleUrl: './busqueda-semantica.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -38,6 +40,8 @@ export class BusquedaSemanticaComponent {
   readonly mensajeVacio = signal<string | null>(null);
   readonly error = signal<string | null>(null);
   readonly cargando = signal(false);
+  private readonly controlMascota = crearEstadoMascota(this.cargando, this.destroyRef);
+  readonly estadoMascota = this.controlMascota.estado;
   readonly busquedaRealizada = signal(false);
 
   readonly consultaValida = () => this.consulta().trim().length >= LONGITUD_MINIMA_CONSULTA;
@@ -54,6 +58,7 @@ export class BusquedaSemanticaComponent {
     this.error.set(null);
     this.mensajeVacio.set(null);
     this.busquedaRealizada.set(true);
+    this.controlMascota.reiniciar();
 
     this.busquedaService
       .buscar(consulta, {
@@ -66,6 +71,7 @@ export class BusquedaSemanticaComponent {
           this.resultados.set(resultados);
           this.mensajeVacio.set(mensaje);
           this.cargando.set(false);
+          this.controlMascota.anunciarResultado();
         },
         error: (error: unknown) => {
           this.resultados.set([]);
@@ -85,6 +91,7 @@ export class BusquedaSemanticaComponent {
     this.error.set(null);
     this.busquedaRealizada.set(false);
     this.cargando.set(false);
+    this.controlMascota.reiniciar();
   }
 
   similitudTexto(similitud: number): string {

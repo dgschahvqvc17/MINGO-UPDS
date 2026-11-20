@@ -2,6 +2,12 @@
   border-color: rgba(56, 189, 248, 0.35);
 }
 
+.busqueda-mascota {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
 .resultados-busqueda {
   display: grid;
   gap: 0.75rem;
