@@ -34,6 +34,7 @@ const NAV_SECTIONS: NavSection[] = [
       { label: 'Centro de estudio', path: '/centro-estudio', icon: 'bi-mortarboard' },
       { label: 'Tarjetas de memoria', path: '/tarjetas-memoria', icon: 'bi-collection' },
       { label: 'Planes de estudio', path: '/planes-estudio', icon: 'bi-calendar2-week' },
+      { label: 'Objetivos y progreso', path: '/progreso', icon: 'bi-graph-up' },
       { label: 'Asistente IA', path: '/asistente-ia', icon: 'bi-stars', ai: true },
     ],
   },

@@ -1297,7 +1297,6 @@ El diagrama actual cubre el núcleo académico, documental, de IA y de evaluaci�
 |---|---|---|
 | `unidades` y `unidad_id` en `tareas`/`documentos` | HU03, HU04, HU07 | Organización por unidades dentro de una materia. |
 | `notificaciones` | HU18 | Notificaciones y recordatorios. |
-| `objetivos_estudio` | HU17 | Objetivos académicos. |
 | `preferencias_usuario` | HU18 | Zona horaria, idioma y canales. |
 | `cuestionarios.descripcion` | HU13 | Descripción opcional del cuestionario. |
 | `documentos.nombre_archivo`, `tipo_archivo` | HU07, HU08 | Metadatos del archivo. |
@@ -1329,6 +1328,19 @@ criterios y temas a reforzar). Usa UUID, unicidad por
 `auth.uid() = usuario_id`. La migración es idempotente; la aplica el usuario de
 forma manual (Dashboard de Supabase o `npm run migrate`), nunca el agente.
 
+Las estructuras de HU17 se implementan en
+`supabase/migrations/0015_hu17_objetivos_progreso.sql`: la tabla
+`objetivos_estudio` usa UUID, `usuario_id` con borrado en cascada, `materia_id`
+opcional con `on delete set null`, estados `pendiente`, `en_progreso` y
+`completada`, restricciones de longitud para título y descripción, índices por
+usuario+estado, usuario+fecha límite y materia, trigger de
+`fecha_actualizacion` y RLS por `auth.uid() = usuario_id`. Las políticas de
+inserción y actualización exigen además que la materia, si se indica, pertenezca
+al usuario. El progreso agregado no tiene tabla propia: se calcula en el backend
+a partir de materias, tareas, sesiones, intentos de cuestionario y objetivos.
+La migración es idempotente; la aplica el usuario de forma manual, nunca el
+agente.
+
 Las estructuras de HU12 (`mensajes.modelo_utilizado`,
 `conversaciones.tipo_conversacion` y `fecha_actualizacion`, además de
 `mensajes.intencion` y `referencias_respuesta.documento_nombre`/`extracto`) ya
@@ -1359,12 +1371,13 @@ están implementadas en `supabase/migrations/0009_hu12_chat.sql`.
 | `supabase/migrations/0012_hu14_tarjetas_memoria.sql` | Tablas `conjuntos_tarjetas` y `tarjetas` con índices, restricciones y RLS (HU14, idempotente). |
 | `supabase/migrations/0013_hu15_planes_estudio.sql` | Tablas `planes_estudio` y `sesiones_estudio`, vínculo con `eventos_calendario`, índices, restricciones y RLS (HU15, idempotente). |
 | `supabase/migrations/0014_hu16_evaluacion.sql` | `preguntas.tema`, campos de retroalimentación en `intentos_cuestionario` y tabla `evaluaciones_respuesta` con índices, restricciones y RLS (HU16, idempotente). |
+| `supabase/migrations/0015_hu17_objetivos_progreso.sql` | Tabla `objetivos_estudio` con materia opcional, fecha límite, estado, índices, restricciones, trigger de actualización y RLS (HU17, idempotente). |
 
 - El script `backend/scripts/run-migrations.js` (`npm run migrate`) aplica estas
   migraciones en orden: identidad, materias, tareas, calendario, documentos,
   fragmentos, reemplazo de fragmentos, resumenes, búsqueda semántica, chat,
-  cuestionarios, idempotencia, tarjetas de memoria, planes de estudio y
-  evaluación.
+  cuestionarios, idempotencia, tarjetas de memoria, planes de estudio,
+  evaluación y objetivos académicos.
 
 - Flujo:
 
@@ -1418,6 +1431,7 @@ on conflict (nombre) do nothing;
 
 | Fecha | Cambio |
 |---|---|
+| 2026-11-19 | HU17: tabla `objetivos_estudio` con materia opcional, fecha límite, estado, índices, restricciones, trigger y RLS; el progreso se calcula en el backend. Migración `0015_hu17_objetivos_progreso.sql`. |
 | 2026-11-19 | HU16: `preguntas.tema`, campos de retroalimentación en `intentos_cuestionario` y tabla `evaluaciones_respuesta` con índices, restricciones y RLS. Migración `0014_hu16_evaluacion.sql`. |
 | 2026-11-19 | HU15: tablas `planes_estudio` y `sesiones_estudio` con vínculo opcional a `eventos_calendario`, índices, restricciones y RLS. Migración `0013_hu15_planes_estudio.sql`. |
 | 2026-11-19 | HU14: tablas `conjuntos_tarjetas` y `tarjetas` con índices, restricciones y RLS. Migración `0012_hu14_tarjetas_memoria.sql`. |

@@ -278,8 +278,27 @@ Reglas:
 | Listado de planes | Devuelve solo los propios con `meta.total` correcto y paginación por `limit`/`offset`. |
 | Fallo del calendario al confirmar | El plan y las sesiones se conservan; solo se registra el aviso en el servidor. |
 | UI `/planes-estudio` | Estados de carga, vacío y error; el botón de generar se habilita solo con el formulario completo; el calendario muestra las sesiones confirmadas. |
-| Progreso | Porcentajes coherentes con los registros. |
-| Progreso de otro usuario | No accesible. |
+
+**HU17 — Objetivos y progreso**
+
+| Caso | Resultado esperado |
+|---|---|
+| Registrar un objetivo válido con y sin materia | `201` con estado `pendiente`, `usuario_id` del token y datos de la materia cuando aplica. |
+| Título de menos de 5 caracteres o descripción de más de 1000 | `400`. |
+| `materia_id` con formato inválido | `400`. |
+| Materia ajena o inexistente al crear o actualizar | `404`; la política RLS impide el vínculo. |
+| `fecha_limite` con formato distinto de `AAAA-MM-DD` | `400`. |
+| `PUT` sin campos modificables | `400`. |
+| Cambiar el estado a `en_progreso` o `completada` | Se guarda, se actualiza `fecha_actualizacion` y cambia el porcentaje de objetivos. |
+| Objetivo de otro usuario en `GET`, `PUT` o `DELETE` | `404` en los tres casos; `DELETE` del propio responde `204` sin cuerpo. |
+| Listar objetivos con `estado`, `limit` y `offset` | Solo los propios, ordenados, con `meta.total` correcto. |
+| ID de objetivo inválido | `400`. |
+| Progreso sin registros | Porcentajes en `0`, promedio `null`, sin atenciones y una recomendación de registrar un objetivo. |
+| Progreso con registros | Cumplimientos, racha, minutos, actividad semanal y conteos por estado coherentes con tareas, sesiones, cuestionarios y objetivos. |
+| Tareas vencidas, sesiones pasadas y objetivos vencidos | Aparecen en `actividades_atencion` con su motivo, como máximo cinco. |
+| Promedio de cuestionarios inferior al 70 % | Recomendación de repaso basada en `temas_reforzar`, sin llamadas a IA. |
+| Progreso de otro usuario | No accesible: todo se filtra por el usuario del token. |
+| UI `/progreso` | Estados de carga, vacío y error; formulario deshabilitado con título corto; filtros por estado; CRUD y cambio de estado; gráficos accesibles y recomendaciones. |
 
 ### 4.13. Notificaciones (HU18)
 

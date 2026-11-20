@@ -3953,3 +3953,239 @@ pre {
     font-size: 0.8rem;
   }
 }
+
+/* ==========================================================================
+   HU17 - Objetivos y progreso académico
+   ========================================================================== */
+
+.progreso .page-header {
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--mingo-border-soft);
+}
+
+.progreso .min-w-0 {
+  min-width: 0;
+}
+
+.progreso .btn-ai {
+  background: linear-gradient(135deg, var(--mingo-primary), var(--mingo-primary-hover));
+  border: 1px solid transparent;
+  color: #fff;
+  font-weight: 600;
+  border-radius: var(--mingo-radius-sm);
+  padding: 0.6rem 1rem;
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.progreso .btn-ai:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: var(--mingo-glow-primary);
+  color: #fff;
+}
+
+.progreso .btn-ai:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.progreso-stat-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: var(--mingo-radius-sm);
+  font-size: 1.05rem;
+  margin-bottom: 0.75rem;
+}
+
+.progreso-stat-icon--primary {
+  color: var(--mingo-primary);
+  background: var(--mingo-primary-soft);
+}
+
+.progreso-stat-icon--success {
+  color: var(--mingo-success);
+  background: var(--mingo-success-soft);
+}
+
+.progreso-stat-icon--info {
+  color: var(--mingo-ai);
+  background: var(--mingo-ai-soft);
+}
+
+.progreso-stat-icon--warning {
+  color: var(--mingo-warning);
+  background: rgba(251, 191, 36, 0.14);
+}
+
+.progreso-stat-valor {
+  font-size: 1.6rem;
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.progreso-stat-label {
+  color: var(--mingo-text-muted);
+  font-size: 0.82rem;
+  font-weight: 600;
+  margin-top: 0.15rem;
+}
+
+.progreso-donut {
+  width: 8.5rem;
+  height: 8.5rem;
+  flex: 0 0 8.5rem;
+  border-radius: var(--mingo-radius-full);
+  display: grid;
+  place-items: center;
+}
+
+.progreso-donut-inner {
+  width: 6.4rem;
+  height: 6.4rem;
+  border-radius: var(--mingo-radius-full);
+  background: var(--mingo-surface);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.progreso-donut-inner strong {
+  font-size: 1.5rem;
+  line-height: 1;
+}
+
+.progreso-donut-inner span {
+  color: var(--mingo-text-muted);
+  font-size: 0.72rem;
+}
+
+.progreso-media {
+  margin-bottom: 0.85rem;
+}
+
+.progreso-barra {
+  height: 0.5rem;
+  background: var(--mingo-surface-strong);
+  border-radius: var(--mingo-radius-full);
+}
+
+.progreso-grafico {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.6rem;
+  height: 12rem;
+  padding-top: 1rem;
+  border-bottom: 1px solid var(--mingo-border-soft);
+}
+
+.progreso-grafico-dia {
+  flex: 1 1 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  height: 100%;
+  min-width: 0;
+}
+
+.progreso-barras {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 0.2rem;
+  height: calc(100% - 1.5rem);
+  width: 100%;
+}
+
+.progreso-barra-dia {
+  width: 0.7rem;
+  min-height: 0.15rem;
+  border-radius: var(--mingo-radius-sm) var(--mingo-radius-sm) 0 0;
+  transition: height 0.25s ease;
+}
+
+.progreso-barra-dia--tareas {
+  background: linear-gradient(180deg, var(--mingo-primary), var(--mingo-primary-hover));
+}
+
+.progreso-barra-dia--sesiones {
+  background: linear-gradient(180deg, var(--mingo-success), var(--mingo-success-hover));
+}
+
+.progreso-grafico-etiqueta {
+  color: var(--mingo-text-muted);
+  font-size: 0.72rem;
+  margin-top: 0.45rem;
+}
+
+.progreso-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.progreso-lista-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding-bottom: 0.85rem;
+  border-bottom: 1px solid var(--mingo-border-soft);
+}
+
+.progreso-lista-item:last-child {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+.progreso-objetivos {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.progreso-objetivo {
+  padding: 1rem 1.1rem;
+  border: 1px solid var(--mingo-border-soft);
+  border-radius: var(--mingo-radius-md);
+  background: var(--mingo-surface-hover);
+  transition: border-color 0.18s ease, transform 0.18s ease;
+}
+
+.progreso-objetivo:hover {
+  border-color: var(--mingo-border-hover);
+  transform: translateY(-1px);
+}
+
+.progreso-objetivo--completada {
+  border-color: rgba(16, 185, 129, 0.35);
+  background: var(--mingo-success-soft);
+}
+
+.progreso-objetivo .btn.active {
+  background: var(--mingo-primary-soft);
+  border-color: var(--mingo-primary);
+  color: var(--mingo-text);
+}
+
+@media (max-width: 575.98px) {
+  .progreso .progreso-donut {
+    width: 7rem;
+    height: 7rem;
+    flex-basis: 7rem;
+  }
+
+  .progreso .progreso-donut-inner {
+    width: 5.3rem;
+    height: 5.3rem;
+  }
+
+  .progreso .progreso-grafico {
+    gap: 0.3rem;
+  }
+
+  .progreso .progreso-barra-dia {
+    width: 0.5rem;
+  }
+}

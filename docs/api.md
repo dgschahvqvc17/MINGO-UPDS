@@ -1341,6 +1341,7 @@ valida que haya exactamente una evaluación por cada abierta enviada.
 | DELETE | `/api/estudio/sesiones/:id` | HU15 | Elimina una sesión y su evento. |
 | GET | `/api/estudio/progreso` | HU17 | Estadísticas del usuario. |
 | GET | `/api/estudio/objetivos` | HU17 | Lista objetivos. |
+| GET | `/api/estudio/objetivos/:id` | HU17 | Detalle de un objetivo. |
 | POST | `/api/estudio/objetivos` | HU17 | Crea objetivo. |
 | PUT | `/api/estudio/objetivos/:id` | HU17 | Actualiza objetivo. |
 | DELETE | `/api/estudio/objetivos/:id` | HU17 | Elimina objetivo. |
@@ -1475,6 +1476,42 @@ Elimina la sesión y su evento de calendario. Responde
 > Si el calendario no está disponible, el plan y las sesiones se guardan igual:
 > la sincronización es tolerante a fallos y se registra solo en el servidor.
 
+**`GET /api/estudio/objetivos`**
+
+Acepta `estado` (`pendiente`, `en_progreso` o `completada`), `limit` (1–50, por
+defecto 20) y `offset` (por defecto 0). Devuelve solo los objetivos del usuario,
+ordenados por estado, fecha límite y fecha de creación, con los datos de la
+materia cuando existe, y `meta: { limit, offset, total }`.
+
+**Body `POST /api/estudio/objetivos`**
+
+```json
+{
+  "titulo": "Aprobar el parcial de cálculo",
+  "descripcion": "Repasar derivadas e integrales",
+  "materia_id": "3f6a1c9e-8b2d-4f5a-9c7e-1d2b3a4c5e6f",
+  "fecha_limite": "2026-12-10"
+}
+```
+
+`titulo` tiene entre 5 y 150 caracteres; `descripcion`, hasta 1000. `materia_id`
+es opcional y debe ser el UUID de una materia propia; `fecha_limite` es opcional
+y usa el formato `AAAA-MM-DD`. El estado inicial siempre es `pendiente` y
+`usuario_id` se obtiene del token. Una materia ajena o inexistente responde
+`404`. El `GET /api/estudio/objetivos/:id` devuelve un objetivo propio; uno ajeno
+o inexistente responde `404`.
+
+**Body `PUT /api/estudio/objetivos/:id`**
+
+Acepta cualquier combinación de `titulo`, `descripcion` (anulable), `materia_id`
+(anulable), `fecha_limite` (anulable) y `estado`. Se requiere al menos un campo.
+Permite cambiar el estado a `pendiente`, `en_progreso` o `completada`.
+
+**`DELETE /api/estudio/objetivos/:id`**
+
+Elimina el objetivo propio y responde `204` sin cuerpo. Un ID inválido responde
+`400`; uno ajeno o inexistente, `404`.
+
 **Respuesta `GET /api/estudio/progreso`**
 
 ```json
@@ -1485,14 +1522,66 @@ Elimina la sesión y su evento de calendario. Responde
     "tareas_pendientes": 12,
     "tareas_completadas": 30,
     "cumplimiento_tareas": 0.71,
+    "sesiones_totales": 25,
     "sesiones_completadas": 18,
+    "cumplimiento_sesiones": 0.72,
+    "minutos_estudiados": 1080,
     "cuestionarios_completados": 6,
     "promedio_cuestionarios": 78.5,
     "objetivos_activos": 3,
-    "racha_dias": 4
+    "objetivos_completados": 2,
+    "cumplimiento_objetivos": 0.4,
+    "racha_dias": 4,
+    "por_estado": {
+      "tareas": [
+        { "estado": "pendiente", "total": 12 },
+        { "estado": "en_progreso", "total": 0 },
+        { "estado": "completada", "total": 30 }
+      ],
+      "objetivos": [
+        { "estado": "pendiente", "total": 2 },
+        { "estado": "en_progreso", "total": 1 },
+        { "estado": "completada", "total": 2 }
+      ],
+      "sesiones": [
+        { "estado": "pendiente", "total": 7 },
+        { "estado": "completada", "total": 18 }
+      ]
+    },
+    "actividad_semanal": [
+      { "fecha": "2026-11-13", "etiqueta": "vie", "tareas": 1, "sesiones": 2 }
+    ],
+    "actividades_atencion": [
+      {
+        "tipo": "tarea",
+        "id": "b7e3a2c1-9d4f-4e6a-8b2c-3d1f5a7e9c02",
+        "titulo": "Ensayo final",
+        "materia": "Lenguaje",
+        "motivo": "Vencida",
+        "fecha": "2026-11-15T00:00:00.000Z"
+      }
+    ],
+    "recomendaciones": [
+      {
+        "tipo": "tareas",
+        "prioridad": "alta",
+        "mensaje": "Prioriza las tareas vencidas o próximas a vencer antes de iniciar nuevas actividades."
+      }
+    ],
+    "generado_en": "2026-11-19T20:00:00.000Z"
   }
 }
 ```
+
+Los porcentajes van de `0` a `1` con dos decimales y valen `0` cuando no hay
+registros. `actividad_semanal` cubre los últimos siete días y cuenta las tareas
+y sesiones completadas según `fecha_actualizacion`. `actividades_atencion`
+incluye como máximo cinco elementos: tareas vencidas o con vencimiento en los
+próximos siete días, sesiones pendientes cuya fecha ya pasó y objetivos activos
+con fecha límite vencida. `recomendaciones` incluye como máximo cuatro elementos
+y se calculan con reglas deterministas a partir de esos registros y del promedio
+de cuestionarios: no consumen IA ni crean estado. El progreso siempre se calcula
+sobre los registros del usuario del token.
 
 ## 13. Notificaciones
 

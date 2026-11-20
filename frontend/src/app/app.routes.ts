@@ -154,6 +154,13 @@ export const routes: Routes = [
       },
 
       {
+        path: 'progreso',
+        title: 'Objetivos y progreso | MINGO',
+        loadComponent: () =>
+          import('./features/progreso/progreso').then((m) => m.ProgresoPage),
+      },
+
+      {
         path: 'asistente-ia',
         loadComponent: () =>
           import('./features/asistente-ia/asistente-ia').then((m) => m.AsistenteIaPage),
