@@ -221,11 +221,11 @@ Reglas:
 
 | Caso | Resultado esperado |
 |---|---|
-| Generar cuestionario con cantidad válida | Preguntas y opciones coherentes. |
+| Generar cuestionario con cantidad válida | Preguntas y opciones coherentes, con `tema` asignado. |
 | Cantidad fuera de rango | 400. |
 | Preguntas objetivas | Corrección determinista correcta. |
-| Respuesta abierta | Retroalimentación con criterios. |
-| Intento guardado | Historial y puntuación correctos. |
+| Respuesta abierta | Evaluación automática con criterios y retroalimentación. |
+| Intento guardado | Historial paginado y puntuación correctos. |
 | Generar tarjetas con cantidad válida | Conjunto con frente/reverso y estado inicial `sin_revisar`. |
 | Cantidad de tarjetas fuera de rango | 400. |
 | Tarjetas con frente o reverso vacíos o duplicados | Se descartan antes de persistir. |
@@ -234,7 +234,11 @@ Reglas:
 | Generar sin documento con varios documentos procesados | Usa fragmentos de la materia y guarda el cuestionario. |
 | Generar sin material procesado | `422`. |
 | Pregunta objetiva correcta / incorrecta | `es_correcta` verdadero / falso y puntuación coherente. |
-| Pregunta abierta | `es_correcta: null`; no afecta la puntuación. |
+| Pregunta abierta evaluada | `es_correcta` y `puntaje` de la IA; entra en la puntuación. |
+| Pregunta abierta sin evaluar (IA no disponible o cuota agotada) | Intento finalizado con `aviso_evaluacion`; no afecta la puntuación. |
+| Dominio por tema | Temas con dominio < 70 % en `temas_reforzar` y recomendaciones. |
+| Historial de evaluaciones | `GET /asistente/intentos` pagina y devuelve solo intentos propios. |
+| Revisión de un intento | `GET /asistente/intentos/:id` devuelve evaluación guardada sin iniciar otro intento. |
 | Intento en progreso | No revela `respuesta_correcta`, `explicacion` ni `es_correcta`. |
 | Intento finalizado | Revela corrección y explicación. |
 | Responder dos veces el mismo intento | `409`. |

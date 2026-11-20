@@ -28,6 +28,7 @@ const {
   cuestionarioGenerarSchema,
   cuestionarioParamSchema,
   cuestionarioListarQuerySchema,
+  intentoListarQuerySchema,
   intentoResponderSchema,
 } = require('../models/cuestionario.model');
 const {
@@ -88,7 +89,7 @@ function atenderChat(accion) {
  * Construye un handler que delega en el controlador de cuestionarios.
  * El servicio se compone por peticion para usar el cliente JWT del usuario.
  *
- * @param {'generar' | 'listar' | 'obtener' | 'eliminar' | 'iniciarIntento' | 'responder' | 'obtenerIntento'} accion
+ * @param {'generar' | 'listar' | 'obtener' | 'eliminar' | 'iniciarIntento' | 'responder' | 'obtenerIntento' | 'listarIntentos'} accion
  * @returns {import('express').RequestHandler}
  */
 function atenderCuestionario(accion) {
@@ -190,7 +191,15 @@ router.delete(
   atenderChat('eliminar'),
 );
 
-// TODO Sprint 3 (HU16): evaluador de respuestas.
+/**
+ * GET /asistente/intentos
+ * Lista los intentos finalizados del usuario con su nota y recomendaciones.
+ */
+router.get(
+  '/intentos',
+  validationMiddleware({ query: intentoListarQuerySchema }),
+  atenderCuestionario('listarIntentos'),
+);
 
 /**
  * POST /asistente/cuestionario
@@ -254,7 +263,7 @@ router.get(
 
 /**
  * POST /asistente/intentos/:id/responder
- * Registra las respuestas, corrige las objetivas y finaliza el intento.
+ * Registra las respuestas, corrige las objetivas, evalúa las abiertas y finaliza el intento.
  */
 router.post(
   '/intentos/:id/responder',

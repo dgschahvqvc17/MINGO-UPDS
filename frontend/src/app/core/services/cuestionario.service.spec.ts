@@ -132,6 +132,38 @@ describe('CuestionarioService (HU13)', () => {
     req.flush({ success: true, data: { id: CUESTIONARIO_ID } });
   });
 
+  it('lista el historial de evaluaciones y usa el total del metadato', () => {
+    const intento = {
+      id: INTENTO_ID,
+      cuestionario_id: CUESTIONARIO_ID,
+      estado: 'finalizado',
+      total_preguntas: 2,
+      preguntas_objetivas: 1,
+      respuestas_correctas: 2,
+      puntuacion: 95,
+      retroalimentacion_general: 'Buen trabajo.',
+      temas_reforzar: ['Derivadas'],
+      recomendaciones: ['Repasa derivadas.'],
+      dominio_por_tema: [],
+      cuestionario_titulo: 'Repaso de cálculo',
+      materia_nombre: 'Cálculo Diferencial',
+      fecha_inicio: '2026-11-19T10:05:00.000Z',
+      fecha_finalizacion: '2026-11-19T10:10:00.000Z',
+    };
+    let total = 0;
+
+    service.listarIntentos({ limit: 10, offset: 0 }).subscribe((resultado) => {
+      total = resultado.total;
+      expect(resultado.intentos).toEqual([intento]);
+    });
+
+    const req = httpMock.expectOne('/api/asistente/intentos?limit=10&offset=0');
+    expect(req.request.method).toBe('GET');
+    req.flush({ success: true, data: [intento], meta: { total: 2 } });
+
+    expect(total).toBe(2);
+  });
+
   it('devuelve etiquetas legibles de tipo y dificultad', () => {
     expect(service.etiquetaTipo('opcion_multiple')).toBe('Opción múltiple');
     expect(service.etiquetaTipo('verdadero_falso')).toBe('Verdadero o falso');

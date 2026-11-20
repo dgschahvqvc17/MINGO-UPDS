@@ -26,6 +26,7 @@ const PREGUNTA_COLUMNS = `
   orden,
   enunciado,
   tipo_pregunta,
+  tema,
   respuesta_correcta,
   explicacion
 `;
@@ -47,6 +48,12 @@ const INTENTO_COLUMNS = `
   preguntas_objetivas,
   respuestas_correctas,
   puntuacion,
+  retroalimentacion_general,
+  temas_reforzar,
+  recomendaciones,
+  modelo_evaluacion,
+  tokens_entrada_evaluacion,
+  tokens_salida_evaluacion,
   fecha_inicio,
   fecha_finalizacion
 `;
@@ -57,6 +64,22 @@ const RESPUESTA_COLUMNS = `
   pregunta_id,
   respuesta,
   es_correcta,
+  fecha_creacion
+`;
+
+const EVALUACION_COLUMNS = `
+  id,
+  usuario_id,
+  intento_id,
+  pregunta_id,
+  es_correcta,
+  puntaje,
+  retroalimentacion,
+  temas_reforzar,
+  criterios,
+  modelo,
+  tokens_entrada,
+  tokens_salida,
   fecha_creacion
 `;
 
@@ -110,6 +133,7 @@ class CuestionarioRepository {
       orden: indice + 1,
       enunciado: pregunta.enunciado,
       tipo_pregunta: pregunta.tipo_pregunta,
+      tema: pregunta.tema ?? 'Tema general',
       respuesta_correcta: pregunta.respuesta_correcta,
       explicacion: pregunta.explicacion,
     }));
@@ -332,6 +356,78 @@ class CuestionarioRepository {
   }
 
   /**
+   * Lista los intentos finalizados del usuario de todos sus cuestionarios,
+   * del mas reciente al mas antiguo (HU16).
+   *
+   * @param {string} usuarioId
+   * @param {{ limit: number, offset: number }} paginacion
+   * @returns {Promise<{ items: object[], total: number }>}
+   */
+  async listarIntentosUsuario(usuarioId, { limit, offset }) {
+    const { data, error, count } = await this.requireClient()
+      .from('intentos_cuestionario')
+      .select(
+        `${INTENTO_COLUMNS}, cuestionarios ( id, titulo, materias ( nombre ) )`,
+        { count: 'exact' },
+      )
+      .eq('usuario_id', usuarioId)
+      .eq('estado', 'finalizado')
+      .order('fecha_finalizacion', { ascending: false })
+      .range(offset, offset + limit - 1);
+
+    if (error) {
+      throw error;
+    }
+
+    return { items: data ?? [], total: count ?? 0 };
+  }
+
+  /**
+   * Guarda las evaluaciones de las respuestas abiertas de un intento.
+   *
+   * @param {Array<object>} evaluaciones
+   * @returns {Promise<Array<object>>}
+   */
+  async guardarEvaluaciones(evaluaciones) {
+    const { data, error } = await this.requireClient()
+      .from('evaluaciones_respuesta')
+      .upsert(evaluaciones, { onConflict: 'intento_id,pregunta_id' })
+      .select(EVALUACION_COLUMNS);
+
+    if (error) {
+      throw error;
+    }
+
+    return data ?? [];
+  }
+
+  /**
+   * Devuelve las evaluaciones guardadas de un intento propio.
+   *
+   * @param {string} usuarioId
+   * @param {string} intentoId
+   * @returns {Promise<Array<object>>}
+   */
+  async listarEvaluaciones(usuarioId, intentoId) {
+    const intento = await this.obtenerIntentoPorId(usuarioId, intentoId);
+
+    if (!intento) {
+      return [];
+    }
+
+    const { data, error } = await this.requireClient()
+      .from('evaluaciones_respuesta')
+      .select(EVALUACION_COLUMNS)
+      .eq('intento_id', intentoId);
+
+    if (error) {
+      throw error;
+    }
+
+    return data ?? [];
+  }
+
+  /**
    * Guarda las respuestas de un intento. Un reintento sobre la misma pregunta
    * actualiza la respuesta existente.
    *
@@ -408,3 +504,4 @@ class CuestionarioRepository {
 
 module.exports = CuestionarioRepository;
 module.exports.CUESTIONARIO_COLUMNS = CUESTIONARIO_COLUMNS;
+module.exports.INTENTO_COLUMNS = INTENTO_COLUMNS;

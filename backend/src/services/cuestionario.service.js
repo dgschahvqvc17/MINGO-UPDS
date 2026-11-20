@@ -7,9 +7,15 @@
  */
 const ApiError = require('../utils/ApiError');
 const { CuestionarioIaError } = require('./ia/cuestionario.ia.service');
+const { EvaluadorIaError } = require('./ia/evaluador.ia.service');
 
 const OPERACION = 'cuestionario';
+const OPERACION_EVALUACION = 'evaluacion';
 const LIMITE_DIARIO_CUESTIONARIOS = 10;
+/** Una evaluacion por intento con respuestas abiertas, no una por pregunta. */
+const LIMITE_DIARIO_EVALUACIONES = 10;
+const UMBRAL_DOMINIO = 70;
+const MAXIMO_TEMAS_REFORZAR = 3;
 
 /** 12000 tokens por documento a ~4 caracteres por token. */
 const MAXIMO_CARACTERES_CONTENIDO = 48_000;
@@ -127,22 +133,27 @@ function aOpcion(opcion, { incluirRespuestas }) {
 
 /**
  * @param {object} pregunta
- * @param {{ incluirRespuestas: boolean, respuestaUsuario?: object | null }} opciones
+ * @param {{
+ *   incluirRespuestas: boolean,
+ *   respuestaUsuario?: object | null,
+ *   evaluacion?: object | null
+ * }} opciones
  * @returns {object}
  */
-function aPregunta(pregunta, { incluirRespuestas, respuestaUsuario = null }) {
+function aPregunta(pregunta, { incluirRespuestas, respuestaUsuario = null, evaluacion = null }) {
   const base = {
     id: pregunta.id,
     cuestionario_id: pregunta.cuestionario_id,
     orden: pregunta.orden,
     enunciado: pregunta.enunciado,
     tipo_pregunta: pregunta.tipo_pregunta,
+    tema: pregunta.tema ?? 'Tema general',
     opciones: (pregunta.opciones ?? []).map((opcion) =>
       aOpcion(opcion, { incluirRespuestas }),
     ),
     respuesta_usuario: respuestaUsuario?.respuesta ?? null,
     // La correccion solo se revela al finalizar el intento.
-    es_correcta: incluirRespuestas ? respuestaUsuario?.es_correcta ?? null : null,
+    es_correcta: incluirRespuestas ? respuestaUsuario?.es_correcta ?? evaluacion?.es_correcta ?? null : null,
   };
 
   if (!incluirRespuestas) {
@@ -153,6 +164,15 @@ function aPregunta(pregunta, { incluirRespuestas, respuestaUsuario = null }) {
     ...base,
     respuesta_correcta: pregunta.respuesta_correcta,
     explicacion: pregunta.explicacion,
+    evaluacion: evaluacion
+      ? {
+          es_correcta: Boolean(evaluacion.es_correcta),
+          puntaje: Number(evaluacion.puntaje),
+          retroalimentacion: evaluacion.retroalimentacion,
+          criterios: evaluacion.criterios ?? [],
+          temas_reforzar: evaluacion.temas_reforzar ?? [],
+        }
+      : null,
   };
 }
 
@@ -160,7 +180,7 @@ function aPregunta(pregunta, { incluirRespuestas, respuestaUsuario = null }) {
  * @param {object} intento
  * @returns {object}
  */
-function aIntento(intento) {
+function aIntento(intento, dominioPorTema = []) {
   return {
     id: intento.id,
     cuestionario_id: intento.cuestionario_id,
@@ -169,8 +189,31 @@ function aIntento(intento) {
     preguntas_objetivas: intento.preguntas_objetivas,
     respuestas_correctas: intento.respuestas_correctas,
     puntuacion: intento.puntuacion === null ? null : Number(intento.puntuacion),
+    retroalimentacion_general: intento.retroalimentacion_general ?? null,
+    temas_reforzar: intento.temas_reforzar ?? [],
+    recomendaciones: intento.recomendaciones ?? [],
+    dominio_por_tema: dominioPorTema,
     fecha_inicio: intento.fecha_inicio,
     fecha_finalizacion: intento.fecha_finalizacion,
+  };
+}
+
+/**
+ * @param {object} intento Fila con las relaciones `cuestionarios` y `materias`.
+ * @returns {object}
+ */
+function aIntentoHistorial(intento) {
+  const cuestionario = Array.isArray(intento.cuestionarios)
+    ? intento.cuestionarios[0]
+    : intento.cuestionarios;
+  const materia = Array.isArray(cuestionario?.materias)
+    ? cuestionario.materias[0]
+    : cuestionario?.materias;
+
+  return {
+    ...aIntento(intento),
+    cuestionario_titulo: cuestionario?.titulo ?? null,
+    materia_nombre: materia?.nombre ?? null,
   };
 }
 
@@ -191,6 +234,137 @@ function normalizarTipos(tipos) {
   return [...new Set(tipos)];
 }
 
+/**
+ * @param {number} numero
+ * @returns {number}
+ */
+function redondear(numero) {
+  return Math.round(numero * 100) / 100;
+}
+
+/**
+ * Calcula el dominio por tema a partir de las respuestas ya corregidas.
+ *
+ * @param {object} datos
+ * @returns {{ temas: object[], debiles: object[] }}
+ */
+function calcularDominioPorTema({ preguntas, filasRespuesta, evaluacionesPorPregunta }) {
+  const porTema = new Map();
+
+  for (const pregunta of preguntas) {
+    const fila = filasRespuesta.find((respuesta) => respuesta.pregunta_id === pregunta.id);
+
+    if (!fila) {
+      continue;
+    }
+
+    const evaluacion = evaluacionesPorPregunta.get(pregunta.id);
+
+    // Una abierta sin evaluar no cuenta como acierto ni como error: todavia
+    // no hay evidencia para medir el dominio del tema (HU16).
+    if (pregunta.tipo_pregunta === TIPO_PREGUNTA_ABIERTA && !evaluacion) {
+      continue;
+    }
+
+    const logro =
+      pregunta.tipo_pregunta === TIPO_PREGUNTA_ABIERTA
+        ? Number(evaluacion.puntaje) / 10
+        : fila.es_correcta
+          ? 1
+          : 0;
+    const tema = pregunta.tema || 'Tema general';
+    const actual = porTema.get(tema) ?? { total: 0, logro: 0 };
+
+    porTema.set(tema, { total: actual.total + 1, logro: actual.logro + logro });
+  }
+
+  const temas = [...porTema.entries()]
+    .map(([tema, valor]) => ({
+      tema,
+      dominio: redondear((valor.logro / valor.total) * 100),
+      aciertos: redondear(valor.logro),
+      total: valor.total,
+    }))
+    .sort((primero, segundo) => primero.dominio - segundo.dominio);
+
+  return {
+    temas,
+    debiles: temas.filter((tema) => tema.dominio < UMBRAL_DOMINIO).slice(0, MAXIMO_TEMAS_REFORZAR),
+  };
+}
+
+/**
+ * Calcula la nota final sobre las preguntas efectivamente calificadas.
+ * Las objetivas se corrigen en el backend; las abiertas solo entran cuando
+ * tienen evaluacion guardada (HU16).
+ *
+ * @param {object} datos
+ * @returns {{ puntuacion: number | null, respuestasCorrectas: number }}
+ */
+function calcularPuntuacion({ preguntas, filasRespuesta, evaluacionesPorPregunta }) {
+  let logroTotal = 0;
+  let calificadas = 0;
+  let respuestasCorrectas = 0;
+
+  for (const pregunta of preguntas) {
+    const fila = filasRespuesta.find((respuesta) => respuesta.pregunta_id === pregunta.id);
+
+    if (!fila) {
+      continue;
+    }
+
+    const evaluacion = evaluacionesPorPregunta.get(pregunta.id);
+
+    if (pregunta.tipo_pregunta === TIPO_PREGUNTA_ABIERTA && !evaluacion) {
+      continue;
+    }
+
+    const logro =
+      pregunta.tipo_pregunta === TIPO_PREGUNTA_ABIERTA
+        ? Number(evaluacion.puntaje) / 10
+        : fila.es_correcta
+          ? 1
+          : 0;
+    const correcta =
+      pregunta.tipo_pregunta === TIPO_PREGUNTA_ABIERTA
+        ? Boolean(evaluacion.es_correcta)
+        : fila.es_correcta === true;
+
+    logroTotal += logro;
+    calificadas += 1;
+    if (correcta) {
+      respuestasCorrectas += 1;
+    }
+  }
+
+  return {
+    puntuacion: calificadas > 0 ? redondear((logroTotal / calificadas) * 100) : null,
+    respuestasCorrectas,
+  };
+}
+
+/**
+ * @param {object[]} temasDebiles
+ * @param {number | null} puntuacion
+ * @returns {string[]}
+ */
+function construirRecomendaciones(temasDebiles, puntuacion) {
+  const recomendaciones = temasDebiles.map(
+    ({ tema, dominio }) =>
+      `Repasa "${tema}" (dominio ${dominio}%): vuelve a tus apuntes y practica preguntas de ese tema.`,
+  );
+
+  if (puntuacion !== null && puntuacion < UMBRAL_DOMINIO) {
+    recomendaciones.push('Repasa el material completo antes de intentar otro cuestionario.');
+  }
+
+  if (recomendaciones.length === 0) {
+    recomendaciones.push('Mantén el repaso espaciado de los temas de este cuestionario.');
+  }
+
+  return recomendaciones.slice(0, MAXIMO_TEMAS_REFORZAR + 1);
+}
+
 class CuestionarioService {
   /**
    * @param {{
@@ -200,6 +374,7 @@ class CuestionarioService {
    *   cuestionarioRepository: object,
    *   consumoRepository: object,
    *   iaService: object,
+   *   evaluadorIaService?: object,
    *   usuarioActualId: string
    * }} dependencias
    */
@@ -210,6 +385,7 @@ class CuestionarioService {
     cuestionarioRepository,
     consumoRepository,
     iaService,
+    evaluadorIaService,
     usuarioActualId,
   }) {
     this.materiaRepository = materiaRepository;
@@ -218,6 +394,7 @@ class CuestionarioService {
     this.cuestionarioRepository = cuestionarioRepository;
     this.consumoRepository = consumoRepository;
     this.iaService = iaService;
+    this.evaluadorIaService = evaluadorIaService;
     this.usuarioActualId = usuarioActualId;
   }
 
@@ -379,8 +556,8 @@ class CuestionarioService {
   }
 
   /**
-   * Registra las respuestas de un intento en progreso, corrige las preguntas
-   * objetivas y finaliza el intento.
+   * Registra las respuestas de un intento en progreso, corrige las objetivas,
+   * evalúa las abiertas con IA y finaliza el intento con nota y retroalimentación.
    *
    * @param {string} intentoId
    * @param {Array<{ pregunta_id: string, respuesta: string }>} respuestas
@@ -417,16 +594,54 @@ class CuestionarioService {
       };
     });
 
-    await this.cuestionarioRepository.guardarRespuestas(filas);
+    const respuestasPorPregunta = new Map(
+      filas.map((fila) => [fila.pregunta_id, fila.respuesta]),
+    );
+    const respuestasAbiertas = preguntas
+      .filter((pregunta) => pregunta.tipo_pregunta === TIPO_PREGUNTA_ABIERTA)
+      .map((pregunta) => ({
+        pregunta_id: pregunta.id,
+        tema: pregunta.tema ?? 'Tema general',
+        enunciado: pregunta.enunciado,
+        respuesta_correcta: pregunta.respuesta_correcta,
+        explicacion: pregunta.explicacion,
+        respuesta_usuario: respuestasPorPregunta.get(pregunta.id) ?? '',
+      }))
+      .filter((respuesta) => respuesta.respuesta_usuario.length > 0);
 
-    const respuestasCorrectas = filas.filter((fila) => fila.es_correcta === true).length;
-    const preguntasObjetivas = preguntas.filter(
-      (pregunta) => pregunta.tipo_pregunta !== TIPO_PREGUNTA_ABIERTA,
-    ).length;
-    const puntuacion =
-      preguntasObjetivas > 0
-        ? Math.round((respuestasCorrectas / preguntasObjetivas) * 10_000) / 100
-        : null;
+    const evaluacion = await this.evaluarAbiertas(intentoId, respuestasAbiertas);
+    const evaluacionesPorPregunta = new Map(
+      evaluacion.evaluaciones.map((item) => [item.pregunta_id, item]),
+    );
+    const filasFinales = filas.map((fila) => {
+      const evaluada = evaluacionesPorPregunta.get(fila.pregunta_id);
+      return evaluada ? { ...fila, es_correcta: Boolean(evaluada.es_correcta) } : fila;
+    });
+
+    await this.cuestionarioRepository.guardarRespuestas(filasFinales);
+
+    if (evaluacion.evaluaciones.length > 0) {
+      await this.cuestionarioRepository.guardarEvaluaciones(evaluacion.evaluaciones);
+      await this.consumoRepository.registrar({
+        usuario_id: this.usuarioActualId,
+        operacion: OPERACION_EVALUACION,
+        modelo: evaluacion.modelo,
+        tokens_entrada: evaluacion.tokensEntrada,
+        tokens_salida: evaluacion.tokensSalida,
+      });
+    }
+
+    const { puntuacion, respuestasCorrectas } = calcularPuntuacion({
+      preguntas,
+      filasRespuesta: filasFinales,
+      evaluacionesPorPregunta,
+    });
+    const { temas, debiles } = calcularDominioPorTema({
+      preguntas,
+      filasRespuesta: filasFinales,
+      evaluacionesPorPregunta,
+    });
+    const recomendaciones = construirRecomendaciones(debiles, puntuacion);
 
     const actualizado = await this.cuestionarioRepository.actualizarIntento(
       this.usuarioActualId,
@@ -435,22 +650,122 @@ class CuestionarioService {
         estado: ESTADO_INTENTO_FINALIZADO,
         respuestas_correctas: respuestasCorrectas,
         puntuacion,
+        retroalimentacion_general: evaluacion.retroalimentacionGeneral,
+        temas_reforzar: debiles.map((tema) => tema.tema),
+        recomendaciones,
+        modelo_evaluacion: evaluacion.modelo,
+        tokens_entrada_evaluacion: evaluacion.tokensEntrada,
+        tokens_salida_evaluacion: evaluacion.tokensSalida,
         fecha_finalizacion: new Date().toISOString(),
       },
     );
 
-    return this.armarResultado({
+    const resultado = this.armarResultado({
       intento: actualizado ?? intento,
       cuestionario,
       preguntas,
-      respuestas: filas,
+      respuestas: filasFinales,
       incluirRespuestas: true,
+      evaluaciones: evaluacion.evaluaciones,
+      dominioPorTema: temas,
     });
+
+    return evaluacion.aviso
+      ? {
+          ...resultado,
+          aviso_evaluacion: evaluacion.aviso,
+          codigo_aviso: evaluacion.codigo ?? null,
+        }
+      : resultado;
   }
 
   /**
-   * Devuelve un intento propio con sus respuestas. Si sigue en progreso, no
-   * revela las respuestas correctas.
+   * Evalúa las respuestas abiertas de un intento con un único llamado al
+   * proveedor. Si no hay proveedor, se agotó la cuota o falla, se finaliza el
+   * intento con las objetivas y se devuelve un aviso seguro (HU16).
+   *
+   * @param {string} intentoId
+   * @param {Array<object>} respuestasAbiertas
+   * @returns {Promise<object>}
+   */
+  async evaluarAbiertas(intentoId, respuestasAbiertas) {
+    const sinEvaluacion = {
+      evaluaciones: [],
+      retroalimentacionGeneral: null,
+      modelo: null,
+      tokensEntrada: 0,
+      tokensSalida: 0,
+      aviso: null,
+      codigo: null,
+    };
+
+    if (respuestasAbiertas.length === 0) {
+      return sinEvaluacion;
+    }
+
+    if (!this.evaluadorIaService?.estaDisponible?.()) {
+      return {
+        ...sinEvaluacion,
+        aviso: 'La evaluación de respuestas abiertas no está disponible en este momento.',
+      };
+    }
+
+    const consumidos = await this.consumoRepository.contar(
+      this.usuarioActualId,
+      OPERACION_EVALUACION,
+      inicioDelDia(),
+    );
+
+    if (consumidos >= LIMITE_DIARIO_EVALUACIONES) {
+      return {
+        ...sinEvaluacion,
+        aviso: 'Alcanzaste el límite diario de evaluaciones. Tus respuestas quedaron registradas.',
+        codigo: 'AI_QUOTA_EXCEEDED',
+      };
+    }
+
+    let evaluado;
+
+    try {
+      evaluado = await this.evaluadorIaService.evaluar(respuestasAbiertas);
+    } catch (error) {
+      return {
+        ...sinEvaluacion,
+        aviso:
+          error instanceof EvaluadorIaError
+            ? error.message
+            : 'No se pudieron evaluar tus respuestas abiertas.',
+      };
+    }
+
+    const evaluaciones = evaluado.contenido.evaluaciones.map((evaluacion) => ({
+      usuario_id: this.usuarioActualId,
+      intento_id: intentoId,
+      pregunta_id: evaluacion.pregunta_id,
+      es_correcta: Boolean(evaluacion.es_correcta),
+      puntaje: Number(evaluacion.puntaje),
+      retroalimentacion: evaluacion.retroalimentacion,
+      temas_reforzar: evaluacion.temas_reforzar ?? [],
+      criterios: evaluacion.criterios ?? [],
+      modelo: evaluado.modelo,
+      tokens_entrada: evaluado.tokensEntrada,
+      tokens_salida: evaluado.tokensSalida,
+    }));
+
+    return {
+      evaluaciones,
+      retroalimentacionGeneral: evaluado.contenido.retroalimentacionGeneral,
+      modelo: evaluado.modelo,
+      tokensEntrada: evaluado.tokensEntrada,
+      tokensSalida: evaluado.tokensSalida,
+      aviso: null,
+      codigo: null,
+    };
+  }
+
+  /**
+   * Devuelve un intento propio con sus respuestas y la evaluación guardada.
+   * Si sigue en progreso, no revela las respuestas correctas.
    *
    * @param {string} intentoId
    * @returns {Promise<object>}
@@ -463,6 +778,18 @@ class CuestionarioService {
       this.usuarioActualId,
       intentoId,
     );
+    const evaluaciones =
+      intento.estado === ESTADO_INTENTO_FINALIZADO
+        ? await this.cuestionarioRepository.listarEvaluaciones(this.usuarioActualId, intentoId)
+        : [];
+    const evaluacionesPorPregunta = new Map(
+      evaluaciones.map((evaluacion) => [evaluacion.pregunta_id, evaluacion]),
+    );
+    const { temas } = calcularDominioPorTema({
+      preguntas,
+      filasRespuesta: respuestas,
+      evaluacionesPorPregunta,
+    });
 
     return this.armarResultado({
       intento,
@@ -470,7 +797,24 @@ class CuestionarioService {
       preguntas,
       respuestas,
       incluirRespuestas: intento.estado === ESTADO_INTENTO_FINALIZADO,
+      evaluaciones,
+      dominioPorTema: intento.estado === ESTADO_INTENTO_FINALIZADO ? temas : [],
     });
+  }
+
+  /**
+   * Lista los intentos finalizados del usuario de todos sus cuestionarios.
+   *
+   * @param {{ limite: number, desplazamiento: number }} paginacion
+   * @returns {Promise<{ items: object[], total: number }>}
+   */
+  async listarIntentos({ limite, desplazamiento }) {
+    const { items, total } = await this.cuestionarioRepository.listarIntentosUsuario(
+      this.usuarioActualId,
+      { limit: limite, offset: desplazamiento },
+    );
+
+    return { items: items.map(aIntentoHistorial), total };
   }
 
   /**
@@ -479,22 +823,36 @@ class CuestionarioService {
    *   cuestionario: object,
    *   preguntas: Array<object>,
    *   respuestas: Array<object>,
-   *   incluirRespuestas: boolean
+   *   incluirRespuestas: boolean,
+   *   evaluaciones?: Array<object>,
+   *   dominioPorTema?: Array<object>
    * }} datos
    * @returns {object}
    */
-  armarResultado({ intento, cuestionario, preguntas, respuestas, incluirRespuestas }) {
+  armarResultado({
+    intento,
+    cuestionario,
+    preguntas,
+    respuestas,
+    incluirRespuestas,
+    evaluaciones = [],
+    dominioPorTema = [],
+  }) {
     const respuestasPorPregunta = new Map(
       respuestas.map((respuesta) => [respuesta.pregunta_id, respuesta]),
     );
+    const evaluacionesPorPregunta = new Map(
+      evaluaciones.map((evaluacion) => [evaluacion.pregunta_id, evaluacion]),
+    );
 
     return {
-      intento: aIntento(intento),
+      intento: aIntento(intento, dominioPorTema),
       cuestionario: aCuestionarioResumen(cuestionario),
       preguntas: preguntas.map((pregunta) =>
         aPregunta(pregunta, {
           incluirRespuestas,
           respuestaUsuario: respuestasPorPregunta.get(pregunta.id) ?? null,
+          evaluacion: evaluacionesPorPregunta.get(pregunta.id) ?? null,
         }),
       ),
     };
@@ -636,6 +994,8 @@ class CuestionarioService {
 
 module.exports = CuestionarioService;
 module.exports.LIMITE_DIARIO_CUESTIONARIOS = LIMITE_DIARIO_CUESTIONARIOS;
+module.exports.LIMITE_DIARIO_EVALUACIONES = LIMITE_DIARIO_EVALUACIONES;
+module.exports.UMBRAL_DOMINIO = UMBRAL_DOMINIO;
 module.exports.MAXIMO_FRAGMENTOS = MAXIMO_FRAGMENTOS;
 module.exports.MAXIMO_CARACTERES_CONTENIDO = MAXIMO_CARACTERES_CONTENIDO;
 module.exports.MINIMO_CARACTERES_CONTENIDO = MINIMO_CARACTERES_CONTENIDO;

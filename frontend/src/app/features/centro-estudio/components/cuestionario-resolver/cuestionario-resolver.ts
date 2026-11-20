@@ -30,6 +30,8 @@ export class CuestionarioResolverComponent implements OnInit {
 
   readonly cuestionarioId = input.required<string>();
   readonly titulo = input('Cuestionario');
+  /** Si se indica, se muestra un intento finalizado en lugar de iniciar uno nuevo. */
+  readonly intentoId = input<string | null>(null);
 
   readonly volver = output<void>();
   readonly completado = output<void>();
@@ -43,6 +45,18 @@ export class CuestionarioResolverComponent implements OnInit {
   readonly resultado = signal<ResultadoIntento | null>(null);
 
   readonly hayResultado = computed(() => this.resultado() !== null);
+  readonly esRevision = computed(() => this.intentoId() !== null);
+  readonly retroalimentacionGeneral = computed(
+    () => this.resultado()?.intento.retroalimentacion_general ?? null,
+  );
+  readonly avisoEvaluacion = computed(() => this.resultado()?.aviso_evaluacion ?? null);
+  readonly recomendaciones = computed(() => this.resultado()?.intento.recomendaciones ?? []);
+  readonly dominioPorTema = computed(() => this.resultado()?.intento.dominio_por_tema ?? []);
+  readonly evaluacionesAbiertas = computed(() =>
+    (this.resultado()?.preguntas ?? []).filter(
+      (pregunta) => pregunta.tipo_pregunta === 'abierta' && pregunta.evaluacion,
+    ),
+  );
 
   readonly respondidas = computed(
     () =>
@@ -61,22 +75,32 @@ export class CuestionarioResolverComponent implements OnInit {
 
   readonly puntuacion = computed(() => this.resultado()?.intento.puntuacion ?? null);
 
+  readonly cantidadCalificadas = computed(
+    () =>
+      (this.resultado()?.preguntas ?? []).filter(
+        (pregunta) => pregunta.tipo_pregunta !== 'abierta' || pregunta.evaluacion,
+      ).length,
+  );
+
   readonly mensajeResultado = computed(() => {
     const resultado = this.resultado();
     if (!resultado) {
       return '';
     }
 
-    const { puntuacion, respuestas_correctas, preguntas_objetivas } = resultado.intento;
-
-    if (puntuacion === null) {
-      return 'Tus respuestas abiertas quedaron registradas para una evaluación posterior.';
+    if (resultado.intento.puntuacion === null) {
+      return 'Tus respuestas quedaron registradas, pero no hay suficiente información para calcular una nota.';
     }
 
-    return `Acertaste ${respuestas_correctas} de ${preguntas_objetivas} preguntas objetivas.`;
+    return `Acertaste ${resultado.intento.respuestas_correctas} de ${this.cantidadCalificadas()} preguntas calificadas.`;
   });
 
   ngOnInit(): void {
+    if (this.esRevision()) {
+      this.cargarRevision();
+      return;
+    }
+
     this.iniciar();
   }
 
@@ -92,11 +116,40 @@ export class CuestionarioResolverComponent implements OnInit {
           this.intento.set(intento);
           this.preguntas.set(cuestionario.preguntas);
           this.respuestas.set({});
+          this.resultado.set(null);
           this.cargando.set(false);
         },
         error: (error: unknown) => {
           this.error.set(
             mensajeDeErrorHttp(error, 'No se pudo iniciar el cuestionario. Inténtalo de nuevo.'),
+          );
+          this.cargando.set(false);
+        },
+      });
+  }
+
+  cargarRevision(): void {
+    const intentoId = this.intentoId();
+    if (!intentoId) {
+      return;
+    }
+
+    this.cargando.set(true);
+    this.error.set(null);
+
+    this.cuestionarioService
+      .obtenerIntento(intentoId)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (resultado) => {
+          this.resultado.set(resultado);
+          this.intento.set(resultado.intento);
+          this.preguntas.set(resultado.preguntas);
+          this.cargando.set(false);
+        },
+        error: (error: unknown) => {
+          this.error.set(
+            mensajeDeErrorHttp(error, 'No se pudo cargar la evaluación. Inténtalo de nuevo.'),
           );
           this.cargando.set(false);
         },
@@ -150,30 +203,44 @@ export class CuestionarioResolverComponent implements OnInit {
   }
 
   esCorrecta(pregunta: PreguntaCuestionario): boolean | null {
-    return pregunta.es_correcta;
+    return pregunta.evaluacion?.es_correcta ?? pregunta.es_correcta;
   }
 
   iconoResultado(pregunta: PreguntaCuestionario): string {
-    if (pregunta.tipo_pregunta === 'abierta') {
+    if (pregunta.tipo_pregunta === 'abierta' && !pregunta.evaluacion) {
       return 'bi-hourglass-split';
     }
 
-    return pregunta.es_correcta ? 'bi-check-circle' : 'bi-x-circle';
+    return this.esCorrecta(pregunta) ? 'bi-check-circle' : 'bi-x-circle';
   }
 
   claseResultado(pregunta: PreguntaCuestionario): string {
-    if (pregunta.tipo_pregunta === 'abierta') {
+    if (pregunta.tipo_pregunta === 'abierta' && !pregunta.evaluacion) {
       return 'text-secondary';
     }
 
-    return pregunta.es_correcta ? 'text-success' : 'text-danger';
+    return this.esCorrecta(pregunta) ? 'text-success' : 'text-danger';
   }
 
   textoResultado(pregunta: PreguntaCuestionario): string {
-    if (pregunta.tipo_pregunta === 'abierta') {
+    if (pregunta.tipo_pregunta === 'abierta' && !pregunta.evaluacion) {
       return 'Pendiente de evaluación';
     }
 
+    if (pregunta.evaluacion) {
+      return `Evaluada · ${pregunta.evaluacion.puntaje}/10`;
+    }
+
     return pregunta.es_correcta ? 'Correcta' : 'Incorrecta';
+  }
+
+  etiquetaCriterio(nombre: string): string {
+    const etiquetas: Record<string, string> = {
+      precision_conceptual: 'Precisión conceptual',
+      completitud: 'Completitud',
+      claridad: 'Claridad',
+    };
+
+    return etiquetas[nombre] ?? nombre;
   }
 }

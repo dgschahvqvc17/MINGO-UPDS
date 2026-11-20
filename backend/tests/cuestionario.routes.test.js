@@ -13,6 +13,7 @@ const mockCuestionarioService = {
   iniciarIntento: jest.fn(),
   responder: jest.fn(),
   obtenerResultadoIntento: jest.fn(),
+  listarIntentos: jest.fn(),
 };
 
 jest.mock('../src/middlewares/auth.middleware', () => (req, _res, next) => {
@@ -84,6 +85,7 @@ describe('rutas de cuestionarios (HU13)', () => {
       cuestionario: CUESTIONARIO,
       preguntas: [],
     });
+    mockCuestionarioService.listarIntentos.mockResolvedValue({ items: [INTENTO], total: 1 });
   });
 
   it('POST /api/asistente/cuestionario usa los valores por defecto', async () => {
@@ -239,6 +241,25 @@ describe('rutas de cuestionarios (HU13)', () => {
       .expect(400);
 
     expect(mockCuestionarioService.responder).not.toHaveBeenCalled();
+  });
+
+  it('GET /api/asistente/intentos lista el historial paginado', async () => {
+    const response = await request(app)
+      .get('/api/asistente/intentos')
+      .query({ limit: 5, offset: 5 })
+      .expect(200);
+
+    expect(response.body.data).toEqual([INTENTO]);
+    expect(response.body.meta).toEqual({ page: 2, limit: 5, total: 1, totalPages: 1 });
+    expect(mockCuestionarioService.listarIntentos).toHaveBeenCalledWith({
+      limite: 5,
+      desplazamiento: 5,
+    });
+  });
+
+  it('GET /api/asistente/intentos rechaza un limite fuera de rango', async () => {
+    await request(app).get('/api/asistente/intentos').query({ limit: 0 }).expect(400);
+    expect(mockCuestionarioService.listarIntentos).not.toHaveBeenCalled();
   });
 
   it('GET /api/asistente/intentos/:id devuelve el intento propio', async () => {
