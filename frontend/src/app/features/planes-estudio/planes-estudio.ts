@@ -130,6 +130,38 @@ export class PlanesEstudioPage {
 
   readonly hayMasPlanes = computed(() => this.planes().length < this.totalPlanes());
 
+  readonly resumenPropuesta = computed(() => {
+    const sesiones = this.sesionesEditables();
+    const minutos = sesiones.reduce(
+      (total, sesion) => total + (Number(sesion.duracion_minutos) || 0),
+      0,
+    );
+    const fechas = sesiones
+      .map((sesion) => sesion.fecha_inicio.slice(0, 10))
+      .filter((fecha) => fecha.length > 0)
+      .sort();
+
+    return {
+      cantidad: sesiones.length,
+      minutos,
+      desde: fechas[0] ?? null,
+      hasta: fechas[fechas.length - 1] ?? null,
+    };
+  });
+
+  readonly estadisticasPlan = computed(() => {
+    const sesiones = this.detalle()?.sesiones ?? [];
+    const completadas = sesiones.filter((sesion) => sesion.estado === 'completada').length;
+    const minutos = sesiones.reduce((total, sesion) => total + sesion.duracion_minutos, 0);
+
+    return {
+      total: sesiones.length,
+      completadas,
+      minutos,
+      porcentaje: sesiones.length === 0 ? 0 : Math.round((completadas / sesiones.length) * 100),
+    };
+  });
+
   constructor() {
     this.cargarMaterias();
     this.cargarPlanes();
@@ -529,7 +561,11 @@ export class PlanesEstudioPage {
   }
 
   descartarPlan(plan: PlanEstudio): void {
-    if (!window.confirm(`¿Descartar el plan "${plan.objetivo}"? Sus sesiones se eliminarán.`)) {
+    if (
+      !window.confirm(
+        `¿Descartar el plan "${plan.objetivo}"? Se eliminarán sus eventos del calendario.`,
+      )
+    ) {
       return;
     }
 

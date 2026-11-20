@@ -1,35 +1,59 @@
 <section class="planes-estudio">
-  <header class="mb-4">
-    <h1 class="h3 mb-1">Planes de estudio</h1>
-    <p class="text-muted mb-0">
-      Genera una propuesta con IA, ajústala a tu ritmo y guárdala para ver tus sesiones en el calendario.
-    </p>
+  <header class="page-header mb-4">
+    <div class="d-flex flex-wrap justify-content-between align-items-start gap-3">
+      <div>
+        <span class="page-eyebrow">Planificación académica</span>
+        <h1 class="page-title mt-1 mb-2">Planes de estudio</h1>
+        <p class="page-subtitle mb-0">
+          Genera una propuesta con IA, ajústala a tu ritmo y guárdala para ver tus sesiones en el calendario.
+        </p>
+      </div>
+      <a routerLink="/calendario" class="btn btn-sm btn-outline-info d-inline-flex align-items-center gap-2">
+        <i class="bi bi-calendar3" aria-hidden="true"></i>
+        Ver calendario completo
+      </a>
+    </div>
   </header>
 
   @if (mensajeExito()) {
-    <div class="alert alert-success d-flex align-items-center" role="status">
+    <div class="alert alert-success d-flex align-items-center mb-4" role="status">
       <i class="bi bi-check-circle me-2" aria-hidden="true"></i>
       <span class="flex-grow-1">{{ mensajeExito() }}</span>
-      <button type="button" class="btn-close" aria-label="Cerrar mensaje" (click)="mensajeExito.set(null)"></button>
+      <button
+        type="button"
+        class="btn-close"
+        aria-label="Cerrar mensaje"
+        (click)="mensajeExito.set(null)"
+      ></button>
     </div>
   }
 
   @if (error()) {
-    <div class="alert alert-danger d-flex align-items-center" role="alert">
+    <div class="alert alert-danger d-flex align-items-center mb-4" role="alert">
       <i class="bi bi-exclamation-triangle me-2" aria-hidden="true"></i>
       <span class="flex-grow-1">{{ error() }}</span>
-      <button type="button" class="btn-close" aria-label="Cerrar error" (click)="error.set(null)"></button>
+      <button
+        type="button"
+        class="btn-close"
+        aria-label="Cerrar error"
+        (click)="error.set(null)"
+      ></button>
     </div>
   }
 
   <div class="row g-4">
-    <div class="col-12 col-lg-4">
-      <div class="card border-0 shadow-sm h-100">
-        <div class="card-body">
-          <h2 class="h5 mb-3">
-            <i class="bi bi-calendar2-week me-2 text-primary" aria-hidden="true"></i>
-            Nuevo plan
-          </h2>
+    <div class="col-12 col-xl-4">
+      <div class="app-card app-card--ai h-100">
+        <div class="card-body p-4">
+          <div class="panel-heading">
+            <span class="icon-badge icon-badge--ai icon-badge--lg" aria-hidden="true">
+              <i class="bi bi-calendar2-week"></i>
+            </span>
+            <div>
+              <h2 class="h5 mb-1">Nuevo plan</h2>
+              <p class="small text-muted-soft mb-0">Define tu objetivo y tu ritmo de estudio.</p>
+            </div>
+          </div>
 
           @if (sinMaterias()) {
             <div class="alert alert-info" role="status">
@@ -65,43 +89,44 @@
                 [value]="objetivo()"
                 (input)="objetivo.set($any($event.target).value)"
               ></textarea>
-              <div class="form-text">Mínimo 5 caracteres.</div>
+              <div class="form-text">Entre 5 y 300 caracteres.</div>
             </div>
 
-            <div class="mb-3">
-              <label for="fecha-examen" class="form-label">Fecha de evaluación</label>
-              <input
-                id="fecha-examen"
-                type="date"
-                class="form-control"
-                [value]="fechaExamen()"
-                (input)="fechaExamen.set($any($event.target).value)"
-              />
+            <div class="row g-3 mb-3">
+              <div class="col-12 col-sm-6 col-xl-12 col-xxl-6">
+                <label for="fecha-examen" class="form-label">Fecha de evaluación</label>
+                <input
+                  id="fecha-examen"
+                  type="date"
+                  class="form-control"
+                  [value]="fechaExamen()"
+                  (input)="fechaExamen.set($any($event.target).value)"
+                />
+              </div>
+              <div class="col-12 col-sm-6 col-xl-12 col-xxl-6">
+                <label for="minutos" class="form-label">Minutos por día</label>
+                <input
+                  id="minutos"
+                  type="number"
+                  class="form-control"
+                  min="15"
+                  max="480"
+                  step="15"
+                  [value]="minutosPorDia()"
+                  (input)="cambiarMinutos($any($event.target).value)"
+                />
+                <div class="form-text">De 15 a 480 minutos.</div>
+              </div>
             </div>
 
-            <div class="mb-3">
-              <label for="minutos" class="form-label">Minutos disponibles por día</label>
-              <input
-                id="minutos"
-                type="number"
-                class="form-control"
-                min="15"
-                max="480"
-                step="15"
-                [value]="minutosPorDia()"
-                (input)="cambiarMinutos($any($event.target).value)"
-              />
-            </div>
-
-            <fieldset class="mb-3">
+            <fieldset class="mb-4">
               <legend class="form-label fs-6">Días disponibles</legend>
               <div class="d-flex flex-wrap gap-2">
                 @for (dia of diasSemana; track dia) {
                   <button
                     type="button"
-                    class="btn btn-sm"
-                    [class.btn-primary]="estaSeleccionado(dia)"
-                    [class.btn-outline-secondary]="!estaSeleccionado(dia)"
+                    class="dia-chip"
+                    [class.seleccionado]="estaSeleccionado(dia)"
                     [attr.aria-pressed]="estaSeleccionado(dia)"
                     (click)="alternarDia(dia)"
                   >
@@ -109,13 +134,14 @@
                   </button>
                 }
               </div>
+              <div class="form-text">Elige al menos un día.</div>
             </fieldset>
 
             @if (errorFormulario()) {
-              <div class="alert alert-danger" role="alert">{{ errorFormulario() }}</div>
+              <div class="alert alert-danger mb-3" role="alert">{{ errorFormulario() }}</div>
             }
 
-            <button type="submit" class="btn btn-primary w-100" [disabled]="!puedeGenerar()">
+            <button type="submit" class="btn btn-ai w-100" [disabled]="!puedeGenerar()">
               @if (generando()) {
                 <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
                 Generando propuesta...
@@ -129,28 +155,66 @@
       </div>
     </div>
 
-    <div class="col-12 col-lg-8">
+    <div class="col-12 col-xl-8">
       @if (!propuesta()) {
-        <div class="card border-0 shadow-sm h-100">
-          <div class="card-body d-flex flex-column align-items-center justify-content-center text-center py-5">
-            <i class="bi bi-calendar2-check fs-1 text-muted mb-3" aria-hidden="true"></i>
-            <h2 class="h5">Aún no hay una propuesta</h2>
-            <p class="text-muted mb-0">
+        <div class="app-card h-100">
+          <div class="card-body p-4 p-lg-5 d-flex flex-column align-items-center justify-content-center text-center">
+            <span class="icon-badge icon-badge--ai icon-badge--xl mb-3" aria-hidden="true">
+              <i class="bi bi-calendar2-check"></i>
+            </span>
+            <h2 class="h5 mb-2">Aún no hay una propuesta</h2>
+            <p class="text-muted-soft mb-4">
               Completa los datos y genera una propuesta para distribuir tus temas en sesiones.
             </p>
+            <div class="d-flex flex-wrap justify-content-center gap-2">
+              <span class="badge badge-info">Temas distribuidos</span>
+              <span class="badge badge-info">Sesiones fechadas</span>
+              <span class="badge badge-success">Vista en calendario</span>
+            </div>
           </div>
         </div>
-      } @else {
-        <div class="card border-0 shadow-sm">
-          <div class="card-body">
-            <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3">
-              <div>
-                <h2 class="h5 mb-1">Propuesta de plan</h2>
-                @if (propuesta()!.resumen) {
-                  <p class="text-muted mb-0">{{ propuesta()!.resumen }}</p>
-                }
+      } @else if (propuesta(); as propuesta) {
+        <div class="app-card app-card--ai h-100">
+          <div class="card-body p-4">
+            <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
+              <div class="d-flex align-items-center gap-3">
+                <span class="icon-badge icon-badge--ai" aria-hidden="true">
+                  <i class="bi bi-stars"></i>
+                </span>
+                <div>
+                  <div class="d-flex flex-wrap align-items-center gap-2">
+                    <h2 class="h5 mb-0">Propuesta de plan</h2>
+                    <span class="badge badge-warning">Sin guardar</span>
+                  </div>
+                  @if (propuesta.resumen) {
+                    <p class="small text-muted-soft mb-0 mt-1">{{ propuesta.resumen }}</p>
+                  }
+                </div>
               </div>
-              <span class="badge text-bg-warning">Sin guardar</span>
+              <span class="ai-badge"><i class="bi bi-stars" aria-hidden="true"></i> Generada con IA</span>
+            </div>
+
+            <div class="resumen-chips mb-3">
+              <span class="chip">
+                <i class="bi bi-list-check" aria-hidden="true"></i>
+                {{ resumenPropuesta().cantidad }} sesiones
+              </span>
+              <span class="chip">
+                <i class="bi bi-clock" aria-hidden="true"></i>
+                {{ resumenPropuesta().minutos }} min en total
+              </span>
+              @if (resumenPropuesta().desde) {
+                <span class="chip">
+                  <i class="bi bi-calendar-range" aria-hidden="true"></i>
+                  {{ resumenPropuesta().desde }} — {{ resumenPropuesta().hasta }}
+                </span>
+              }
+              @if (propuesta.modelo) {
+                <span class="chip chip-ai">
+                  <i class="bi bi-cpu" aria-hidden="true"></i>
+                  {{ propuesta.modelo }}
+                </span>
+              }
             </div>
 
             @if (sesionesEditables().length === 0) {
@@ -158,89 +222,97 @@
                 El proveedor no devolvió sesiones. Intenta generar la propuesta de nuevo.
               </div>
             } @else {
-              <div class="table-responsive">
-                <table class="table table-sm align-middle">
-                  <thead>
-                    <tr>
-                      <th scope="col">#</th>
-                      <th scope="col">Tema</th>
-                      <th scope="col">Actividades</th>
-                      <th scope="col">Fecha y hora</th>
-                      <th scope="col">Minutos</th>
-                      <th scope="col">Tipo</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    @for (sesion of sesionesEditables(); track $index) {
+              <div class="tabla-propuesta">
+                <div class="table-responsive">
+                  <table class="table table-sm align-middle mb-0">
+                    <thead>
                       <tr>
-                        <td>{{ $index + 1 }}</td>
-                        <td>
-                          <input
-                            type="text"
-                            class="form-control form-control-sm"
-                            aria-label="Tema de la sesión {{ $index + 1 }}"
-                            [value]="sesion.tema"
-                            (input)="actualizarSesion($index, 'tema', $any($event.target).value)"
-                          />
-                        </td>
-                        <td>
-                          <input
-                            type="text"
-                            class="form-control form-control-sm"
-                            aria-label="Actividades de la sesión {{ $index + 1 }}"
-                            [value]="sesion.actividades"
-                            (input)="actualizarSesion($index, 'actividades', $any($event.target).value)"
-                          />
-                        </td>
-                        <td>
-                          <input
-                            type="datetime-local"
-                            class="form-control form-control-sm"
-                            aria-label="Fecha de la sesión {{ $index + 1 }}"
-                            [value]="sesion.fecha_inicio"
-                            (input)="actualizarSesion($index, 'fecha_inicio', $any($event.target).value)"
-                          />
-                        </td>
-                        <td>
-                          <input
-                            type="number"
-                            class="form-control form-control-sm"
-                            min="5"
-                            max="480"
-                            aria-label="Duración de la sesión {{ $index + 1 }}"
-                            [value]="sesion.duracion_minutos"
-                            (input)="actualizarSesion($index, 'duracion_minutos', +$any($event.target).value)"
-                          />
-                        </td>
-                        <td>
-                          <select
-                            class="form-select form-select-sm"
-                            aria-label="Tipo de la sesión {{ $index + 1 }}"
-                            [value]="sesion.tipo ?? ''"
-                            (change)="actualizarSesion($index, 'tipo', $any($event.target).value)"
-                          >
-                            <option value="">—</option>
-                            @for (tipo of tiposSesion; track tipo) {
-                              <option [value]="tipo">{{ tipo }}</option>
-                            }
-                          </select>
-                        </td>
+                        <th scope="col">#</th>
+                        <th scope="col">Tema</th>
+                        <th scope="col">Actividades</th>
+                        <th scope="col">Fecha y hora</th>
+                        <th scope="col">Min.</th>
+                        <th scope="col">Tipo</th>
                       </tr>
-                    }
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      @for (sesion of sesionesEditables(); track $index) {
+                        <tr>
+                          <td><span class="numero-fila">{{ $index + 1 }}</span></td>
+                          <td>
+                            <input
+                              type="text"
+                              class="form-control form-control-sm"
+                              aria-label="Tema de la sesión {{ $index + 1 }}"
+                              [value]="sesion.tema"
+                              (input)="actualizarSesion($index, 'tema', $any($event.target).value)"
+                            />
+                          </td>
+                          <td>
+                            <input
+                              type="text"
+                              class="form-control form-control-sm"
+                              aria-label="Actividades de la sesión {{ $index + 1 }}"
+                              [value]="sesion.actividades"
+                              (input)="actualizarSesion($index, 'actividades', $any($event.target).value)"
+                            />
+                          </td>
+                          <td>
+                            <input
+                              type="datetime-local"
+                              class="form-control form-control-sm"
+                              aria-label="Fecha de la sesión {{ $index + 1 }}"
+                              [value]="sesion.fecha_inicio"
+                              (input)="actualizarSesion($index, 'fecha_inicio', $any($event.target).value)"
+                            />
+                          </td>
+                          <td>
+                            <input
+                              type="number"
+                              class="form-control form-control-sm"
+                              min="5"
+                              max="480"
+                              aria-label="Duración de la sesión {{ $index + 1 }}"
+                              [value]="sesion.duracion_minutos"
+                              (input)="actualizarSesion($index, 'duracion_minutos', +$any($event.target).value)"
+                            />
+                          </td>
+                          <td>
+                            <select
+                              class="form-select form-select-sm"
+                              aria-label="Tipo de la sesión {{ $index + 1 }}"
+                              [value]="sesion.tipo ?? ''"
+                              (change)="actualizarSesion($index, 'tipo', $any($event.target).value)"
+                            >
+                              <option value="">—</option>
+                              @for (tipo of tiposSesion; track tipo) {
+                                <option [value]="tipo">{{ tipo }}</option>
+                              }
+                            </select>
+                          </td>
+                        </tr>
+                      }
+                    </tbody>
+                  </table>
+                </div>
               </div>
 
-              <div class="d-flex flex-wrap gap-2 justify-content-end mt-3">
-                <button type="button" class="btn btn-outline-secondary" (click)="descartarPropuesta()">
+              <div class="d-flex flex-wrap gap-2 justify-content-end mt-4 pt-3 border-top">
+                <button type="button" class="btn btn-outline-danger" (click)="descartarPropuesta()">
+                  <i class="bi bi-x-circle me-1" aria-hidden="true"></i>
                   Descartar propuesta
                 </button>
-                <button type="button" class="btn btn-success" [disabled]="!puedeConfirmar()" (click)="confirmarPlan()">
+                <button
+                  type="button"
+                  class="btn btn-aceptar"
+                  [disabled]="!puedeConfirmar()"
+                  (click)="confirmarPlan()"
+                >
                   @if (guardando()) {
                     <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
                     Guardando...
                   } @else {
-                    <i class="bi bi-check2 me-2" aria-hidden="true"></i>
+                    <i class="bi bi-check2 me-1" aria-hidden="true"></i>
                     Aceptar y guardar
                   }
                 </button>
@@ -252,269 +324,382 @@
     </div>
   </div>
 
-  <section class="mt-5">
-    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
-      <h2 class="h4 mb-0">Mis planes</h2>
-      <a routerLink="/calendario" class="btn btn-sm btn-outline-primary">
-        <i class="bi bi-calendar3 me-1" aria-hidden="true"></i>
-        Ver calendario completo
-      </a>
+  <section class="seccion-planes mt-5" aria-labelledby="titulo-mis-planes">
+    <div class="d-flex flex-wrap justify-content-between align-items-end gap-3 mb-4">
+      <div>
+        <span class="page-eyebrow">Guardados</span>
+        <h2 class="h4 mb-1" id="titulo-mis-planes">Mis planes</h2>
+        <p class="small text-muted-soft mb-0">Revisa, edita y marca tus sesiones como completadas.</p>
+      </div>
+      <span class="badge badge-info">
+        <i class="bi bi-collection me-1" aria-hidden="true"></i>
+        {{ totalPlanes() }} {{ totalPlanes() === 1 ? 'plan' : 'planes' }}
+      </span>
     </div>
 
     @if (cargandoPlanes()) {
-      <div class="text-center py-5" role="status">Cargando planes...</div>
+      <div class="app-card" role="status" aria-live="polite">
+        <div class="card-body p-5 text-center text-muted-soft">
+          <span class="spinner-border spinner-border-sm text-primary me-2" aria-hidden="true"></span>
+          Cargando planes...
+        </div>
+      </div>
     } @else if (planes().length === 0) {
-      <div class="alert alert-info" role="status">Todavía no tienes planes de estudio guardados.</div>
+      <div class="app-card">
+        <div class="card-body p-5 text-center">
+          <span class="icon-badge icon-badge--ai icon-badge--xl mb-3" aria-hidden="true">
+            <i class="bi bi-journal-plus"></i>
+          </span>
+          <h3 class="h6 mb-1">Todavía no tienes planes guardados</h3>
+          <p class="small text-muted-soft mb-0">
+            Genera una propuesta arriba y guárdala para empezar a planificar tus sesiones.
+          </p>
+        </div>
+      </div>
     } @else {
-      <div class="list-group shadow-sm">
+      <div class="planes-grid">
         @for (plan of planes(); track plan.id) {
-          <div class="list-group-item">
-            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
-              <button
-                type="button"
-                class="btn btn-link text-start p-0 flex-grow-1"
-                [attr.aria-expanded]="planExpandido() === plan.id"
-                (click)="verPlan(plan.id)"
-              >
-                <strong>{{ plan.objetivo }}</strong>
-                <span class="d-block text-muted small">
-                  {{ plan.materia_nombre ?? 'Materia' }} · Evaluación {{ plan.fecha_examen | date: 'dd/MM/yyyy' }}
-                  · {{ plan.minutos_por_dia }} min/día
-                </span>
-              </button>
-              <span
-                class="badge"
-                [class.text-bg-success]="plan.estado === 'confirmado'"
-                [class.text-bg-secondary]="plan.estado === 'descartado'"
-              >
-                {{ plan.estado === 'confirmado' ? 'Confirmado' : 'Descartado' }}
-              </span>
-              @if (plan.estado === 'confirmado') {
+          <div class="app-card plan-card" [attr.data-estado]="plan.estado">
+            <div class="card-body p-4">
+              <div class="d-flex flex-wrap justify-content-between align-items-start gap-2">
                 <button
                   type="button"
-                  class="btn btn-sm btn-outline-danger"
-                  (click)="descartarPlan(plan)"
+                  class="plan-titulo flex-grow-1"
+                  [attr.aria-expanded]="planExpandido() === plan.id"
+                  (click)="verPlan(plan.id)"
                 >
-                  Descartar
+                  <strong>{{ plan.objetivo }}</strong>
+                  <span class="d-block small text-muted-soft mt-1">
+                    {{ plan.materia_nombre ?? 'Materia' }}
+                    @if (plan.materia_codigo) { · {{ plan.materia_codigo }} }
+                  </span>
                 </button>
-              }
-            </div>
-
-            @if (planExpandido() === plan.id) {
-              <div class="mt-3 border-top pt-3">
-                @if (!detalle()) {
-                  <div class="text-center py-3" role="status">Cargando sesiones...</div>
-                } @else if (editandoPlan()) {
-                  <form (submit)="$event.preventDefault(); guardarEdicionPlan()">
-                    <h3 class="h6">Editar datos del plan</h3>
-                    <div class="mb-3">
-                      <label [for]="'editar-objetivo-' + plan.id" class="form-label">Objetivo de estudio</label>
-                      <textarea
-                        [id]="'editar-objetivo-' + plan.id"
-                        class="form-control"
-                        rows="2"
-                        maxlength="300"
-                        [value]="edicionPlan().objetivo"
-                        (input)="cambiarEdicionPlan('objetivo', $any($event.target).value)"
-                      ></textarea>
-                    </div>
-                    <div class="row g-3 mb-3">
-                      <div class="col-12 col-md-6">
-                        <label [for]="'editar-examen-' + plan.id" class="form-label">Fecha de evaluación</label>
-                        <input
-                          [id]="'editar-examen-' + plan.id"
-                          type="date"
-                          class="form-control"
-                          [value]="edicionPlan().fecha_examen"
-                          (input)="cambiarEdicionPlan('fecha_examen', $any($event.target).value)"
-                        />
-                      </div>
-                      <div class="col-12 col-md-6">
-                        <label [for]="'editar-minutos-' + plan.id" class="form-label">Minutos por día</label>
-                        <input
-                          [id]="'editar-minutos-' + plan.id"
-                          type="number"
-                          class="form-control"
-                          min="15"
-                          max="480"
-                          step="15"
-                          [value]="edicionPlan().minutos_por_dia"
-                          (input)="cambiarMinutosEdicion($any($event.target).value)"
-                        />
-                      </div>
-                    </div>
-                    <fieldset class="mb-3">
-                      <legend class="form-label fs-6">Días disponibles</legend>
-                      <div class="d-flex flex-wrap gap-2">
-                        @for (dia of diasSemana; track dia) {
-                          <button
-                            type="button"
-                            class="btn btn-sm"
-                            [class.btn-primary]="edicionPlan().dias_disponibles.includes(dia)"
-                            [class.btn-outline-secondary]="!edicionPlan().dias_disponibles.includes(dia)"
-                            [attr.aria-pressed]="edicionPlan().dias_disponibles.includes(dia)"
-                            (click)="alternarDiaEdicion(dia)"
-                          >
-                            {{ etiquetasDias[dia] }}
-                          </button>
-                        }
-                      </div>
-                    </fieldset>
-                    <div class="d-flex gap-2 justify-content-end">
-                      <button type="button" class="btn btn-outline-secondary" (click)="cancelarEdicionPlan()">
-                        Cancelar
-                      </button>
-                      <button type="submit" class="btn btn-primary" [disabled]="!puedeGuardarPlan()">
-                        @if (guardando()) {
-                          <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-                          Guardando...
-                        } @else {
-                          Guardar cambios
-                        }
-                      </button>
-                    </div>
-                  </form>
-                } @else {
-                  <div class="d-flex justify-content-end mb-2">
+                <div class="d-flex align-items-center gap-2">
+                  <span
+                    class="badge badge-sm"
+                    [class.badge-success]="plan.estado === 'confirmado'"
+                    [class.badge-danger]="plan.estado === 'descartado'"
+                  >
+                    <i
+                      class="bi"
+                      [class.bi-check-circle]="plan.estado === 'confirmado'"
+                      [class.bi-x-circle]="plan.estado === 'descartado'"
+                      aria-hidden="true"
+                    ></i>
+                    {{ plan.estado === 'confirmado' ? 'Confirmado' : 'Descartado' }}
+                  </span>
+                  @if (plan.estado === 'confirmado') {
                     <button
                       type="button"
-                      class="btn btn-sm btn-outline-primary"
-                      (click)="iniciarEdicionPlan(detalle()!)"
+                      class="btn btn-sm btn-outline-danger"
+                      (click)="descartarPlan(plan)"
                     >
-                      <i class="bi bi-pencil me-1" aria-hidden="true"></i>
-                      Editar datos del plan
+                      Descartar
                     </button>
-                  </div>
-                  <app-calendario-sesiones [sesiones]="detalle()!.sesiones" />
-
-                  <h3 class="h6 mt-4">Sesiones ({{ detalle()!.sesiones.length }})</h3>
-                  @if (detalle()!.sesiones.length === 0) {
-                    <div class="alert alert-info" role="status">Este plan no tiene sesiones.</div>
-                  } @else {
-                    <div class="list-group list-group-flush">
-                      @for (sesion of detalle()!.sesiones; track sesion.id) {
-                        <div class="list-group-item px-0">
-                          @if (sesionEnEdicion() === sesion.id && edicionSesion()) {
-                            <form (submit)="$event.preventDefault(); guardarEdicionSesion()">
-                              <strong class="d-block mb-2">Editar sesión</strong>
-                              <div class="row g-2">
-                                <div class="col-12 col-md-6">
-                                  <label [for]="'editar-tema-' + sesion.id" class="form-label">Tema</label>
-                                  <input
-                                    [id]="'editar-tema-' + sesion.id"
-                                    type="text"
-                                    class="form-control"
-                                    [value]="edicionSesion()!.tema"
-                                    (input)="cambiarEdicionSesion('tema', $any($event.target).value)"
-                                  />
-                                </div>
-                                <div class="col-12 col-md-6">
-                                  <label [for]="'editar-actividades-' + sesion.id" class="form-label">Actividades</label>
-                                  <input
-                                    [id]="'editar-actividades-' + sesion.id"
-                                    type="text"
-                                    class="form-control"
-                                    [value]="edicionSesion()!.actividades"
-                                    (input)="cambiarEdicionSesion('actividades', $any($event.target).value)"
-                                  />
-                                </div>
-                                <div class="col-12 col-md-4">
-                                  <label [for]="'editar-fecha-' + sesion.id" class="form-label">Fecha y hora</label>
-                                  <input
-                                    [id]="'editar-fecha-' + sesion.id"
-                                    type="datetime-local"
-                                    class="form-control"
-                                    [value]="edicionSesion()!.fecha_inicio"
-                                    (input)="cambiarEdicionSesion('fecha_inicio', $any($event.target).value)"
-                                  />
-                                </div>
-                                <div class="col-6 col-md-4">
-                                  <label [for]="'editar-duracion-' + sesion.id" class="form-label">Minutos</label>
-                                  <input
-                                    [id]="'editar-duracion-' + sesion.id"
-                                    type="number"
-                                    class="form-control"
-                                    min="5"
-                                    max="480"
-                                    [value]="edicionSesion()!.duracion_minutos"
-                                    (input)="cambiarEdicionSesion('duracion_minutos', +$any($event.target).value)"
-                                  />
-                                </div>
-                                <div class="col-6 col-md-4">
-                                  <label [for]="'editar-tipo-' + sesion.id" class="form-label">Tipo</label>
-                                  <select
-                                    [id]="'editar-tipo-' + sesion.id"
-                                    class="form-select"
-                                    [value]="edicionSesion()!.tipo"
-                                    (change)="cambiarEdicionSesion('tipo', $any($event.target).value)"
-                                  >
-                                    <option value="">—</option>
-                                    @for (tipo of tiposSesion; track tipo) {
-                                      <option [value]="tipo">{{ tipo }}</option>
-                                    }
-                                  </select>
-                                </div>
-                              </div>
-                              <div class="d-flex gap-2 justify-content-end mt-3">
-                                <button type="button" class="btn btn-sm btn-outline-secondary" (click)="cancelarEdicionSesion()">
-                                  Cancelar
-                                </button>
-                                <button type="submit" class="btn btn-sm btn-primary" [disabled]="guardando()">
-                                  Guardar sesión
-                                </button>
-                              </div>
-                            </form>
-                          } @else {
-                            <div class="d-flex flex-wrap justify-content-between gap-2 align-items-center">
-                              <div>
-                                <strong>{{ sesion.tema }}</strong>
-                                <span class="d-block text-muted small">
-                                  {{ sesion.fecha_inicio | date: 'dd/MM/yyyy HH:mm' }} · {{ sesion.duracion_minutos }} min
-                                  @if (sesion.tipo) { · {{ sesion.tipo }} }
-                                </span>
-                                <span class="d-block small">{{ sesion.actividades }}</span>
-                              </div>
-                              <div class="d-flex gap-2">
-                                <button
-                                  type="button"
-                                  class="btn btn-sm"
-                                  [class.btn-outline-success]="sesion.estado === 'pendiente'"
-                                  [class.btn-success]="sesion.estado === 'completada'"
-                                  (click)="cambiarEstadoSesion(sesion, sesion.estado === 'completada' ? 'pendiente' : 'completada')"
-                                >
-                                  {{ sesion.estado === 'completada' ? 'Completada' : 'Marcar completada' }}
-                                </button>
-                                <button
-                                  type="button"
-                                  class="btn btn-sm btn-outline-primary"
-                                  (click)="editarSesion(sesion)"
-                                >
-                                  Editar
-                                </button>
-                                <button
-                                  type="button"
-                                  class="btn btn-sm btn-outline-danger"
-                                  (click)="eliminarSesion(sesion)"
-                                >
-                                  Eliminar
-                                </button>
-                              </div>
-                            </div>
-                          }
-                        </div>
-                      }
-                    </div>
                   }
+                </div>
+              </div>
+
+              <div class="meta-chips mt-3">
+                <span class="meta-chip">
+                  <i class="bi bi-calendar-event" aria-hidden="true"></i>
+                  Evaluación {{ plan.fecha_examen | date: 'dd/MM/yyyy' }}
+                </span>
+                <span class="meta-chip">
+                  <i class="bi bi-clock" aria-hidden="true"></i>
+                  {{ plan.minutos_por_dia }} min/día
+                </span>
+                @for (dia of plan.dias_disponibles; track dia) {
+                  <span class="meta-chip meta-chip--dia">{{ etiquetasDias[dia] }}</span>
                 }
               </div>
-            }
+
+              @if (planExpandido() === plan.id) {
+                <div class="detalle-plan">
+                  @if (!detalle() || detalle()!.id !== plan.id) {
+                    <div class="estado-carga" role="status">
+                      <span class="spinner-border spinner-border-sm text-primary me-2" aria-hidden="true"></span>
+                      Cargando sesiones...
+                    </div>
+                  } @else if (editandoPlan()) {
+                    <form class="editor-panel" (submit)="$event.preventDefault(); guardarEdicionPlan()">
+                      <div class="d-flex align-items-center gap-2 mb-3">
+                        <i class="bi bi-pencil-square text-ai" aria-hidden="true"></i>
+                        <h3 class="h6 mb-0">Editar datos del plan</h3>
+                      </div>
+                      <div class="mb-3">
+                        <label [for]="'editar-objetivo-' + plan.id" class="form-label">Objetivo de estudio</label>
+                        <textarea
+                          [id]="'editar-objetivo-' + plan.id"
+                          class="form-control"
+                          rows="2"
+                          maxlength="300"
+                          [value]="edicionPlan().objetivo"
+                          (input)="cambiarEdicionPlan('objetivo', $any($event.target).value)"
+                        ></textarea>
+                      </div>
+                      <div class="row g-3 mb-3">
+                        <div class="col-12 col-md-6">
+                          <label [for]="'editar-examen-' + plan.id" class="form-label">Fecha de evaluación</label>
+                          <input
+                            [id]="'editar-examen-' + plan.id"
+                            type="date"
+                            class="form-control"
+                            [value]="edicionPlan().fecha_examen"
+                            (input)="cambiarEdicionPlan('fecha_examen', $any($event.target).value)"
+                          />
+                        </div>
+                        <div class="col-12 col-md-6">
+                          <label [for]="'editar-minutos-' + plan.id" class="form-label">Minutos por día</label>
+                          <input
+                            [id]="'editar-minutos-' + plan.id"
+                            type="number"
+                            class="form-control"
+                            min="15"
+                            max="480"
+                            step="15"
+                            [value]="edicionPlan().minutos_por_dia"
+                            (input)="cambiarMinutosEdicion($any($event.target).value)"
+                          />
+                        </div>
+                      </div>
+                      <fieldset class="mb-3">
+                        <legend class="form-label fs-6">Días disponibles</legend>
+                        <div class="d-flex flex-wrap gap-2">
+                          @for (dia of diasSemana; track dia) {
+                            <button
+                              type="button"
+                              class="dia-chip"
+                              [class.seleccionado]="edicionPlan().dias_disponibles.includes(dia)"
+                              [attr.aria-pressed]="edicionPlan().dias_disponibles.includes(dia)"
+                              (click)="alternarDiaEdicion(dia)"
+                            >
+                              {{ etiquetasDias[dia] }}
+                            </button>
+                          }
+                        </div>
+                      </fieldset>
+                      <div class="d-flex gap-2 justify-content-end">
+                        <button type="button" class="btn btn-outline-secondary" (click)="cancelarEdicionPlan()">
+                          Cancelar
+                        </button>
+                        <button type="submit" class="btn btn-ai" [disabled]="!puedeGuardarPlan()">
+                          @if (guardando()) {
+                            <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                            Guardando...
+                          } @else {
+                            Guardar cambios
+                          }
+                        </button>
+                      </div>
+                    </form>
+                  } @else {
+                    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+                      <div class="stats-plan">
+                        <div class="stat-plan">
+                          <span class="stat-plan-valor">{{ estadisticasPlan().total }}</span>
+                          <span class="stat-plan-label">Sesiones</span>
+                        </div>
+                        <div class="stat-plan">
+                          <span class="stat-plan-valor text-mingo-success">{{ estadisticasPlan().completadas }}</span>
+                          <span class="stat-plan-label">Completadas</span>
+                        </div>
+                        <div class="stat-plan">
+                          <span class="stat-plan-valor">{{ estadisticasPlan().minutos }}</span>
+                          <span class="stat-plan-label">Minutos</span>
+                        </div>
+                      </div>
+                      <button type="button" class="btn btn-sm btn-outline-info" (click)="iniciarEdicionPlan(detalle()!)">
+                        <i class="bi bi-pencil me-1" aria-hidden="true"></i>
+                        Editar datos del plan
+                      </button>
+                    </div>
+
+                    <div class="progreso-plan mb-4">
+                      <div class="d-flex justify-content-between small text-muted-soft mb-1">
+                        <span>Progreso del plan</span>
+                        <span>{{ estadisticasPlan().porcentaje }} %</span>
+                      </div>
+                      <div
+                        class="progress"
+                        role="progressbar"
+                        [attr.aria-valuenow]="estadisticasPlan().porcentaje"
+                        aria-valuemin="0"
+                        aria-valuemax="100"
+                      >
+                        <div class="progress-bar" [style.width.%]="estadisticasPlan().porcentaje"></div>
+                      </div>
+                    </div>
+
+                    <div class="calendario-wrap mb-4">
+                      <app-calendario-sesiones [sesiones]="detalle()!.sesiones" />
+                    </div>
+
+                    <div class="d-flex align-items-center justify-content-between gap-2 mb-2">
+                      <h3 class="h6 mb-0">
+                        <i class="bi bi-list-task me-2 text-ai" aria-hidden="true"></i>
+                        Sesiones ({{ detalle()!.sesiones.length }})
+                      </h3>
+                    </div>
+
+                    @if (detalle()!.sesiones.length === 0) {
+                      <div class="alert alert-info" role="status">Este plan no tiene sesiones.</div>
+                    } @else {
+                      <div class="sesiones-list">
+                        @for (sesion of detalle()!.sesiones; track sesion.id) {
+                          <div class="sesion-item" [attr.data-estado]="sesion.estado">
+                            @if (sesionEnEdicion() === sesion.id && edicionSesion()) {
+                              <form class="editor-panel" (submit)="$event.preventDefault(); guardarEdicionSesion()">
+                                <div class="d-flex align-items-center gap-2 mb-3">
+                                  <i class="bi bi-pencil-square text-ai" aria-hidden="true"></i>
+                                  <strong>Editar sesión</strong>
+                                </div>
+                                <div class="row g-2">
+                                  <div class="col-12 col-md-6">
+                                    <label [for]="'editar-tema-' + sesion.id" class="form-label">Tema</label>
+                                    <input
+                                      [id]="'editar-tema-' + sesion.id"
+                                      type="text"
+                                      class="form-control"
+                                      [value]="edicionSesion()!.tema"
+                                      (input)="cambiarEdicionSesion('tema', $any($event.target).value)"
+                                    />
+                                  </div>
+                                  <div class="col-12 col-md-6">
+                                    <label [for]="'editar-actividades-' + sesion.id" class="form-label">Actividades</label>
+                                    <input
+                                      [id]="'editar-actividades-' + sesion.id"
+                                      type="text"
+                                      class="form-control"
+                                      [value]="edicionSesion()!.actividades"
+                                      (input)="cambiarEdicionSesion('actividades', $any($event.target).value)"
+                                    />
+                                  </div>
+                                  <div class="col-12 col-md-4">
+                                    <label [for]="'editar-fecha-' + sesion.id" class="form-label">Fecha y hora</label>
+                                    <input
+                                      [id]="'editar-fecha-' + sesion.id"
+                                      type="datetime-local"
+                                      class="form-control"
+                                      [value]="edicionSesion()!.fecha_inicio"
+                                      (input)="cambiarEdicionSesion('fecha_inicio', $any($event.target).value)"
+                                    />
+                                  </div>
+                                  <div class="col-6 col-md-4">
+                                    <label [for]="'editar-duracion-' + sesion.id" class="form-label">Minutos</label>
+                                    <input
+                                      [id]="'editar-duracion-' + sesion.id"
+                                      type="number"
+                                      class="form-control"
+                                      min="5"
+                                      max="480"
+                                      [value]="edicionSesion()!.duracion_minutos"
+                                      (input)="cambiarEdicionSesion('duracion_minutos', +$any($event.target).value)"
+                                    />
+                                  </div>
+                                  <div class="col-6 col-md-4">
+                                    <label [for]="'editar-tipo-' + sesion.id" class="form-label">Tipo</label>
+                                    <select
+                                      [id]="'editar-tipo-' + sesion.id"
+                                      class="form-select"
+                                      [value]="edicionSesion()!.tipo"
+                                      (change)="cambiarEdicionSesion('tipo', $any($event.target).value)"
+                                    >
+                                      <option value="">—</option>
+                                      @for (tipo of tiposSesion; track tipo) {
+                                        <option [value]="tipo">{{ tipo }}</option>
+                                      }
+                                    </select>
+                                  </div>
+                                </div>
+                                <div class="d-flex gap-2 justify-content-end mt-3">
+                                  <button
+                                    type="button"
+                                    class="btn btn-sm btn-outline-secondary"
+                                    (click)="cancelarEdicionSesion()"
+                                  >
+                                    Cancelar
+                                  </button>
+                                  <button type="submit" class="btn btn-ai btn-sm" [disabled]="guardando()">
+                                    Guardar sesión
+                                  </button>
+                                </div>
+                              </form>
+                            } @else {
+                              <div class="sesion-cabecera">
+                                <span class="sesion-orden">{{ sesion.orden }}</span>
+                                <div class="flex-grow-1 min-w-0">
+                                  <div class="d-flex flex-wrap align-items-center gap-2">
+                                    <strong>{{ sesion.tema }}</strong>
+                                    <span
+                                      class="badge badge-sm tipo-badge"
+                                      [attr.data-tipo]="sesion.tipo ?? 'sin-tipo'"
+                                    >
+                                      {{ sesion.tipo ?? 'Sin tipo' }}
+                                    </span>
+                                    @if (sesion.estado === 'completada') {
+                                      <span class="badge badge-sm badge-success">Completada</span>
+                                    }
+                                  </div>
+                                  <div class="sesion-meta">
+                                    <i class="bi bi-clock-history" aria-hidden="true"></i>
+                                    {{ sesion.fecha_inicio | date: 'dd/MM/yyyy HH:mm' }} · {{ sesion.duracion_minutos }} min
+                                  </div>
+                                  <p class="sesion-actividades mb-0">{{ sesion.actividades }}</p>
+                                </div>
+                                <div class="sesion-acciones">
+                                  <button
+                                    type="button"
+                                    class="btn btn-sm btn-completar"
+                                    [class.completada]="sesion.estado === 'completada'"
+                                    [attr.aria-pressed]="sesion.estado === 'completada'"
+                                    (click)="cambiarEstadoSesion(sesion, sesion.estado === 'completada' ? 'pendiente' : 'completada')"
+                                  >
+                                    <i
+                                      class="bi"
+                                      [class.bi-check2-circle]="sesion.estado === 'pendiente'"
+                                      [class.bi-arrow-counterclockwise]="sesion.estado === 'completada'"
+                                      aria-hidden="true"
+                                    ></i>
+                                    <span class="d-none d-sm-inline">
+                                      {{ sesion.estado === 'completada' ? 'Reabrir' : 'Completar' }}
+                                    </span>
+                                  </button>
+                                  <button
+                                    type="button"
+                                    class="btn btn-sm btn-outline-info"
+                                    (click)="editarSesion(sesion)"
+                                    aria-label="Editar sesión"
+                                  >
+                                    <i class="bi bi-pencil" aria-hidden="true"></i>
+                                  </button>
+                                  <button
+                                    type="button"
+                                    class="btn btn-sm btn-outline-danger"
+                                    (click)="eliminarSesion(sesion)"
+                                    aria-label="Eliminar sesión"
+                                  >
+                                    <i class="bi bi-trash" aria-hidden="true"></i>
+                                  </button>
+                                </div>
+                              </div>
+                            }
+                          </div>
+                        }
+                      </div>
+                    }
+                  }
+                </div>
+              }
+            </div>
           </div>
         }
       </div>
 
       @if (hayMasPlanes()) {
-        <div class="text-center mt-3">
-          <button type="button" class="btn btn-outline-primary btn-sm" (click)="cargarMas()">
+        <div class="text-center mt-4">
+          <button type="button" class="btn btn-outline-info btn-sm" (click)="cargarMas()">
+            <i class="bi bi-chevron-down me-1" aria-hidden="true"></i>
             Cargar más planes
           </button>
         </div>

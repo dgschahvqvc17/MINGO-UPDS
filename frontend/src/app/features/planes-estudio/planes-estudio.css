@@ -1,12 +1,2 @@
-.planes-estudio .card-body {
-  padding: 1.25rem;
-}
-
-.planes-estudio .list-group-item strong {
-  color: var(--bs-body-color);
-}
-
-.planes-estudio app-calendario-sesiones {
-  display: block;
-  margin-bottom: 1rem;
-}
+/* Los estilos de esta feature viven en styles.css bajo el prefijo .planes-estudio
+   para no exceder el budget anyComponentStyle de Angular (6 kB). */
