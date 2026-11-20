@@ -73,11 +73,11 @@ MINGO es una aplicación web académica con arquitectura cliente-servidor:
 Flujo de recordatorios (HU18):
 
 ```text
-EventBridge Scheduler (1 schedule diario; OFF en dev)
+EventBridge Scheduler (1 schedule horario; OFF en dev)
   -> Lambda recordatorios (service_role, sin VPC, sin reintentos)
       -> Supabase: tareas, evaluaciones, sesiones y preferencias
       -> Supabase: notificaciones (ON CONFLICT DO NOTHING)
-      -> SNS email (solo si el usuario activó `canal_email`; máx. 100 correos/ejecución)
+      -> SNS email (solo si el usuario activó `canal_email`; máx. 30 correos/día)
 
 Angular /notificaciones
   -> API /api/notificaciones (JWT) -> Supabase con RLS
@@ -142,8 +142,8 @@ Errores:
 | Frontend Angular | S3 privado + CloudFront (o hosting estático gratuito externo) |
 | Backend Express | Lambda + API Gateway HTTP API |
 | Procesamiento documental | S3 → SQS → Lambda |
-| Recordatorios | Un EventBridge Scheduler diario → Lambda de recordatorios (deshabilitado en `dev`). |
-| Notificaciones | Historial en Supabase con RLS; SNS email solo para canales habilitados y con tope de 100 correos por ejecución. |
+| Recordatorios | Un EventBridge Scheduler horario → Lambda de recordatorios (deshabilitado en `dev`). |
+| Notificaciones | Historial en Supabase con RLS; SNS email solo para canales habilitados y con tope de 30 correos por día. |
 | Base de datos | Supabase PostgreSQL |
 | Embeddings | pgvector en Supabase |
 | IA | API externa con cuota |

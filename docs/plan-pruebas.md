@@ -317,13 +317,14 @@ Reglas:
 | `PATCH /:id/leida` y `/leer-todas` | Cambian `leida` a `true`; el segundo devuelve `actualizadas`. |
 | Preferencias inexistentes | `GET` crea la fila con valores por defecto (`60` min, email apagado, `America/Bogota`, `es`). |
 | Actualizar preferencias | Acepta cambios parciales; anticipación fuera de `5–10080`, zona IANA inválida o cuerpo vacío responden `400`. |
-| Generación de recordatorios | Genera avisos para tareas no completadas, evaluaciones `examen` y sesiones `pendiente` dentro de la ventana de anticipación. |
+| Generación de recordatorios | Genera avisos para tareas no completadas, evaluaciones `examen` y sesiones `pendiente` entre `ahora - 60 min` y `ahora + anticipacion_minutos`. |
+| Cobertura horaria | Con un schedule cada hora y una anticipación de 5 minutos, una actividad a las `11:45` se rescata en la ejecución de las `12:00`; ninguna queda fuera de todas las ventanas. |
 | `fecha_programada` | Igual a `fecha_actividad - anticipacion_minutos`, en ISO 8601. |
 | Ejecución repetida | La clave `(usuario_id, clave_idempotencia)` evita duplicados y reenvíos. |
 | Usuario con notificaciones desactivadas | No consulta actividades ni genera avisos. |
 | Sin topic SNS o `canal_email = false` | La notificación interna se conserva; no se publica ni se marca `fecha_envio`. |
 | Fallo de SNS | Se contabiliza en `erroresEnvio`; la notificación interna y la ejecución no fallan. |
-| Más de 100 correos en una ejecución | Se publican como máximo `100`; el resto queda solo en la plataforma. |
+| Más de 30 correos en un día | Se publican como máximo `30`; el cupo se consulta con `fecha_envio >= inicio del día UTC` y se descuenta entre ejecuciones horarias. El resto queda solo en la plataforma. |
 | Lambda de recordatorios | Acepta el evento vacío del schedule y una lista opcional de usuarios acotada a `100`; devuelve el resumen. |
 | UI `/notificaciones` | Estados de carga, vacío y error; filtros de estado/tipo; paginación; marcar una/todas; formulario de preferencias con validación de anticipación. |
 | Contador del shell | Muestra `noLeidas` y se actualiza al consultar o marcar notificaciones. |
@@ -471,7 +472,8 @@ Responsable:
 | Fecha | Alcance | Entorno | Resultado |
 |---|---|---|---|
 | 2026-11-20 | E2E de HU17 contra la API real: crear, listar, consultar, cambiar estado y eliminar objetivos; consultar progreso con datos. Incluye validación de título corto (`400`) y `404` tras el borrado. | Supabase real con un usuario temporal aislado, eliminado al final. | PASS |
-| 2026-11-20 | HU18: lint y pruebas de backend (49 suites / 503 pruebas), build y pruebas de frontend (27 archivos / 191 pruebas). Cubre endpoints, preferencias, idempotencia, tope de 100 correos, Lambda, historial, filtros y contador. | Local con mocks de Supabase y SNS; sin despliegue AWS. | PASS |
+| 2026-11-20 | HU18: lint y pruebas de backend (49 suites / 506 pruebas), build y pruebas de frontend (27 archivos / 191 pruebas, sin cambios en este ajuste). Cubre endpoints, preferencias, idempotencia, ventana horaria con rescate, cupo diario de 30 correos, Lambda, historial, filtros y contador. | Local con mocks de Supabase y SNS; sin despliegue AWS. | PASS |
+| 2026-11-20 | Ajuste de cobertura horaria y cupo SNS: mismo alcance automatizado, sin cambios de esquema (la migración `0017` ya aplicada sigue siendo válida). | Local; plantilla SAM validada por parser YAML. | PASS |
 
 ## 13. Pruebas antes de desplegar
 

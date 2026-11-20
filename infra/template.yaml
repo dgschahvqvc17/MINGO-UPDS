@@ -2,7 +2,7 @@ AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
 Description: >-
   MINGO - HU07, HU09 y HU18. Bucket privado de documentos academicos,
-  procesamiento asincrono (S3 -> SQS -> Lambda) y recordatorios diarios
+  procesamiento asincrono (S3 -> SQS -> Lambda) y recordatorios horarios
   (Scheduler -> Lambda -> SNS). Sin servidores, sin VPC, sin concurrencia
   provisionada y con DLQ acotada. Solo capa gratuita.
 
@@ -101,10 +101,11 @@ Parameters:
 
   RecordatorioCron:
     Type: String
-    Default: 'cron(0 12 * * ? *)'
+    Default: 'cron(0 * * * ? *)'
     Description: >
-      Expresion cron UTC del unico schedule diario. Doce del mediodia UTC
-      equivale a las 07:00 en America/Bogota (hora estacional -05).
+      Expresion cron UTC del unico schedule. Por defecto se ejecuta cada hora
+      en punto para cubrir vencimientos durante todo el dia (744 invocaciones
+      al mes, dentro del free tier de 14 millones de EventBridge Scheduler).
 
 Conditions:
   IsProd: !Equals [!Ref Environment, prod]
@@ -339,8 +340,9 @@ Resources:
 
   # --- HU18: recordatorios programados ---------------------------------------
   # Un solo topic para todos los avisos. Solo se publica si el estudiante
-  # activo `canal_email`; el servicio limita la ejecucion a 100 correos/dia.
-  # Sin suscripcion no se envia ningun correo.
+  # activo `canal_email`; el servicio limita el dia a 30 correos para no
+  # superar los 1.000 correos/mes gratuitos de SNS email. Sin suscripcion
+  # no se envia ningun correo.
   NotificacionesTopic:
     Type: AWS::SNS::Topic
     Properties:
@@ -418,7 +420,7 @@ Resources:
       Architectures: [arm64]
       MemorySize: 512
       Timeout: 30
-      # Una sola ejecucion al dia: sin concurrencia reservada ni provisionada.
+      # Una ejecucion por hora: sin concurrencia reservada ni provisionada.
       Role: !GetAtt RecordatoriosRole.Arn
       Environment:
         Variables:
@@ -462,8 +464,8 @@ Resources:
   RecordatoriosSchedule:
     Type: AWS::Scheduler::Schedule
     Properties:
-      Name: !Sub '${AWS::StackName}-recordatorios-diarios'
-      Description: Recordatorios academicos diarios de MINGO (maximo uno por dia).
+      Name: !Sub '${AWS::StackName}-recordatorios-horarios'
+      Description: Recordatorios academicos de MINGO, una vez por hora en UTC.
       ScheduleExpression: !Ref RecordatorioCron
       ScheduleExpressionTimezone: UTC
       FlexibleTimeWindow:

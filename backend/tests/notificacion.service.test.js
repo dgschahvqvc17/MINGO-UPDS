@@ -33,6 +33,7 @@ function crearDependencias({
     obtenerPorId: jest.fn().mockResolvedValue(null),
     marcarLeida: jest.fn().mockResolvedValue({ id: 'n-1', leida: true }),
     marcarTodasLeidas: jest.fn().mockResolvedValue(2),
+    contarEnviosDesde: jest.fn().mockResolvedValue(0),
     crearSiNoExiste:
       crear ?? jest.fn().mockImplementation(async (datos) => ({ id: 'n-1', ...datos })),
     marcarEnviada: jest.fn().mockResolvedValue(undefined),
@@ -185,7 +186,26 @@ describe('NotificacionService (HU18)', () => {
     expect(notificacionRepository.marcarEnviada).not.toHaveBeenCalled();
   });
 
-  it('no supera el limite de 100 correos por ejecucion', async () => {
+  it('rescata actividades caidas justo despues de la ventana anterior', async () => {
+    const { servicio, actividadRepository, notificacionRepository } = crearDependencias({
+      preferencia: { ...PREFERENCIA, anticipacion_minutos: 5 },
+      tareas: [{ id: TAREA_ID, titulo: 'Ensayo', fecha_entrega: '2026-11-20T11:45:00.000Z' }],
+    });
+
+    const resumen = await servicio.generarParaUsuario(USUARIO_ID, AHORA);
+
+    expect(resumen.creadas).toBe(1);
+    expect(actividadRepository.listarTareasProximas).toHaveBeenCalledWith(
+      USUARIO_ID,
+      '2026-11-20T11:00:00.000Z',
+      '2026-11-20T12:05:00.000Z',
+    );
+    expect(notificacionRepository.crearSiNoExiste).toHaveBeenCalledWith(
+      expect.objectContaining({ fecha_programada: '2026-11-20T11:40:00.000Z' }),
+    );
+  });
+
+  it('no supera el limite de 30 correos por dia', async () => {
     const publicar = jest.fn().mockResolvedValue(true);
     const tareas = Array.from({ length: 20 }, (_, indice) => ({
       id: `tarea-${indice}`,
@@ -204,8 +224,37 @@ describe('NotificacionService (HU18)', () => {
 
     expect(resumen.usuarios).toBe(6);
     expect(resumen.creadas).toBe(120);
-    expect(resumen.enviadas).toBe(NotificacionService.MAXIMO_ENVOS_SNS_POR_EJECUCION);
-    expect(publicar).toHaveBeenCalledTimes(100);
+    expect(resumen.enviadas).toBe(NotificacionService.MAXIMO_ENVOS_SNS_POR_DIA);
+    expect(publicar).toHaveBeenCalledTimes(30);
+  });
+
+  it('descuenta el cupo ya enviado en ejecuciones anteriores del mismo dia', async () => {
+    const publicar = jest.fn().mockResolvedValue(true);
+    const preferencias = Array.from({ length: 2 }, (_, indice) => ({
+      ...PREFERENCIA,
+      usuario_id: `usuario-${indice}`,
+      canal_email: true,
+    }));
+    const tareas = Array.from({ length: 20 }, (_, indice) => ({
+      id: `tarea-${indice}`,
+      titulo: `Tarea ${indice}`,
+      fecha_entrega: FECHA_ACTIVIDAD,
+    }));
+    const { servicio, notificacionRepository, preferenciaRepository } = crearDependencias({
+      publicar,
+      tareas,
+    });
+    preferenciaRepository.listarActivas.mockResolvedValue(preferencias);
+    notificacionRepository.contarEnviosDesde.mockResolvedValue(25);
+
+    const resumen = await servicio.ejecutarRecordatorios({ ahora: AHORA });
+
+    expect(notificacionRepository.contarEnviosDesde).toHaveBeenCalledWith(
+      '2026-11-20T00:00:00.000Z',
+    );
+    expect(resumen.enviadasHoy).toBe(25);
+    expect(resumen.enviadas).toBe(5);
+    expect(publicar).toHaveBeenCalledTimes(5);
   });
 
   it('usa las preferencias activas para la ejecucion programada', async () => {

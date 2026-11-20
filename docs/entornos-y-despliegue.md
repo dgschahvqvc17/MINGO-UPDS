@@ -215,7 +215,7 @@ El backend Express se despliega con un adaptador (`serverless-http`).
 | Función | Archivo | Handler | Estado |
 |---|---|---|---|
 | Procesadora de documentos (HU09) | `backend/src/lambda/procesador.js` | `src/lambda/procesador.handler` | Definida en `infra/template.yaml`. |
-| Recordatorios (HU18) | `backend/src/lambda/recordatorios.js` | `src/lambda/recordatorios.handler` | Definida en `infra/template.yaml`; invocada por un schedule diario. |
+| Recordatorios (HU18) | `backend/src/lambda/recordatorios.js` | `src/lambda/recordatorios.handler` | Definida en `infra/template.yaml`; invocada por un schedule horario. |
 | API HTTP (Express) | `backend/src/app.js` | Pendiente de adaptador | No incluida aún en la plantilla. |
 
 Las funciones procesadora y de recordatorios ya existen y forman parte de
@@ -264,7 +264,7 @@ necesita un ZIP manual, se construye en un directorio limpio con
 | `AWS::S3::Bucket` | Documentos. |
 | `AWS::SQS::Queue` | Cola y DLQ. |
 | `AWS::SNS::Topic` | Un topic privado para notificaciones email; suscripción solo si se pasa `NotificacionesEmail`. |
-| `AWS::Scheduler::Schedule` | Un schedule diario de recordatorios, deshabilitado en `dev`. |
+| `AWS::Scheduler::Schedule` | Un schedule horario de recordatorios, deshabilitado en `dev`. |
 | `AWS::IAM::Role` | Roles mínimos para invocar la Lambda y publicar en el topic. |
 | `AWS::Logs::LogGroup` | Logs con retención (7 días en `dev`, 30 en `prod`). |
 | `AWS::Budgets::Budget` | Presupuesto (crear una vez). |
@@ -416,14 +416,19 @@ En el primer despliegue:
 - Verificar etiquetas y límites.
 
 Parámetros SAM de HU18: `NotificacionesEmail` (vacío desactiva la suscripción)
-y `RecordatorioCron` (por defecto `cron(0 12 * * ? *)`, una vez al día en UTC).
+y `RecordatorioCron` (por defecto `cron(0 * * * ? *)`, cada hora en punto en UTC).
 
 Recursos de HU18 incluidos en la plantilla: un topic SNS con suscripción email
 opcional, un log group, dos roles IAM mínimos, una Lambda ARM64 de 512 MB con
-timeout de 30 s y un schedule diario sin reintentos. El schedule queda
-`DISABLED` en `dev` y `ENABLED` en `prod`. El gasto esperado es `$0`; el worker
-publica como máximo 100 correos por ejecución. **No ejecutar `sam deploy` sin
-la aprobación explícita del usuario sobre esta plantilla y sus límites.**
+timeout de 30 s y un schedule horario sin reintentos. El schedule queda
+`DISABLED` en `dev` y `ENABLED` en `prod`.
+
+Costo verificado para el cambio horario: 744 invocaciones/mes de Scheduler
+(free tier de 14 millones), 744 invocaciones de Lambda con 512 MB ARM64 (free
+tier de 1 millón de peticiones y 400.000 GB-s) y como máximo 30 correos SNS/día
+(930/mes, por debajo de los 1.000 correos email gratuitos). Gasto esperado
+`$0`. **No ejecutar `sam deploy` sin la aprobación explícita del usuario sobre
+esta plantilla y sus límites.**
 
 ### 6.4. Presupuestos
 

@@ -9,7 +9,11 @@ const ApiError = require('../utils/ApiError');
 const MILISEGUNDOS_POR_MINUTO = 60 * 1000;
 const MAXIMO_USUARIOS_POR_EJECUCION = 100;
 const MAXIMO_NOTIFICACIONES_POR_USUARIO = 20;
-const MAXIMO_ENVOS_SNS_POR_EJECUCION = 100;
+// SNS regala 1.000 correos/mes: 30/dia deja margen incluso en meses de 31 dias.
+const MAXIMO_ENVOS_SNS_POR_DIA = 30;
+// El schedule corre una vez por hora. Esta ventana evita perder una actividad
+// caida justo despues del limite superior de la ejecucion anterior.
+const MINUTOS_RESCATE = 60;
 const LONGITUD_MAXIMA_TITULO = 200;
 const LONGITUD_MAXIMA_MENSAJE = 500;
 const ZONA_HORARIA_RESPALDO = 'UTC';
@@ -139,17 +143,19 @@ class NotificacionService {
    * @param {string} usuarioId
    * @param {Date} ahora
    * @param {object} [preferencias]
-   * @param {number} [limiteEnvios] Cupo de correos disponible en la ejecución.
+   * @param {number} [limiteEnvios] Cupo de correos disponible en el día.
    */
   async generarParaUsuario(usuarioId, ahora, preferencias, limiteEnvios) {
-    const cupoEnvios = limiteEnvios ?? MAXIMO_ENVOS_SNS_POR_EJECUCION;
+    const cupoEnvios = limiteEnvios ?? MAXIMO_ENVOS_SNS_POR_DIA;
     const preferencia = preferencias ?? (await this.preferenciaRepository.obtenerOCrear(usuarioId));
 
     if (!preferencia.notificaciones_activas) {
       return { creadas: 0, duplicadas: 0, enviadas: 0, erroresEnvio: 0, desactivada: true };
     }
 
-    const desde = ahora.toISOString();
+    const desde = new Date(
+      ahora.getTime() - MINUTOS_RESCATE * MILISEGUNDOS_POR_MINUTO,
+    ).toISOString();
     const hasta = new Date(
       ahora.getTime() + preferencia.anticipacion_minutos * MILISEGUNDOS_POR_MINUTO,
     ).toISOString();
@@ -239,6 +245,11 @@ class NotificacionService {
         )
       : await this.preferenciaRepository.listarActivas(MAXIMO_USUARIOS_POR_EJECUCION);
 
+    const inicioDia = new Date(
+      Date.UTC(ahora.getUTCFullYear(), ahora.getUTCMonth(), ahora.getUTCDate()),
+    ).toISOString();
+    const enviadasHoy = await this.notificacionRepository.contarEnviosDesde(inicioDia);
+
     const resumen = {
       usuarios: preferencias.length,
       creadas: 0,
@@ -246,10 +257,11 @@ class NotificacionService {
       enviadas: 0,
       erroresEnvio: 0,
       desactivadas: 0,
+      enviadasHoy,
       ejecutado_en: ahora.toISOString(),
     };
 
-    let cupoEnvios = MAXIMO_ENVOS_SNS_POR_EJECUCION;
+    let cupoEnvios = Math.max(0, MAXIMO_ENVOS_SNS_POR_DIA - enviadasHoy);
 
     for (const preferencia of preferencias) {
       const resultado = await this.generarParaUsuario(
@@ -362,4 +374,5 @@ class NotificacionService {
 module.exports = NotificacionService;
 module.exports.MAXIMO_USUARIOS_POR_EJECUCION = MAXIMO_USUARIOS_POR_EJECUCION;
 module.exports.MAXIMO_NOTIFICACIONES_POR_USUARIO = MAXIMO_NOTIFICACIONES_POR_USUARIO;
-module.exports.MAXIMO_ENVOS_SNS_POR_EJECUCION = MAXIMO_ENVOS_SNS_POR_EJECUCION;
+module.exports.MAXIMO_ENVOS_SNS_POR_DIA = MAXIMO_ENVOS_SNS_POR_DIA;
+module.exports.MINUTOS_RESCATE = MINUTOS_RESCATE;

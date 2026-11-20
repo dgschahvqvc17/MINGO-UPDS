@@ -82,6 +82,26 @@ class NotificacionRepository {
   }
 
   /**
+   * Cuenta los correos publicados desde una fecha, para acotar el cupo diario
+   * aunque el schedule se ejecute varias veces al dia.
+   *
+   * @param {string} desde ISO 8601.
+   * @returns {Promise<number>}
+   */
+  async contarEnviosDesde(desde) {
+    const { count, error } = await this.requireClient()
+      .from('notificaciones')
+      .select('id', { count: 'exact', head: true })
+      .gte('fecha_envio', desde);
+
+    if (error) {
+      throw error;
+    }
+
+    return count ?? 0;
+  }
+
+  /**
    * @param {string} usuarioId
    * @param {string} notificacionId
    * @returns {Promise<object | null>}

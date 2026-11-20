@@ -1648,15 +1648,21 @@ estar entre `5` y `10080`, `zona_horaria` debe ser una zona IANA válida e
 
 **Generación y envío**
 
-- Un único EventBridge Scheduler diario invoca la Lambda de recordatorios; en
-  `dev` el schedule queda deshabilitado.
+- Un único EventBridge Scheduler horario (`cron(0 * * * ? *)`, UTC) invoca la
+  Lambda de recordatorios; en `dev` el schedule queda deshabilitado.
 - El worker consulta tareas no completadas, evaluaciones `examen` y sesiones
-  `pendiente` entre `ahora` y `ahora + anticipacion_minutos`.
-- `fecha_programada = fecha_actividad - anticipacion_minutos`.
+  `pendiente` entre `ahora - 60 min` y `ahora + anticipacion_minutos`. El margen
+  de 60 minutos rescata actividades que quedaron fuera de la ventana de la
+  ejecución anterior, incluso con anticipaciones de 5 minutos.
+- `fecha_programada = fecha_actividad - anticipacion_minutos`. Con una cadencia
+  horaria el aviso se genera como tarde en la siguiente ejecución después de
+  esa hora (desfase máximo de ~60 minutos); nunca se genera antes.
 - La clave de idempotencia es `tipo:id:fecha:anticipacion`, única por usuario;
   una segunda ejecución no duplica ni reenvía el aviso.
 - Máximo `20` notificaciones por usuario y ejecución, `100` usuarios por
-  ejecución y `100` correos SNS por ejecución.
+  ejecución y `30` correos SNS por día (`<= 930`/mes, dentro de los 1.000
+  correos gratuitos de SNS email). El cupo diario se cuenta en la tabla
+  `notificaciones` y se descuenta entre ejecuciones.
 - SNS solo se publica si `notificaciones_activas = true`, `canal_email = true`
   y el topic está configurado. Si falla o no hay topic, la notificación interna
   se conserva y el error solo se contabiliza.

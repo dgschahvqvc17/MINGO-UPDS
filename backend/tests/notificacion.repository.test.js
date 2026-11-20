@@ -6,12 +6,14 @@ function crearBuilder(resultado) {
   const builder = {
     select: jest.fn().mockReturnThis(),
     eq: jest.fn().mockReturnThis(),
+    gte: jest.fn().mockReturnThis(),
     order: jest.fn().mockReturnThis(),
     range: jest.fn().mockResolvedValue(resultado),
     maybeSingle: jest.fn().mockResolvedValue(resultado),
     upsert: jest.fn().mockReturnThis(),
     update: jest.fn().mockReturnThis(),
   };
+  builder.then = (resolve, reject) => Promise.resolve(resultado).then(resolve, reject);
   return builder;
 }
 
@@ -34,6 +36,18 @@ describe('NotificacionRepository (HU18)', () => {
     expect(builder.eq).toHaveBeenCalledWith('tipo', 'tarea');
     expect(builder.range).toHaveBeenCalledWith(20, 29);
     expect(resultado).toEqual({ items: [{ id: 'n-1' }], total: 7 });
+  });
+
+  it('cuenta los correos enviados desde el inicio del dia', async () => {
+    const builder = crearBuilder({ data: null, error: null, count: 12 });
+    const supabase = { from: jest.fn().mockReturnValue(builder) };
+    const repository = new NotificacionRepository({ supabase });
+
+    await expect(
+      repository.contarEnviosDesde('2026-11-20T00:00:00.000Z'),
+    ).resolves.toBe(12);
+
+    expect(builder.gte).toHaveBeenCalledWith('fecha_envio', '2026-11-20T00:00:00.000Z');
   });
 
   it('inserta con idempotencia por usuario y clave', async () => {

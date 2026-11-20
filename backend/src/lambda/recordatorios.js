@@ -1,6 +1,6 @@
 /**
  * Handler de la Lambda de recordatorios (HU18).
- * Lo invoca EventBridge Scheduler una vez por dia. Genera los avisos pendientes
+ * Lo invoca EventBridge Scheduler una vez por hora. Genera los avisos pendientes
  * y publica en SNS solo cuando el estudiante activo el canal de email.
  */
 const { createRecordatoriosService } = require('../container');
