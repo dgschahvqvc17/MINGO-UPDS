@@ -484,6 +484,7 @@ remotas). Expone tres estados y sus animaciones:
 | `inactivo` | Sin petición en curso ni resultado reciente. | Flotación suave e inclinación ligera. |
 | `pensando` | Mientras la petición de IA está en curso. | Inclina la cabeza y mira arriba. |
 | `hablando` | Justo después de recibir un resultado. | Asiente y mueve la boca y el micrófono. |
+| `durmiendo` | Sin actividad en el acceso flotante. | Respiración lenta, ojos cerrados y tres «z» animadas. |
 
 Detalles de implementación:
 
@@ -506,6 +507,13 @@ Detalles de implementación:
   reciben `[seguirCursor]="false"`: se quedan quietas, sin mover cuerpo, cabeza
   ni pupilas con el mouse. El seguimiento sigue activo en el resto de pantallas
   y el giro de cabeza solo se habilita en el login.
+- El shell incluye un acceso flotante abajo a la derecha en todas las pantallas
+  autenticadas: `app-ayudante-flotante`. Muestra la burbuja «¿En qué puedo
+  ayudarte?» y, al hacer clic, navega a `/asistente-ia`. La mascota es compacta
+  y quieta (`seguirCursor=false`). Tras 12 s sin actividad se duerme; 6 s después
+  se produce el «sorpréndeme»: despierta hablando con «¡Sorpresa! ¿Qué quieres
+  preguntarme?» y vuelve al reposo. Mover el mouse, escribir o pasar el cursor
+  sobre el botón la despierta. Todo se cancela al destruir el componente.
 - En el centro de estudio, las tarjetas de memoria y los planes de estudio el
   lugar del icono lo ocupa un `icon-badge` de Bootstrap, no la mascota:
   `bi-patch-question`, `bi-journal-check` y `bi-clipboard-check` en el centro de estudio,

@@ -161,6 +161,10 @@
   animation: mascota-guiño 1.6s ease-in-out 2;
 }
 
+.mascota--durmiendo .mascota__parpado {
+  transform: scaleY(1);
+}
+
 .mascota__particula {
   fill: #7dd3fc;
   opacity: 0;
@@ -203,6 +207,26 @@
   animation: mascota-microfono 0.6s ease-in-out infinite alternate;
 }
 
+.mascota--durmiendo .mascota__animacion {
+  animation: mascota-dormir 4.2s ease-in-out infinite;
+}
+
+.mascota__z {
+  fill: #7dd3fc;
+  font-size: 22px;
+  opacity: 0;
+  animation: mascota-z 2.4s ease-in-out infinite;
+}
+
+.mascota__z--dos {
+  font-size: 18px;
+}
+
+.mascota__z--tres {
+  font-size: 14px;
+  animation-delay: 0.8s;
+}
+
 @keyframes mascota-reposo {
   0%,
   100% {
@@ -236,6 +260,28 @@
   }
   75% {
     transform: translateY(-4px) rotate(-1deg) scale(1.035);
+  }
+}
+
+@keyframes mascota-dormir {
+  0%,
+  100% {
+    transform: translateY(2px) rotate(-3deg) scale(0.98);
+  }
+  50% {
+    transform: translateY(-2px) rotate(-1deg) scale(1.01);
+  }
+}
+
+@keyframes mascota-z {
+  0%,
+  100% {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+  50% {
+    opacity: 0.9;
+    transform: translateY(-5px);
   }
 }
 
@@ -352,11 +398,13 @@
   .mascota__pata,
   .mascota__pupila,
   .mascota__parpado,
+  .mascota__z,
   .mascota__burbuja {
     animation: none;
   }
 
-  .mascota__particula {
+  .mascota__particula,
+  .mascota__z {
     display: none;
   }
 

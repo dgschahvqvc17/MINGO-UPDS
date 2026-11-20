@@ -36,6 +36,16 @@ describe('MascotaAgenteComponent', () => {
     expect(mascota.getAttribute('aria-label')).toContain('hablando');
   });
 
+  it('cierra los ojos y muestra las zetas cuando duerme', () => {
+    fixture.componentRef.setInput('estado', 'durmiendo');
+    fixture.detectChanges();
+
+    const mascota = fixture.nativeElement.querySelector('.mascota') as HTMLElement;
+    expect(mascota.classList.contains('mascota--durmiendo')).toBe(true);
+    expect(mascota.getAttribute('aria-label')).toContain('dormida');
+    expect(fixture.nativeElement.querySelectorAll('.mascota__z')).toHaveLength(3);
+  });
+
   it('aplica el tamaño compacto cuando se solicita', () => {
     fixture.componentRef.setInput('compacta', true);
     fixture.detectChanges();

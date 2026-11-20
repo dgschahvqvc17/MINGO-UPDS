@@ -3,6 +3,7 @@ import { toSignal } from '@angular/core/rxjs-interop';
 import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { filter, map } from 'rxjs';
 import { AuthService } from '../core/services/auth.service';
+import { AyudanteFlotanteComponent } from '../shared/components/ayudante-flotante/ayudante-flotante.component';
 
 interface NavItem {
   label: string;
@@ -53,7 +54,7 @@ const NAV_SECTIONS: NavSection[] = [
 
 @Component({
   selector: 'app-shell',
-  imports: [RouterOutlet, RouterLink, RouterLinkActive],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, AyudanteFlotanteComponent],
   templateUrl: './shell.html',
   styleUrl: './shell.css',
   changeDetection: ChangeDetectionStrategy.OnPush,

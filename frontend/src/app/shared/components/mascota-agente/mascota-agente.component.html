@@ -3,6 +3,7 @@
   [class.mascota--inactivo]="estadoVisible() === 'inactivo'"
   [class.mascota--pensando]="estadoVisible() === 'pensando'"
   [class.mascota--hablando]="estadoVisible() === 'hablando'"
+  [class.mascota--durmiendo]="estadoVisible() === 'durmiendo'"
   [class.mascota--grande]="grande()"
   [class.mascota--saludando]="saludando()"
   role="img"
@@ -154,6 +155,14 @@
           <circle class="mascota__microfono" cx="180" cy="231" r="3" fill="#38bdf8" />
         </g>
         </g>
+
+        @if (estadoVisible() === 'durmiendo') {
+          <g class="mascota__suenso" aria-hidden="true">
+            <text class="mascota__z mascota__z--uno" x="224" y="58">z</text>
+            <text class="mascota__z mascota__z--dos" x="244" y="38">z</text>
+            <text class="mascota__z mascota__z--tres" x="262" y="20">z</text>
+          </g>
+        }
       </svg>
     </div>
   </div>

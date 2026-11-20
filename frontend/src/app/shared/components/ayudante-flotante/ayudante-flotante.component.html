@@ -1,0 +1,17 @@
+<button
+  class="ayudante"
+  type="button"
+  [class.ayudante--hablando]="estado() === 'hablando'"
+  [class.ayudante--durmiendo]="estado() === 'durmiendo'"
+  [class.ayudante--pensando]="estado() === 'pensando'"
+  [attr.aria-label]="'Abrir asistente IA. ' + mensaje()"
+  title="Abrir asistente IA"
+  (click)="abrirAsistente()"
+  (mouseenter)="despertar()"
+  (focus)="despertar()"
+>
+  <span class="ayudante__globo" aria-hidden="true">{{ mensaje() }}</span>
+  <span class="ayudante__mascota" aria-hidden="true">
+    <app-mascota-agente [estado]="estado()" [compacta]="true" [seguirCursor]="false" />
+  </span>
+</button>

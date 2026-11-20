@@ -13,7 +13,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { fromEvent, share, throttleTime } from 'rxjs';
 
 /** Estados visibles del agente. Se derivan del ciclo real de cada petición de IA. */
-export type EstadoMascota = 'inactivo' | 'pensando' | 'hablando';
+export type EstadoMascota = 'inactivo' | 'pensando' | 'hablando' | 'durmiendo';
 
 const MOVIMIENTO_MAXIMO = 12;
 const GIRO_MAXIMO = 8;
@@ -79,6 +79,7 @@ export class MascotaAgenteComponent implements OnInit {
       inactivo: 'Mascota del asistente MINGO en reposo',
       pensando: 'Mascota del asistente MINGO pensando',
       hablando: 'Mascota del asistente MINGO hablando',
+      durmiendo: 'Mascota del asistente MINGO dormida',
     };
 
     const estado = etiquetas[this.estadoVisible()];
