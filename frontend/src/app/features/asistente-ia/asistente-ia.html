@@ -1,11 +1,20 @@
-<section class="container-xxl py-4">
-  <header class="mb-4">
-    <p class="text-uppercase text-secondary small fw-semibold mb-1">Asistente MINGO</p>
-    <h1 class="h3 mb-1">Asistente académico</h1>
-    <p class="text-secondary mb-3">
-      Pregunta sobre tus apuntes con citas de origen o genera resúmenes estructurados de tus documentos.
-    </p>
-    <ul class="nav nav-pills" role="tablist" aria-label="Herramientas del asistente">
+<section class="asistente-ia">
+  <header class="page-header mb-4">
+    <div class="d-flex flex-wrap justify-content-between align-items-start gap-3">
+      <div>
+        <span class="page-eyebrow">Asistente MINGO</span>
+        <h1 class="page-title mt-1 mb-2">Asistente académico</h1>
+        <p class="page-subtitle mb-0">
+          Pregunta sobre tus apuntes con citas de origen o genera resúmenes estructurados de tus documentos.
+        </p>
+      </div>
+      <span class="badge badge-info">
+        <i class="bi bi-stars me-1" aria-hidden="true"></i>
+        Con IA y citas de origen
+      </span>
+    </div>
+
+    <ul class="nav nav-pills asistente-tabs mt-4" role="tablist" aria-label="Herramientas del asistente">
       <li class="nav-item" role="presentation">
         <button
           type="button"
@@ -15,6 +24,7 @@
           [attr.aria-selected]="pestana() === 'chat'"
           (click)="cambiarPestana('chat')"
         >
+          <i class="bi bi-chat-dots me-1" aria-hidden="true"></i>
           Chat con mis documentos
         </button>
       </li>
@@ -27,6 +37,7 @@
           [attr.aria-selected]="pestana() === 'resumenes'"
           (click)="cambiarPestana('resumenes')"
         >
+          <i class="bi bi-file-earmark-text me-1" aria-hidden="true"></i>
           Resúmenes inteligentes
         </button>
       </li>
@@ -38,12 +49,30 @@
   } @else {
     <div class="row g-4">
       <div class="col-12 col-lg-4">
-        <div class="card shadow-sm h-100">
-          <div class="card-body">
-            <h2 class="h6 card-title mb-3">1. Documento de origen</h2>
+        <div class="app-card h-100">
+          <div class="card-body p-4">
+            <div class="panel-heading">
+              <span class="icon-badge icon-badge--ai icon-badge--lg" aria-hidden="true">
+                <i class="bi bi-sliders2"></i>
+              </span>
+              <div>
+                <h2 class="h5 mb-1">Configuración del resumen</h2>
+                <p class="small text-muted-soft mb-0">Elige el documento y el nivel de detalle.</p>
+              </div>
+            </div>
+
+            <h3 class="h6 asistente-step mb-3">
+              <span class="asistente-step-numero">1</span>
+              Documento de origen
+            </h3>
 
             @if (cargandoDocumentos()) {
-              <div class="text-center text-secondary py-4" role="status">Cargando documentos…</div>
+              <div class="app-card" role="status" aria-live="polite">
+                <div class="card-body p-4 text-center text-muted-soft">
+                  <span class="spinner-border spinner-border-sm text-primary me-2" aria-hidden="true"></span>
+                  Cargando documentos…
+                </div>
+              </div>
             } @else if (errorDocumentos()) {
               <div class="alert alert-danger" role="alert">{{ errorDocumentos() }}</div>
             } @else if (sinDocumentos()) {
@@ -65,21 +94,25 @@
               </select>
 
               @if (documentoSeleccionado(); as documento) {
-                <p class="small text-secondary mt-2 mb-1">
+                <p class="small text-muted-soft mt-2 mb-1">
+                  <i class="bi bi-file-earmark-text me-1" aria-hidden="true"></i>
                   {{ formatoDocumento(documento) }}
                   @if (documento.numero_paginas) {
                     · {{ documento.numero_paginas }} páginas
                   }
                 </p>
-                <a class="small link-primary" [routerLink]="['/biblioteca', documento.id]">
+                <a class="small link-info" [routerLink]="['/biblioteca', documento.id]">
                   Ver documento original
                 </a>
               }
             }
 
-            <hr />
+            <hr class="my-4" />
 
-            <h2 class="h6 card-title mb-3">2. Profundidad del resumen</h2>
+            <h3 class="h6 asistente-step mb-3">
+              <span class="asistente-step-numero">2</span>
+              Profundidad del resumen
+            </h3>
             <div class="d-grid gap-2">
               @for (opcion of opcionesProfundidad; track opcion.valor) {
                 <div class="form-check">
@@ -94,7 +127,7 @@
                   />
                   <label class="form-check-label" [for]="'profundidad-' + opcion.valor">
                     <span class="fw-semibold">{{ opcion.etiqueta }}</span>
-                    <span class="d-block small text-secondary">{{ opcion.descripcion }}</span>
+                    <span class="d-block small text-muted-soft">{{ opcion.descripcion }}</span>
                   </label>
                 </div>
               }
@@ -102,7 +135,7 @@
 
             <button
               type="button"
-              class="btn btn-primary w-100 mt-4"
+              class="btn btn-ai w-100 mt-4"
               [disabled]="!documentoId() || cargandoResumen()"
               (click)="generar()"
             >
@@ -110,6 +143,7 @@
                 <span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
                 Generando…
               } @else {
+                <i class="bi bi-stars me-2" aria-hidden="true"></i>
                 Generar resumen
               }
             </button>
@@ -125,31 +159,45 @@
       </div>
 
       <div class="col-12 col-lg-8">
-        <div class="card shadow-sm h-100">
-          <div class="card-body">
-            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
-              <h2 class="h6 card-title mb-0">Resumen</h2>
+        <div class="app-card h-100">
+          <div class="card-body p-4 p-lg-5">
+            <div class="panel-heading">
+              <span class="icon-badge icon-badge--ai icon-badge--lg" aria-hidden="true">
+                <i class="bi bi-file-earmark-text"></i>
+              </span>
+              <div class="flex-grow-1">
+                <h2 class="h5 mb-1">Resumen</h2>
+                <p class="small text-muted-soft mb-0">Resultado estructurado a partir de tu documento.</p>
+              </div>
               @if (resumen(); as resumenActual) {
-                <span class="badge text-bg-primary">
+                <span class="badge badge-info">
                   {{ etiquetaProfundidad(resumenActual.profundidad) }}
                 </span>
               }
             </div>
 
             @if (cargandoResumen()) {
-              <div class="text-center text-secondary py-5" role="status">
-                <span class="spinner-border d-block mx-auto mb-3" aria-hidden="true"></span>
-                Analizando el documento…
+              <div class="app-card" role="status" aria-live="polite">
+                <div class="card-body p-5 text-center text-muted-soft">
+                  <span class="spinner-border spinner-border-sm text-primary me-2" aria-hidden="true"></span>
+                  Analizando el documento…
+                </div>
               </div>
             } @else if (errorResumen()) {
               <div class="alert alert-danger" role="alert">{{ errorResumen() }}</div>
             } @else if (resumen(); as resumenActual) {
-              <p class="small text-secondary mb-3">
-                Documento de origen: <strong>{{ resumenActual.documento_nombre }}</strong>
+              <div class="meta-chips mb-4">
+                <span class="meta-chip">
+                  <i class="bi bi-file-earmark-text" aria-hidden="true"></i>
+                  {{ resumenActual.documento_nombre }}
+                </span>
                 @if (resumenActual.fecha_creacion) {
-                  · {{ resumenActual.fecha_creacion | date: 'dd/MM/yyyy HH:mm' }}
+                  <span class="meta-chip">
+                    <i class="bi bi-clock-history" aria-hidden="true"></i>
+                    {{ resumenActual.fecha_creacion | date: 'dd/MM/yyyy HH:mm' }}
+                  </span>
                 }
-              </p>
+              </div>
 
               @if (resumenActual.contenido_truncado) {
                 <div class="alert alert-warning small" role="status">
@@ -157,37 +205,54 @@
                 </div>
               }
 
-              <h3 class="h6 mt-4">Resumen general</h3>
-              <p class="resumen-texto mb-0">{{ resumenActual.resumen_general }}</p>
+              <section class="asistente-resumen-section">
+                <h3 class="h6 asistente-section-title">
+                  <i class="bi bi-card-text" aria-hidden="true"></i>
+                  Resumen general
+                </h3>
+                <p class="resumen-texto mb-0">{{ resumenActual.resumen_general }}</p>
+              </section>
 
-              <h3 class="h6 mt-4">Temas principales</h3>
-              @if (resumenActual.temas_principales.length > 0) {
-                <ol class="mb-0">
-                  @for (tema of resumenActual.temas_principales; track $index) {
-                    <li>{{ tema }}</li>
-                  }
-                </ol>
-              } @else {
-                <p class="text-secondary small mb-0">No se identificaron temas principales.</p>
-              }
+              <section class="asistente-resumen-section">
+                <h3 class="h6 asistente-section-title">
+                  <i class="bi bi-list-check" aria-hidden="true"></i>
+                  Temas principales
+                </h3>
+                @if (resumenActual.temas_principales.length > 0) {
+                  <ol class="mb-0">
+                    @for (tema of resumenActual.temas_principales; track $index) {
+                      <li>{{ tema }}</li>
+                    }
+                  </ol>
+                } @else {
+                  <p class="text-muted-soft small mb-0">No se identificaron temas principales.</p>
+                }
+              </section>
 
-              <h3 class="h6 mt-4">Conceptos importantes</h3>
-              @if (resumenActual.conceptos_importantes.length > 0) {
-                <div class="row g-3">
-                  @for (concepto of resumenActual.conceptos_importantes; track concepto.termino) {
-                    <div class="col-12 col-md-6">
-                      <div class="border rounded p-3 h-100">
-                        <h4 class="h6 mb-1">{{ concepto.termino }}</h4>
-                        <p class="small text-secondary mb-0">{{ concepto.descripcion }}</p>
+              <section class="asistente-resumen-section">
+                <h3 class="h6 asistente-section-title">
+                  <i class="bi bi-lightbulb" aria-hidden="true"></i>
+                  Conceptos importantes
+                </h3>
+                @if (resumenActual.conceptos_importantes.length > 0) {
+                  <div class="row g-3">
+                    @for (concepto of resumenActual.conceptos_importantes; track concepto.termino) {
+                      <div class="col-12 col-md-6">
+                        <div class="app-card asistente-concepto h-100">
+                          <div class="card-body p-3">
+                            <h4 class="h6 mb-1">{{ concepto.termino }}</h4>
+                            <p class="small text-muted-soft mb-0">{{ concepto.descripcion }}</p>
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  }
-                </div>
-              } @else {
-                <p class="text-secondary small mb-0">No se identificaron conceptos importantes.</p>
-              }
+                    }
+                  </div>
+                } @else {
+                  <p class="text-muted-soft small mb-0">No se identificaron conceptos importantes.</p>
+                }
+              </section>
 
-              <footer class="small text-secondary border-top pt-3 mt-4">
+              <footer class="small text-muted-soft border-top pt-3 mt-4">
                 Generado con {{ resumenActual.modelo }} ·
                 {{ resumenActual.tokens_entrada }} tokens de entrada ·
                 {{ resumenActual.tokens_salida }} tokens de salida
@@ -196,11 +261,17 @@
                 }
               </footer>
             } @else {
-              <div class="text-center text-secondary py-5">
-                <p class="mb-1">Selecciona un documento y genera un resumen para verlo aquí.</p>
-                <p class="small mb-0">
-                  Si ya generaste uno, se mostrará automáticamente al elegir el documento.
-                </p>
+              <div class="app-card">
+                <div class="card-body p-5 text-center">
+                  <span class="icon-badge icon-badge--ai icon-badge--xl mb-3" aria-hidden="true">
+                    <i class="bi bi-file-earmark-text"></i>
+                  </span>
+                  <h3 class="h6 mb-1">Aún no hay resumen</h3>
+                  <p class="small text-muted-soft mb-0">
+                    Selecciona un documento y genera un resumen para verlo aquí. Si ya generaste uno,
+                    se mostrará automáticamente al elegir el documento.
+                  </p>
+                </div>
               </div>
             }
           </div>

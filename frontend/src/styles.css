@@ -3730,3 +3730,196 @@ pre {
   border-color: rgba(251, 191, 36, 0.3);
   color: #fbbf24;
 }
+/* ==========================================================================
+   Asistente IA (extension del design system, prefijada por feature)
+   ========================================================================== */
+
+.asistente-ia .page-header {
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--mingo-border-soft);
+}
+
+.asistente-ia .asistente-tabs {
+  gap: 0.35rem;
+  padding: 0.3rem;
+  border: 1px solid var(--mingo-border-soft);
+  border-radius: var(--mingo-radius-full);
+  background: var(--mingo-surface-hover);
+  width: fit-content;
+  max-width: 100%;
+}
+
+.asistente-ia .asistente-tabs .nav-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.55rem 1.1rem;
+  border-radius: var(--mingo-radius-full);
+  color: var(--mingo-text-muted);
+  font-size: 0.9rem;
+  font-weight: 600;
+  transition: all var(--mingo-transition-fast);
+}
+
+.asistente-ia .asistente-tabs .nav-link:hover {
+  color: var(--mingo-text);
+  background: var(--mingo-surface-strong);
+}
+
+.asistente-ia .asistente-tabs .nav-link.active {
+  color: #fff;
+  border: 1px solid rgba(56, 189, 248, 0.45);
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  box-shadow: 0 8px 24px rgba(37, 99, 235, 0.3);
+}
+
+.asistente-ia .panel-heading {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  padding-bottom: 1.25rem;
+  margin-bottom: 1.25rem;
+  border-bottom: 1px solid var(--mingo-border-soft);
+}
+
+.asistente-ia .min-w-0 {
+  min-width: 0;
+}
+
+.asistente-ia .asistente-step {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 1rem;
+}
+
+.asistente-ia .asistente-step-numero {
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 1.75rem;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 50%;
+  background: var(--mingo-ai-soft);
+  border: 1px solid rgba(56, 189, 248, 0.35);
+  color: var(--mingo-ai);
+  font-size: 0.85rem;
+  font-weight: 800;
+}
+
+.asistente-ia .btn-ai {
+  color: #fff;
+  font-weight: 700;
+  border: 1px solid rgba(56, 189, 248, 0.45);
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  box-shadow: 0 8px 24px rgba(37, 99, 235, 0.3);
+}
+
+.asistente-ia .btn-ai:hover:not(:disabled) {
+  color: #fff;
+  border-color: rgba(56, 189, 248, 0.8);
+  box-shadow: 0 12px 30px rgba(37, 99, 235, 0.48);
+}
+
+.asistente-ia .btn-ai:disabled {
+  opacity: 0.45;
+}
+
+.asistente-ia .meta-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.asistente-ia .meta-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.3rem 0.65rem;
+  border: 1px solid var(--mingo-border-soft);
+  border-radius: var(--mingo-radius-full);
+  background: rgba(148, 163, 184, 0.06);
+  color: var(--mingo-text-muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.asistente-ia .asistente-resumen-section {
+  margin-top: 1.75rem;
+}
+
+.asistente-ia .asistente-section-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+  color: var(--mingo-text);
+}
+
+.asistente-ia .asistente-section-title i {
+  color: var(--mingo-ai);
+}
+
+.asistente-ia .asistente-concepto {
+  transition: border-color var(--mingo-transition-normal);
+}
+
+.asistente-ia .asistente-concepto:hover {
+  border-color: rgba(56, 189, 248, 0.45);
+}
+
+.asistente-ia .asistente-conversaciones .list-group-item {
+  border-color: var(--mingo-border-soft);
+  background: transparent;
+  color: var(--mingo-text);
+  border-radius: var(--mingo-radius);
+  margin-bottom: 0.4rem;
+}
+
+.asistente-ia .asistente-conversaciones .list-group-item:hover {
+  background: var(--mingo-surface-hover);
+}
+
+.asistente-ia .asistente-conversaciones .list-group-item.active {
+  background: var(--mingo-primary-soft);
+  border-color: rgba(37, 99, 235, 0.45);
+  color: var(--mingo-text);
+}
+
+.asistente-ia .asistente-conversaciones .list-group-item.active .chat-texto-secundario {
+  color: var(--mingo-text-muted);
+}
+
+.asistente-ia .asistente-conversaciones .list-group-item.active .chat-eliminar {
+  color: var(--mingo-danger);
+}
+
+.asistente-ia .chat-mensajes {
+  border-color: var(--mingo-border-soft) !important;
+  border-radius: var(--mingo-radius);
+}
+
+.asistente-ia .chat-referencias {
+  border-top: 1px solid var(--mingo-border-soft);
+}
+
+.asistente-ia .chat-fuentes-titulo {
+  color: var(--mingo-ai);
+}
+
+@media (max-width: 575.98px) {
+  .asistente-ia .asistente-tabs {
+    width: 100%;
+  }
+
+  .asistente-ia .asistente-tabs .nav-item {
+    flex: 1 1 0;
+  }
+
+  .asistente-ia .asistente-tabs .nav-link {
+    justify-content: center;
+    padding: 0.55rem 0.6rem;
+    font-size: 0.8rem;
+  }
+}

@@ -1,28 +1,46 @@
 <div class="row g-4">
   <div class="col-12 col-lg-4">
-    <div class="card shadow-sm h-100">
-      <div class="card-body">
-        <div class="d-flex justify-content-between align-items-center gap-2 mb-3">
-          <h2 class="h6 card-title mb-0">Conversaciones</h2>
+    <div class="app-card h-100">
+      <div class="card-body p-4">
+        <div class="panel-heading">
+          <span class="icon-badge icon-badge--ai icon-badge--lg" aria-hidden="true">
+            <i class="bi bi-chat-left-text"></i>
+          </span>
+          <div class="flex-grow-1">
+            <h2 class="h5 mb-1">Conversaciones</h2>
+            <p class="small text-muted-soft mb-0">Tus preguntas recientes.</p>
+          </div>
           <button
             type="button"
-            class="btn btn-sm btn-outline-primary"
+            class="btn btn-sm btn-outline-info"
             (click)="nuevaConversacion()"
           >
+            <i class="bi bi-plus-lg me-1" aria-hidden="true"></i>
             Nueva
           </button>
         </div>
 
         @if (cargandoConversaciones()) {
-          <div class="text-center chat-texto-secundario py-4" role="status">Cargando conversaciones…</div>
+          <div class="app-card" role="status" aria-live="polite">
+            <div class="card-body p-4 text-center text-muted-soft">
+              <span class="spinner-border spinner-border-sm text-primary me-2" aria-hidden="true"></span>
+              Cargando conversaciones…
+            </div>
+          </div>
         } @else if (errorConversaciones()) {
-          <div class="alert alert-danger small" role="alert">{{ errorConversaciones() }}</div>
+          <div class="alert alert-danger" role="alert">{{ errorConversaciones() }}</div>
         } @else if (sinConversaciones()) {
-          <div class="alert alert-info small mb-0">
-            Todavía no tienes conversaciones. Escribe tu primera pregunta para empezar.
+          <div class="app-card">
+            <div class="card-body p-4 text-center">
+              <span class="icon-badge icon-badge--ai icon-badge--xl mb-3" aria-hidden="true">
+                <i class="bi bi-chat-square-text"></i>
+              </span>
+              <h3 class="h6 mb-1">Todavía no tienes conversaciones.</h3>
+              <p class="small text-muted-soft mb-0">Escribe tu primera pregunta para empezar.</p>
+            </div>
           </div>
         } @else {
-          <div class="list-group list-group-flush" role="list">
+          <div class="list-group asistente-conversaciones" role="list">
             @for (conversacion of conversaciones(); track conversacion.id) {
               <div
                 class="list-group-item list-group-item-action"
@@ -51,9 +69,12 @@
           </div>
         }
 
-        <hr />
+        <hr class="my-4" />
 
-        <h2 class="h6 card-title mb-3">Fuentes de la conversación</h2>
+        <h2 class="h6 asistente-step mb-3">
+          <i class="bi bi-collection me-2" aria-hidden="true"></i>
+          Fuentes de la conversación
+        </h2>
         <div class="form-check mb-3">
           <input
             id="usar-documentos"
@@ -100,19 +121,23 @@
   </div>
 
   <div class="col-12 col-lg-8">
-    <div class="card shadow-sm h-100">
-      <div class="card-body d-flex flex-column">
-        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
-          <div>
-            <h2 class="h6 card-title mb-0">
+    <div class="app-card h-100">
+      <div class="card-body p-4 p-lg-5 d-flex flex-column">
+        <div class="panel-heading">
+          <span class="icon-badge icon-badge--ai icon-badge--lg" aria-hidden="true">
+            <i class="bi bi-robot"></i>
+          </span>
+          <div class="flex-grow-1 min-w-0">
+            <h2 class="h5 mb-1">
               {{ conversacionActual()?.titulo ?? 'Nueva conversación' }}
             </h2>
-            <p class="small chat-texto-secundario mb-0">
+            <p class="small text-muted-soft mb-0">
               Las respuestas se basan solo en los documentos que tú puedes consultar.
             </p>
           </div>
           @if (conversacionActual(); as conversacion) {
-            <span class="badge text-bg-light">
+            <span class="badge badge-info badge-sm">
+              <i class="bi bi-calendar3 me-1" aria-hidden="true"></i>
               {{ conversacion.fecha_creacion | date: 'dd/MM/yyyy' }}
             </span>
           }
@@ -121,12 +146,16 @@
         <div class="chat-mensajes border rounded p-3 mb-3" aria-live="polite">
           @if (cargandoMensajes()) {
             <div class="text-center chat-texto-secundario py-5" role="status">
+              <span class="spinner-border spinner-border-sm text-primary me-2" aria-hidden="true"></span>
               Cargando mensajes…
             </div>
           } @else if (errorMensajes()) {
             <div class="alert alert-danger" role="alert">{{ errorMensajes() }}</div>
           } @else if (sinMensajes()) {
             <div class="text-center chat-texto-secundario py-5">
+              <span class="icon-badge icon-badge--ai icon-badge--xl mb-3" aria-hidden="true">
+                <i class="bi bi-chat-dots"></i>
+              </span>
               <p class="mb-1">Haz una pregunta sobre tus apuntes.</p>
               <p class="small mb-0">El asistente citará las páginas que use para responderte.</p>
             </div>
@@ -148,7 +177,10 @@
 
                   @if (mensaje.referencias.length > 0) {
                     <div class="chat-referencias mt-2 pt-2">
-                      <span class="chat-fuentes-titulo d-block small fw-semibold mb-1">Fuentes</span>
+                      <span class="chat-fuentes-titulo d-block small fw-semibold mb-1">
+                        <i class="bi bi-link-45deg me-1" aria-hidden="true"></i>
+                        Fuentes
+                      </span>
                       @for (referencia of mensaje.referencias; track referencia.fragmento_id) {
                         <div class="small">
                           <span class="fw-semibold">{{ etiquetaReferencia(referencia) }}</span>
@@ -166,7 +198,7 @@
 
           @if (enviando()) {
             <div class="text-center chat-texto-secundario py-2" role="status">
-              <span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
+              <span class="spinner-border spinner-border-sm text-primary me-2" aria-hidden="true"></span>
               El asistente está pensando…
             </div>
           }
@@ -192,13 +224,14 @@
             </span>
             <button
               type="submit"
-              class="btn btn-primary"
+              class="btn btn-ai"
               [disabled]="!puedeEnviar()"
             >
               @if (enviando()) {
                 <span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
                 Enviando…
               } @else {
+                <i class="bi bi-send me-2" aria-hidden="true"></i>
                 Enviar pregunta
               }
             </button>
