@@ -39,6 +39,7 @@ describe('AyudanteFlotanteComponent', () => {
       '¿En qué puedo ayudarte?',
     );
     expect(boton().getAttribute('aria-label')).toContain('Abrir asistente IA');
+    expect(boton().querySelector('svg')?.getAttribute('viewBox')).toBe('30 16 240 240');
     expect(
       (boton().querySelector('.mascota__seguimiento') as HTMLElement).style.transform,
     ).toBe('');

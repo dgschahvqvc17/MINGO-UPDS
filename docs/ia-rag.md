@@ -509,8 +509,10 @@ Detalles de implementación:
   y el giro de cabeza solo se habilita en el login.
 - El shell incluye un acceso flotante abajo a la derecha en todas las pantallas
   autenticadas: `app-ayudante-flotante`. Muestra la burbuja «¿En qué puedo
-  ayudarte?» y, al hacer clic, navega a `/asistente-ia`. La mascota es compacta
-  y quieta (`seguirCursor=false`). Tras 12 s sin actividad se duerme; 6 s después
+  ayudarte?» y, al hacer clic, navega a `/asistente-ia`. El propio botón es la
+  cabeza de la mascota, sin círculo ni fondo: `soloCabeza` recorta el SVG a la
+  cara y oculta halo, anillo, partículas y pata. La mascota es quieta
+  (`seguirCursor=false`). Tras 12 s sin actividad se duerme; 6 s después
   se produce el «sorpréndeme»: despierta hablando con «¡Sorpresa! ¿Qué quieres
   preguntarme?» y vuelve al reposo. Mover el mouse, escribir o pasar el cursor
   sobre el botón la despierta. Todo se cancela al destruir el componente.

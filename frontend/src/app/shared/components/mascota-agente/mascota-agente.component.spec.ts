@@ -55,6 +55,23 @@ describe('MascotaAgenteComponent', () => {
     );
   });
 
+  it('recorta el SVG a la cabeza y oculta el resto cuando se solicita', () => {
+    fixture.componentRef.setInput('soloCabeza', true);
+    fixture.detectChanges();
+
+    const host = fixture.nativeElement as HTMLElement;
+    expect(host.querySelector('svg')?.getAttribute('viewBox')).toBe('30 16 240 240');
+
+    for (const selector of [
+      '.mascota__halo',
+      '.mascota__anillo',
+      '.mascota__particulas',
+      '.mascota__pata',
+    ]) {
+      expect((host.querySelector(selector) as HTMLElement).style.display).toBe('none');
+    }
+  });
+
   it('muestra dos ojos abiertos y mueve las pupilas con el cursor', () => {
     expect(fixture.nativeElement.querySelectorAll('.mascota__pupila')).toHaveLength(2);
     expect(fixture.nativeElement.querySelectorAll('.mascota__parpado')).toHaveLength(2);

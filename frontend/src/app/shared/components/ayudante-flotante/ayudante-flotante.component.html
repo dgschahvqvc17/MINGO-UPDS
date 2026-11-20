@@ -11,7 +11,5 @@
   (focus)="despertar()"
 >
   <span class="ayudante__globo" aria-hidden="true">{{ mensaje() }}</span>
-  <span class="ayudante__mascota" aria-hidden="true">
-    <app-mascota-agente [estado]="estado()" [compacta]="true" [seguirCursor]="false" />
-  </span>
+  <app-mascota-agente [estado]="estado()" [soloCabeza]="true" [seguirCursor]="false" />
 </button>
