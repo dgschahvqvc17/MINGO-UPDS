@@ -1,0 +1,12 @@
+.planes-estudio .card-body {
+  padding: 1.25rem;
+}
+
+.planes-estudio .list-group-item strong {
+  color: var(--bs-body-color);
+}
+
+.planes-estudio app-calendario-sesiones {
+  display: block;
+  margin-bottom: 1rem;
+}

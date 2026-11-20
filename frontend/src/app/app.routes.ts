@@ -147,6 +147,13 @@ export const routes: Routes = [
       },
 
       {
+        path: 'planes-estudio',
+        title: 'Planes de estudio | MINGO',
+        loadComponent: () =>
+          import('./features/planes-estudio/planes-estudio').then((m) => m.PlanesEstudioPage),
+      },
+
+      {
         path: 'asistente-ia',
         loadComponent: () =>
           import('./features/asistente-ia/asistente-ia').then((m) => m.AsistenteIaPage),

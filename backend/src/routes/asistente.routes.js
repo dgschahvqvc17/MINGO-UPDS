@@ -12,6 +12,8 @@ const {
   createCuestionarioController,
   createTarjetaService,
   createTarjetaController,
+  createPlanEstudioService,
+  createPlanEstudioController,
 } = require('../container');
 const {
   resumenGenerarSchema,
@@ -35,6 +37,7 @@ const {
   conjuntoDetalleQuerySchema,
   tarjetaEstadoSchema,
 } = require('../models/tarjeta.model');
+const { planGenerarSchema } = require('../models/plan-estudio.model');
 
 const router = Router();
 
@@ -112,6 +115,20 @@ function atenderTarjeta(accion) {
 }
 
 /**
+ * Construye un handler que delega en el controlador de planes de estudio.
+ *
+ * @param {'proponer'} accion
+ * @returns {import('express').RequestHandler}
+ */
+function atenderPlan(accion) {
+  return asyncHandler((req, res) => {
+    const planEstudioService = createPlanEstudioService(req.user.id, req.accessToken);
+    const controller = createPlanEstudioController(planEstudioService);
+    return controller[accion](req, res);
+  });
+}
+
+/**
  * POST /asistente/resumen
  * Genera un resumen estructurado del documento, reutilizando la cache si aplica.
  */
@@ -173,7 +190,7 @@ router.delete(
   atenderChat('eliminar'),
 );
 
-// TODO Sprint 2-3 (HU15-HU16): planes y evaluador.
+// TODO Sprint 3 (HU16): evaluador de respuestas.
 
 /**
  * POST /asistente/cuestionario
@@ -256,6 +273,16 @@ router.post(
   '/tarjetas',
   validationMiddleware({ body: tarjetaGenerarSchema }),
   atenderTarjeta('generar'),
+);
+
+/**
+ * POST /asistente/plan
+ * Genera una propuesta de plan de estudio sin guardarla ni crear eventos.
+ */
+router.post(
+  '/plan',
+  validationMiddleware({ body: planGenerarSchema }),
+  atenderPlan('proponer'),
 );
 
 /**

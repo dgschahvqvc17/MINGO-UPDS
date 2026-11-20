@@ -1286,8 +1286,6 @@ El diagrama actual cubre el núcleo académico, documental, de IA y de evaluaci�
 | Estructura | Historias | Uso |
 |---|---|---|
 | `unidades` y `unidad_id` en `tareas`/`documentos` | HU03, HU04, HU07 | Organización por unidades dentro de una materia. |
-| `planes_estudio` | HU15 | Planes de estudio. |
-| `sesiones_estudio` | HU15 | Sesiones del plan. |
 | `notificaciones` | HU18 | Notificaciones y recordatorios. |
 | `objetivos_estudio` | HU17 | Objetivos académicos. |
 | `preferencias_usuario` | HU18 | Zona horaria, idioma y canales. |
@@ -1302,7 +1300,12 @@ Las estructuras de HU13 (`cuestionarios`, `preguntas`, `opciones_pregunta`,
 `solicitudes_idempotentes`, creada en
 `supabase/migrations/0011_hu12_idempotencia_chat.sql`. Las estructuras de HU14
 (`conjuntos_tarjetas` y `tarjetas`) están implementadas en
-`supabase/migrations/0012_hu14_tarjetas_memoria.sql`.
+`supabase/migrations/0012_hu14_tarjetas_memoria.sql`. Las de HU15
+(`planes_estudio` y `sesiones_estudio`) están implementadas en
+`supabase/migrations/0013_hu15_planes_estudio.sql`: ambas usan UUID, RLS por
+`auth.uid() = usuario_id`, índices por usuario, materia, plan y fecha, y trigger
+de `fecha_actualizacion`. `sesiones_estudio.evento_calendario_id` referencia
+`eventos_calendario` con `on delete set null`; la relación inversa no existe.
 
 Las estructuras de HU12 (`mensajes.modelo_utilizado`,
 `conversaciones.tipo_conversacion` y `fecha_actualizacion`, además de
@@ -1332,11 +1335,12 @@ están implementadas en `supabase/migrations/0009_hu12_chat.sql`.
 | `supabase/migrations/0010_hu13_cuestionarios.sql` | Tablas `cuestionarios`, `preguntas`, `opciones_pregunta`, `intentos_cuestionario` y `respuestas_usuario` con UUID, índices, restricciones y RLS (HU13, idempotente). |
 | `supabase/migrations/0011_hu12_idempotencia_chat.sql` | Tabla `solicitudes_idempotentes` con unicidad por `(usuario_id, endpoint, clave)`, índice de fecha y RLS (HU12, idempotente). |
 | `supabase/migrations/0012_hu14_tarjetas_memoria.sql` | Tablas `conjuntos_tarjetas` y `tarjetas` con índices, restricciones y RLS (HU14, idempotente). |
+| `supabase/migrations/0013_hu15_planes_estudio.sql` | Tablas `planes_estudio` y `sesiones_estudio`, vínculo con `eventos_calendario`, índices, restricciones y RLS (HU15, idempotente). |
 
 - El script `backend/scripts/run-migrations.js` (`npm run migrate`) aplica estas
   migraciones en orden: identidad, materias, tareas, calendario, documentos,
   fragmentos, reemplazo de fragmentos, resumenes, búsqueda semántica, chat,
-  cuestionarios, idempotencia y tarjetas de memoria.
+  cuestionarios, idempotencia, tarjetas de memoria y planes de estudio.
 
 - Flujo:
 
@@ -1390,6 +1394,7 @@ on conflict (nombre) do nothing;
 
 | Fecha | Cambio |
 |---|---|
+| 2026-11-19 | HU15: tablas `planes_estudio` y `sesiones_estudio` con vínculo opcional a `eventos_calendario`, índices, restricciones y RLS. Migración `0013_hu15_planes_estudio.sql`. |
 | 2026-11-19 | HU14: tablas `conjuntos_tarjetas` y `tarjetas` con índices, restricciones y RLS. Migración `0012_hu14_tarjetas_memoria.sql`. |
 | 2026-11-19 | HU12: tablas de chat con UUID, `documento_nombre` y `extracto` en referencias, trigger de actividad y RLS. Migración `0009_hu12_chat.sql`. |
 | 2026-11-16 | HU09: RPC `confirmar_reemplazo_fragmentos` para reemplazar fragmentos de forma atómica en el reproceso. Cierra el hueco entre el borrado y la inserción. |

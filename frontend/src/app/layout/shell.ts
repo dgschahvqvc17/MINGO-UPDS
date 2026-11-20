@@ -33,6 +33,7 @@ const NAV_SECTIONS: NavSection[] = [
       { label: 'Biblioteca', path: '/biblioteca', icon: 'bi-folder2-open' },
       { label: 'Centro de estudio', path: '/centro-estudio', icon: 'bi-mortarboard' },
       { label: 'Tarjetas de memoria', path: '/tarjetas-memoria', icon: 'bi-collection' },
+      { label: 'Planes de estudio', path: '/planes-estudio', icon: 'bi-calendar2-week' },
       { label: 'Asistente IA', path: '/asistente-ia', icon: 'bi-stars', ai: true },
     ],
   },

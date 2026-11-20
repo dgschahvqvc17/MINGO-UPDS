@@ -401,10 +401,35 @@ Agente: confirma la creación y muestra el enlace
 
 ### 8.6. Plan de estudio (HU15)
 
-- Considera fecha del examen, minutos disponibles y días disponibles.
-- Consulta tareas y documentos relacionados.
-- Propone sesiones; no las guarda hasta confirmación.
-- No promete resultados académicos.
+- Endpoints: `POST /api/asistente/plan` (propone sin guardar) y
+  `POST /api/estudio/planes` (persiste solo lo confirmado). El detalle HTTP está
+  en [api.md](api.md) §§11–12.
+- Entrada: materia propia (UUID), objetivo de 5 a 300 caracteres, fecha de
+  evaluación no pasada, 15 a 480 minutos por día y uno o más días disponibles.
+- Contexto: hasta 20 tareas de la materia (con tipo y fecha de entrega), hasta
+  10 evaluaciones `tipo_evento = 'examen'` de su calendario y hasta 40 fragmentos
+  de sus documentos procesados, limitados a 24 000 caracteres. El contenido se
+  trata como datos no confiables: el prompt ignora instrucciones incrustadas en él.
+- El prompt pide distribuir temas hasta la evaluación, respetar días y minutos,
+  dejar repaso antes del examen y devolver solo JSON con resumen y sesiones
+  (`tema`, `actividades`, `fecha_inicio`, `duracion_minutos` y `tipo` opcional).
+- La salida se valida con Zod: entre 1 y 30 sesiones, duraciones de 5 a 480
+  minutos, fechas ISO 8601 válidas y sin duplicados. Un JSON inválido se
+  reintenta una sola vez; si persiste, `503` con mensaje seguro.
+- La propuesta se devuelve con `es_propuesta: true`, número de orden por sesión y
+  contadores de tokens. No crea filas ni eventos: el estudiante puede editar
+  tema, actividades, fecha, duración y tipo antes de aceptarla o descartarla.
+- Al confirmar se guardan `planes_estudio` y `sesiones_estudio`; cada sesión se
+  sincroniza con un evento `tipo_evento = 'estudio'` vinculado desde
+  `sesiones_estudio.evento_calendario_id`. Cambiar o eliminar una sesión
+  actualiza o borra ese evento. Si el calendario falla, el plan sigue guardado.
+- Cuota: 5 propuestas por usuario y día, registradas en `consumo_ia` con
+  `operacion = 'plan'` (`429 AI_QUOTA_EXCEEDED` al agotarla). Las confirmaciones
+  no consumen cuota porque no vuelven a llamar al proveedor.
+- UI: `/planes-estudio` permite generar, editar, aceptar y descartar propuestas,
+  consultar planes, ver sus sesiones en un calendario y marcarlas completadas.
+- No promete resultados académicos: es una sugerencia de organización basada en
+  el material del usuario.
 
 ### 8.7. Evaluación (HU16)
 
@@ -422,7 +447,7 @@ Agente: confirma la creación y muestra el enlace
 | Resúmenes | 20 / día |
 | Cuestionarios | 10 / día |
 | Flashcards | 10 / día |
-| Planes | 5 / día |
+| Planes (implementado en HU15, `operacion = 'plan'`) | 5 / día |
 | Embeddings | Solo en procesamiento de documentos (una vez por fragmento) |
 
 Los valores son configurables y deben poder ajustarse sin desplegar código (variables de entorno o tabla de configuración).

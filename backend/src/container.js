@@ -13,6 +13,7 @@ const ResumenRepository = require('./repositories/resumen.repository');
 const ConversacionRepository = require('./repositories/conversacion.repository');
 const CuestionarioRepository = require('./repositories/cuestionario.repository');
 const TarjetaRepository = require('./repositories/tarjeta.repository');
+const PlanEstudioRepository = require('./repositories/plan-estudio.repository');
 const IdempotenciaRepository = require('./repositories/idempotencia.repository');
 const ConsumoIaRepository = require('./repositories/consumo-ia.repository');
 const AlmacenamientoRepository = require('./repositories/almacenamiento.repository');
@@ -35,6 +36,8 @@ const CuestionarioService = require('./services/cuestionario.service');
 const CuestionarioIaService = require('./services/ia/cuestionario.ia.service');
 const TarjetaService = require('./services/tarjeta.service');
 const TarjetaIaService = require('./services/ia/tarjeta.ia.service');
+const PlanEstudioService = require('./services/plan-estudio.service');
+const PlanIaService = require('./services/ia/plan.ia.service');
 const AuthController = require('./controllers/auth.controller');
 const UsuarioAdminController = require('./controllers/usuario-admin.controller');
 const MateriaController = require('./controllers/materia.controller');
@@ -47,6 +50,7 @@ const ResumenController = require('./controllers/resumen.controller');
 const ChatController = require('./controllers/chat.controller');
 const CuestionarioController = require('./controllers/cuestionario.controller');
 const TarjetaController = require('./controllers/tarjeta.controller');
+const PlanEstudioController = require('./controllers/plan-estudio.controller');
 const { s3Client, sqsClient } = require('./config/aws');
 
 // Clientes de IA compartidos: no guardan estado por petición.
@@ -54,6 +58,7 @@ const embeddingsServiceCompartido = new EmbeddingsService();
 const agenteIaServiceCompartido = new AgenteIaService();
 const cuestionarioIaServiceCompartido = new CuestionarioIaService();
 const tarjetaIaServiceCompartido = new TarjetaIaService();
+const planIaServiceCompartido = new PlanIaService();
 const {
   createSupabaseClient,
   createSupabaseServiceRoleClient,
@@ -333,6 +338,34 @@ function createTarjetaController(tarjetaService) {
 }
 
 /**
+ * Crea el servicio de planes de estudio de HU15.
+ * Usa el cliente del usuario: materias, tareas, fragmentos, planes, sesiones,
+ * calendario y consumo quedan limitados por RLS. Reutiliza el cliente de IA.
+ *
+ * @param {string} usuarioActualId - ID del usuario autenticado.
+ * @param {string} accessToken - JWT del usuario autenticado.
+ * @returns {PlanEstudioService}
+ */
+function createPlanEstudioService(usuarioActualId, accessToken) {
+  const supabaseClient = createSupabaseClient(accessToken);
+
+  return new PlanEstudioService({
+    materiaRepository: new MateriaRepository({ supabase: supabaseClient }),
+    tareaRepository: new TareaRepository({ supabase: supabaseClient }),
+    fragmentoRepository: new FragmentoRepository({ supabase: supabaseClient }),
+    planRepository: new PlanEstudioRepository({ supabase: supabaseClient }),
+    calendarioRepository: new CalendarioRepository({ supabase: supabaseClient }),
+    consumoRepository: new ConsumoIaRepository({ supabase: supabaseClient }),
+    iaService: planIaServiceCompartido,
+    usuarioActualId,
+  });
+}
+
+function createPlanEstudioController(planEstudioService) {
+  return new PlanEstudioController({ planEstudioService });
+}
+
+/**
  * Crea el servicio que ejecuta el worker de procesamiento.
  * Usa service_role porque no hay usuario autenticado en la Lambda; el servicio
  * valida la propiedad del documento y de la ruta antes de tocar nada.
@@ -370,6 +403,7 @@ module.exports = {
   createChatService,
   createCuestionarioService,
   createTarjetaService,
+  createPlanEstudioService,
   createProcesamientoService,
   createTareaController,
   createCalendarioController,
@@ -380,6 +414,7 @@ module.exports = {
   createChatController,
   createCuestionarioController,
   createTarjetaController,
+  createPlanEstudioController,
   authController,
   usuarioAdminController: new UsuarioAdminController(),
   materiaController: new MateriaController(),
