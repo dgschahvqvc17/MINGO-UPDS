@@ -57,6 +57,7 @@ export class MascotaAgenteComponent implements OnInit {
   readonly saludar = input(false);
   readonly mensaje = input('');
   readonly mostrarMensaje = input(false);
+  readonly seguirCursor = input(true);
   readonly seguimientoCabeza = input(false);
   readonly hablaAlSaludar = input(false);
 
@@ -121,11 +122,15 @@ export class MascotaAgenteComponent implements OnInit {
     }
 
     MOVIMIENTO_CURSOR.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((evento) =>
-      this.seguirCursor(evento),
+      this.actualizarSeguimiento(evento),
     );
   }
 
-  private seguirCursor(evento: MouseEvent): void {
+  private actualizarSeguimiento(evento: MouseEvent): void {
+    if (!this.seguirCursor()) {
+      return;
+    }
+
     const rect = this.elemento.nativeElement.getBoundingClientRect();
     if (rect.width === 0 || rect.height === 0) {
       return;

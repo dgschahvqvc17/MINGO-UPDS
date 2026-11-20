@@ -33,7 +33,7 @@
           <div class="app-card">
             <div class="card-body p-4 text-center">
               <div class="d-flex justify-content-center mb-2">
-                <app-mascota-agente estado="inactivo" />
+                <app-mascota-agente estado="inactivo" [seguirCursor]="false" />
               </div>
               <h3 class="h6 mb-1">Todavía no tienes conversaciones.</h3>
               <p class="small text-muted-soft mb-0">Escribe tu primera pregunta para empezar.</p>
@@ -130,7 +130,11 @@
             </span>
           } @else {
             <span class="chat-mascota">
-              <app-mascota-agente [estado]="estadoMascota()" [compacta]="true" />
+              <app-mascota-agente
+                [estado]="estadoMascota()"
+                [compacta]="true"
+                [seguirCursor]="false"
+              />
             </span>
           }
           <div class="flex-grow-1 min-w-0">
@@ -164,6 +168,7 @@
                   [estado]="estadoMascota()"
                   [grande]="true"
                   [mostrarMensaje]="true"
+                  [seguirCursor]="false"
                   mensaje="¿Qué quieres preguntarme?"
                 />
               </div>

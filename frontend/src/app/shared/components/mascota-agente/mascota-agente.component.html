@@ -12,7 +12,7 @@
   @if (mensaje() && (saludando() || mostrarMensaje())) {
     <div class="mascota__burbuja" aria-hidden="true">{{ mensaje() }}</div>
   }
-  <div class="mascota__seguimiento" [style.transform]="desplazamiento()">
+  <div class="mascota__seguimiento" [style.transform]="seguirCursor() ? desplazamiento() : ''">
     <div class="mascota__animacion">
       <svg viewBox="0 0 300 300" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
         <defs>
@@ -60,7 +60,7 @@
           <circle class="mascota__particula" cx="38" cy="214" r="2.2" />
         </g>
 
-        <g class="mascota__cabeza" [style.transform]="cabeza()">
+        <g class="mascota__cabeza" [style.transform]="seguirCursor() ? cabeza() : ''">
           <path d="M 56 142 C 56 58, 244 58, 244 142" fill="none" [attr.stroke]="'url(#' + prefijo + '-audifono)'" stroke-width="16" stroke-linecap="round" />
         <path d="M 66 132 C 74 68, 226 68, 234 132" fill="none" stroke="#7dd3fc" stroke-width="2.5" stroke-linecap="round" opacity="0.7" />
 
@@ -96,7 +96,7 @@
 
         <g class="mascota__ojo">
           <ellipse cx="114" cy="146" rx="20" ry="22" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5" />
-          <g class="mascota__pupila mascota__pupila--izquierda" [style.transform]="mirada()">
+          <g class="mascota__pupila mascota__pupila--izquierda" [style.transform]="seguirCursor() ? mirada() : ''">
             <circle cx="112" cy="147" r="13.5" [attr.fill]="'url(#' + prefijo + '-ojo)'" />
             <circle cx="112" cy="147" r="7.5" fill="#090d16" />
             <circle cx="107" cy="141" r="3.8" fill="#ffffff" />
@@ -111,7 +111,7 @@
 
         <g class="mascota__ojo">
           <ellipse cx="192" cy="146" rx="20" ry="22" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5" />
-          <g class="mascota__pupila mascota__pupila--derecha" [style.transform]="mirada()">
+          <g class="mascota__pupila mascota__pupila--derecha" [style.transform]="seguirCursor() ? mirada() : ''">
             <circle cx="190" cy="147" r="13.5" [attr.fill]="'url(#' + prefijo + '-ojo)'" />
             <circle cx="190" cy="147" r="7.5" fill="#090d16" />
             <circle cx="185" cy="141" r="3.8" fill="#ffffff" />

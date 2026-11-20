@@ -501,7 +501,11 @@ Detalles de implementación:
 - La biblioteca usa `bi-binoculars` en *Búsqueda inteligente* y el asistente usa
   `bi-chat-dots` en la cabecera de una conversación nueva. En el área de mensajes
   del asistente la mascota es grande y mantiene visible la burbuja «¿Qué quieres
-  preguntarme?» mientras no haya mensajes.
+  preguntarme?» mientras no haya mensajes. Al abrir una conversación anterior,
+  la cabecera vuelve a mostrar la mascota compacta. Las tres mascotas del chat
+  reciben `[seguirCursor]="false"`: se quedan quietas, sin mover cuerpo, cabeza
+  ni pupilas con el mouse. El seguimiento sigue activo en el resto de pantallas
+  y el giro de cabeza solo se habilita en el login.
 - En el centro de estudio, las tarjetas de memoria y los planes de estudio el
   lugar del icono lo ocupa un `icon-badge` de Bootstrap, no la mascota:
   `bi-patch-question`, `bi-journal-check` y `bi-clipboard-check` en el centro de estudio,

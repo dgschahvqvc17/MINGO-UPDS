@@ -83,6 +83,27 @@ describe('MascotaAgenteComponent', () => {
     expect(cabeza.style.transform).toBe('rotate(4.0deg) translateY(1.0px)');
   });
 
+  it('permite mantener la mascota quieta al desactivar el seguimiento del cursor', () => {
+    fixture.componentRef.setInput('seguirCursor', false);
+    fixture.componentInstance.desplazamiento.set('translate(8.0px, 4.0px)');
+    fixture.componentInstance.cabeza.set('rotate(3.0deg)');
+    fixture.componentInstance.mirada.set('translate(4.0px, 2.0px)');
+    fixture.detectChanges();
+
+    const seguimiento = fixture.nativeElement.querySelector(
+      '.mascota__seguimiento',
+    ) as HTMLElement;
+    const cabeza = fixture.nativeElement.querySelector('.mascota__cabeza') as SVGGElement;
+    const pupilas = fixture.nativeElement.querySelectorAll(
+      '.mascota__pupila',
+    ) as NodeListOf<SVGGElement>;
+
+    expect(seguimiento.style.transform).toBe('');
+    expect(cabeza.style.transform).toBe('');
+    expect(pupilas[0].style.transform).toBe('');
+    expect(pupilas[1].style.transform).toBe('');
+  });
+
   it('piensa y habla durante el saludo cuando se solicita', () => {
     vi.useFakeTimers();
     const saludo = TestBed.createComponent(MascotaAgenteComponent);

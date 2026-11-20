@@ -176,6 +176,9 @@ describe('ChatComponent (HU12)', () => {
     expect(mascota.querySelector('.mascota__burbuja')?.textContent).toContain(
       '¿Qué quieres preguntarme?',
     );
+    expect(
+      (mascota.querySelector('.mascota__seguimiento') as HTMLElement).style.transform,
+    ).toBe('');
   });
 
   it('muestra la mascota pensando mientras espera y hablando al recibir la respuesta', () => {
