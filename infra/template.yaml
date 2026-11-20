@@ -381,12 +381,8 @@ Resources:
       Protocol: email
       TopicArn: !Ref NotificacionesTopic
       Endpoint: !Ref NotificacionesEmail
-      Tags:
-        - { Key: Project, Value: MINGO }
-        - { Key: Environment, Value: !Ref Environment }
-        - { Key: Owner, Value: equipo-mingo }
-        - { Key: ManagedBy, Value: sam }
-        - { Key: CostCenter, Value: academico }
+      # AWS::SNS::Subscription no expone la propiedad Tags en CloudFormation.
+      # Las etiquetas obligatorias las lleva el topic, que es el recurso padre.
 
   RecordatoriosLogGroup:
     Type: AWS::Logs::LogGroup
@@ -437,7 +433,7 @@ Resources:
       ScheduleExpression: !Ref RecordatorioCron
       ScheduleExpressionTimezone: UTC
       FlexibleTimeWindow:
-        Mode: OFF
+        Mode: 'OFF'
       # En desarrollo queda deshabilitado; las reglas de AWS lo exigen.
       State: !If [IsProd, ENABLED, DISABLED]
       Target:
@@ -446,12 +442,8 @@ Resources:
         # Sin reintentos: evita bucles y gasto accidental.
         RetryPolicy:
           MaximumRetryAttempts: 0
-      Tags:
-        - { Key: Project, Value: MINGO }
-        - { Key: Environment, Value: !Ref Environment }
-        - { Key: Owner, Value: equipo-mingo }
-        - { Key: ManagedBy, Value: sam }
-        - { Key: CostCenter, Value: academico }
+      # AWS::Scheduler::Schedule no admite Tags en CloudFormation. Las etiquetas
+      # obligatorias las llevan la funcion y el log group asociados al schedule.
 
 Outputs:
   BucketName:
