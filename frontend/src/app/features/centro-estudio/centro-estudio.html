@@ -7,15 +7,24 @@
       (completado)="alCompletar()"
     />
   } @else {
-    <header class="mb-4">
-      <h1 class="h3 mb-1">Centro de estudio</h1>
-      <p class="text-muted mb-0">
-        Genera cuestionarios con IA a partir de tus documentos y evalúa lo que aprendiste.
-      </p>
+    <header class="page-header mb-4">
+      <div class="d-flex flex-wrap justify-content-between align-items-start gap-3">
+        <div>
+          <span class="page-eyebrow">Evaluación del aprendizaje</span>
+          <h1 class="page-title mt-1 mb-2">Centro de estudio</h1>
+          <p class="page-subtitle mb-0">
+            Genera cuestionarios con IA a partir de tus documentos y evalúa lo que aprendiste.
+          </p>
+        </div>
+        <span class="badge badge-info">
+          <i class="bi bi-lightning-charge me-1" aria-hidden="true"></i>
+          Hasta 10 cuestionarios por día
+        </span>
+      </div>
     </header>
 
     @if (mensajeExito()) {
-      <div class="alert alert-success alert-dismissible d-flex align-items-center" role="status">
+      <div class="alert alert-success d-flex align-items-center mb-4" role="status">
         <i class="bi bi-check-circle me-2" aria-hidden="true"></i>
         <span class="flex-grow-1">{{ mensajeExito() }}</span>
         <button
@@ -28,26 +37,31 @@
     }
 
     @if (errorAccion()) {
-      <div class="alert alert-danger alert-dismissible d-flex align-items-center" role="alert">
+      <div class="alert alert-danger d-flex align-items-center mb-4" role="alert">
         <i class="bi bi-exclamation-triangle me-2" aria-hidden="true"></i>
         <span class="flex-grow-1">{{ errorAccion() }}</span>
         <button
           type="button"
           class="btn-close"
-          aria-label="Cerrar mensaje de error"
+          aria-label="Cerrar error"
           (click)="cerrarErrorAccion()"
         ></button>
       </div>
     }
 
     <div class="row g-4">
-      <div class="col-12 col-lg-4">
-        <div class="card border-0 shadow-sm h-100">
-          <div class="card-body">
-            <h2 class="h5 mb-3">
-              <i class="bi bi-magic me-2 text-primary" aria-hidden="true"></i>
-              Generar cuestionario
-            </h2>
+      <div class="col-12 col-xl-4">
+        <div class="app-card app-card--ai h-100">
+          <div class="card-body p-4">
+            <div class="panel-heading">
+              <span class="icon-badge icon-badge--ai icon-badge--lg" aria-hidden="true">
+                <i class="bi bi-stars"></i>
+              </span>
+              <div>
+                <h2 class="h5 mb-1">Generar cuestionario</h2>
+                <p class="small text-muted-soft mb-0">Define el material y el tipo de preguntas.</p>
+              </div>
+            </div>
 
             @if (sinMaterias()) {
               <div class="alert alert-info" role="status">
@@ -124,159 +138,221 @@
                 </div>
               </div>
 
-              <fieldset class="mb-3">
+              <fieldset class="mb-4">
                 <legend class="form-label fs-6">Tipos de pregunta</legend>
-                @for (tipo of tiposDisponibles; track tipo.valor) {
-                  <div class="form-check">
-                    <input
-                      class="form-check-input"
-                      type="checkbox"
-                      [id]="'tipo-' + tipo.valor"
-                      [checked]="tipoSeleccionado(tipo.valor)"
-                      (change)="alternarTipo(tipo.valor)"
-                    />
-                    <label class="form-check-label" [for]="'tipo-' + tipo.valor">
+                <div class="d-flex flex-wrap gap-2">
+                  @for (tipo of tiposDisponibles; track tipo.valor) {
+                    <button
+                      type="button"
+                      class="tipo-chip"
+                      [class.seleccionado]="tipoSeleccionado(tipo.valor)"
+                      [attr.aria-pressed]="tipoSeleccionado(tipo.valor)"
+                      (click)="alternarTipo(tipo.valor)"
+                    >
+                      <i class="bi bi-check2 me-1" aria-hidden="true"></i>
                       {{ tipo.etiqueta }}
-                    </label>
-                  </div>
-                }
+                    </button>
+                  }
+                </div>
                 @if (tipos().length === 0) {
-                  <p class="text-danger small mb-0" role="alert">
+                  <p class="text-danger small mt-2 mb-0" role="alert">
                     Selecciona al menos un tipo de pregunta.
                   </p>
+                } @else {
+                  <div class="form-text">Puedes elegir uno o varios tipos.</div>
                 }
               </fieldset>
 
               @if (error()) {
-                <div class="alert alert-danger" role="alert">{{ error() }}</div>
+                <div class="alert alert-danger mb-3" role="alert">{{ error() }}</div>
               }
 
-              <button type="submit" class="btn btn-primary w-100" [disabled]="!puedeGenerar()">
+              <button type="submit" class="btn btn-ai w-100" [disabled]="!puedeGenerar()">
                 @if (generando()) {
-                  <span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
+                  <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
                   Generando cuestionario...
                 } @else {
-                  <i class="bi bi-stars me-1" aria-hidden="true"></i>
+                  <i class="bi bi-stars me-2" aria-hidden="true"></i>
                   Generar cuestionario
                 }
               </button>
-              <p class="text-muted small text-center mt-2 mb-0">
-                Puedes generar hasta 10 cuestionarios por día.
-              </p>
             </form>
           </div>
         </div>
       </div>
 
-      <div class="col-12 col-lg-8">
-        <div class="card border-0 shadow-sm h-100">
-          <div class="card-body">
-            <div class="d-flex justify-content-between align-items-center mb-3">
-              <h2 class="h5 mb-0">
-                <i class="bi bi-journal-check me-2 text-primary" aria-hidden="true"></i>
-                Mis cuestionarios
-              </h2>
-              <span class="badge text-bg-light border">{{ totalCuestionarios() }}</span>
+      <div class="col-12 col-xl-8">
+        <div class="app-card h-100">
+          <div class="card-body p-4 p-lg-5">
+            <div class="panel-heading">
+              <span class="icon-badge icon-badge--ai icon-badge--lg" aria-hidden="true">
+                <i class="bi bi-journal-check"></i>
+              </span>
+              <div>
+                <h2 class="h5 mb-1">Cómo funciona</h2>
+                <p class="small text-muted-soft mb-0">Tres pasos para evaluar tus conocimientos.</p>
+              </div>
             </div>
 
-            @if (cargandoCuestionarios() && cuestionarios().length === 0) {
-              <div class="text-center py-5" role="status">
-                <div class="spinner-border text-primary" aria-hidden="true"></div>
-                <p class="text-muted mt-3 mb-0">Cargando cuestionarios...</p>
-              </div>
-            } @else if (mostrarListaVacia()) {
-              <div class="alert alert-info mb-0" role="status">
-                Todavía no tienes cuestionarios. Genera el primero con el formulario de la izquierda.
-              </div>
-            } @else {
-              <div class="d-flex flex-column gap-3">
-                @for (cuestionario of cuestionarios(); track cuestionario.id) {
-                  <article class="card border">
-                    <div class="card-body">
-                      <div class="d-flex flex-wrap justify-content-between align-items-start gap-2">
-                        <div>
-                          <h3 class="h6 mb-1">{{ cuestionario.titulo }}</h3>
-                          <p class="text-muted small mb-2">
-                            @if (cuestionario.materia_nombre) {
-                              {{ cuestionario.materia_nombre }} ·
-                            }
-                            {{ cuestionario.fecha_creacion | date: 'dd/MM/yyyy' }}
-                          </p>
-                        </div>
-                        <div class="d-flex flex-wrap gap-1">
-                          <span class="badge text-bg-light border">
-                            {{ cuestionario.cantidad_preguntas }} preguntas
-                          </span>
-                          <span class="badge text-bg-light border">
-                            {{ etiquetaDificultad(cuestionario) }}
-                          </span>
-                        </div>
-                      </div>
-
-                      <div class="d-flex flex-wrap gap-2 mt-3">
-                        <button
-                          type="button"
-                          class="btn btn-sm btn-primary"
-                          (click)="resolver(cuestionario)"
-                        >
-                          <i class="bi bi-play-fill me-1" aria-hidden="true"></i>
-                          Resolver
-                        </button>
-
-                        @if (confirmandoEliminar() === cuestionario.id) {
-                          <button
-                            type="button"
-                            class="btn btn-sm btn-danger"
-                            [disabled]="eliminandoId() === cuestionario.id"
-                            (click)="eliminar(cuestionario)"
-                          >
-                            @if (eliminandoId() === cuestionario.id) {
-                              <span class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span>
-                            }
-                            Confirmar eliminación
-                          </button>
-                          <button
-                            type="button"
-                            class="btn btn-sm btn-outline-secondary"
-                            (click)="cancelarEliminar()"
-                          >
-                            Cancelar
-                          </button>
-                        } @else {
-                          <button
-                            type="button"
-                            class="btn btn-sm btn-outline-danger"
-                            (click)="solicitarEliminar(cuestionario)"
-                          >
-                            <i class="bi bi-trash me-1" aria-hidden="true"></i>
-                            Eliminar
-                          </button>
-                        }
-                      </div>
-                    </div>
-                  </article>
-                }
-              </div>
-
-              @if (hayMasCuestionarios()) {
-                <div class="text-center mt-3">
-                  <button
-                    type="button"
-                    class="btn btn-outline-primary btn-sm"
-                    [disabled]="cargandoCuestionarios()"
-                    (click)="cargarMas()"
-                  >
-                    @if (cargandoCuestionarios()) {
-                      <span class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span>
-                    }
-                    Cargar más
-                  </button>
+            <div class="pasos-generacion">
+              <div class="paso-item">
+                <span class="paso-numero">1</span>
+                <div>
+                  <strong>Elige el material</strong>
+                  <p class="small text-muted-soft mb-0">
+                    Selecciona una materia y, si quieres, un documento procesado.
+                  </p>
                 </div>
-              }
-            }
+              </div>
+              <div class="paso-item">
+                <span class="paso-numero">2</span>
+                <div>
+                  <strong>Configura el cuestionario</strong>
+                  <p class="small text-muted-soft mb-0">
+                    Define la cantidad, la dificultad y los tipos de pregunta que necesitas.
+                  </p>
+                </div>
+              </div>
+              <div class="paso-item">
+                <span class="paso-numero">3</span>
+                <div>
+                  <strong>Resuelve y revisa</strong>
+                  <p class="small text-muted-soft mb-0">
+                    Responde las preguntas y consulta la explicación de cada respuesta.
+                  </p>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
     </div>
+
+    <section class="seccion-cuestionarios mt-5" aria-labelledby="titulo-mis-cuestionarios">
+      <div class="d-flex flex-wrap justify-content-between align-items-end gap-3 mb-4">
+        <div>
+          <span class="page-eyebrow">Guardados</span>
+          <h2 class="h4 mb-1" id="titulo-mis-cuestionarios">Mis cuestionarios</h2>
+          <p class="small text-muted-soft mb-0">Resuelve los cuestionarios que has generado.</p>
+        </div>
+        <span class="badge badge-info">
+          <i class="bi bi-collection me-1" aria-hidden="true"></i>
+          {{ totalCuestionarios() }} {{ totalCuestionarios() === 1 ? 'cuestionario' : 'cuestionarios' }}
+        </span>
+      </div>
+
+      @if (cargandoCuestionarios() && cuestionarios().length === 0) {
+        <div class="app-card" role="status" aria-live="polite">
+          <div class="card-body p-5 text-center text-muted-soft">
+            <span class="spinner-border spinner-border-sm text-primary me-2" aria-hidden="true"></span>
+            Cargando cuestionarios...
+          </div>
+        </div>
+      } @else if (mostrarListaVacia()) {
+        <div class="app-card">
+          <div class="card-body p-5 text-center">
+            <span class="icon-badge icon-badge--ai icon-badge--xl mb-3" aria-hidden="true">
+              <i class="bi bi-journal-plus"></i>
+            </span>
+            <h3 class="h6 mb-1">Todavía no tienes cuestionarios</h3>
+            <p class="small text-muted-soft mb-0">
+              Genera el primero con el formulario de arriba para empezar a practicar.
+            </p>
+          </div>
+        </div>
+      } @else {
+        <div class="cuestionarios-grid">
+          @for (cuestionario of cuestionarios(); track cuestionario.id) {
+            <div class="app-card cuestionario-card">
+              <div class="card-body p-4">
+                <div class="d-flex flex-wrap justify-content-between align-items-start gap-2">
+                  <div class="flex-grow-1 min-w-0">
+                    <h3 class="h6 mb-1">{{ cuestionario.titulo }}</h3>
+                    <p class="small text-muted-soft mb-0">
+                      @if (cuestionario.materia_nombre) {
+                        <i class="bi bi-book me-1" aria-hidden="true"></i>
+                        {{ cuestionario.materia_nombre }} ·
+                      }
+                      <i class="bi bi-clock-history me-1" aria-hidden="true"></i>
+                      {{ cuestionario.fecha_creacion | date: 'dd/MM/yyyy' }}
+                    </p>
+                  </div>
+                  <span class="badge badge-success badge-sm">
+                    <i class="bi bi-check2-circle me-1" aria-hidden="true"></i>
+                    Listo
+                  </span>
+                </div>
+
+                <div class="meta-chips mt-3">
+                  <span class="meta-chip">
+                    <i class="bi bi-list-check" aria-hidden="true"></i>
+                    {{ cuestionario.cantidad_preguntas }} preguntas
+                  </span>
+                  <span class="meta-chip">
+                    <i class="bi bi-bar-chart" aria-hidden="true"></i>
+                    {{ etiquetaDificultad(cuestionario) }}
+                  </span>
+                </div>
+
+                <div class="d-flex flex-wrap gap-2 mt-4 pt-3 border-top">
+                  <button type="button" class="btn btn-aceptar btn-sm" (click)="resolver(cuestionario)">
+                    <i class="bi bi-play-fill me-1" aria-hidden="true"></i>
+                    Resolver
+                  </button>
+
+                  @if (confirmandoEliminar() === cuestionario.id) {
+                    <button
+                      type="button"
+                      class="btn btn-sm btn-danger"
+                      [disabled]="eliminandoId() === cuestionario.id"
+                      (click)="eliminar(cuestionario)"
+                    >
+                      @if (eliminandoId() === cuestionario.id) {
+                        <span class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span>
+                      }
+                      Confirmar eliminación
+                    </button>
+                    <button
+                      type="button"
+                      class="btn btn-sm btn-outline-info"
+                      (click)="cancelarEliminar()"
+                    >
+                      Cancelar
+                    </button>
+                  } @else {
+                    <button
+                      type="button"
+                      class="btn btn-sm btn-outline-danger"
+                      (click)="solicitarEliminar(cuestionario)"
+                    >
+                      <i class="bi bi-trash me-1" aria-hidden="true"></i>
+                      Eliminar
+                    </button>
+                  }
+                </div>
+              </div>
+            </div>
+          }
+        </div>
+
+        @if (hayMasCuestionarios()) {
+          <div class="text-center mt-4">
+            <button
+              type="button"
+              class="btn btn-outline-info btn-sm"
+              [disabled]="cargandoCuestionarios()"
+              (click)="cargarMas()"
+            >
+              @if (cargandoCuestionarios()) {
+                <span class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span>
+              } @else {
+                <i class="bi bi-chevron-down me-1" aria-hidden="true"></i>
+              }
+              Cargar más
+            </button>
+          </div>
+        }
+      }
+    </section>
   }
 </section>

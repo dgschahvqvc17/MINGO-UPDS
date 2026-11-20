@@ -1,11 +1,2 @@
-.centro-estudio header h1 {
-  letter-spacing: -0.01em;
-}
-
-.centro-estudio .card {
-  border-radius: 0.75rem;
-}
-
-.centro-estudio article.card {
-  background-color: var(--bs-body-bg);
-}
+/* Los estilos de esta feature viven en styles.css bajo el prefijo .centro-estudio
+   para no exceder el budget anyComponentStyle de Angular (6 kB). */
