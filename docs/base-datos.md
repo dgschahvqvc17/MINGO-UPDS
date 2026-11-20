@@ -1339,7 +1339,12 @@ inserción y actualización exigen además que la materia, si se indica, pertene
 al usuario. El progreso agregado no tiene tabla propia: se calcula en el backend
 a partir de materias, tareas, sesiones, intentos de cuestionario y objetivos.
 La migración es idempotente; la aplica el usuario de forma manual, nunca el
-agente.
+agente. `supabase/migrations/0016_hu17_restringir_permisos_objetivos.sql`
+retira `TRUNCATE`, `TRIGGER` y `REFERENCES` a `authenticated`: Supabase concede
+`ALL` por defecto en `public` y los `GRANT` de la migración 0015 son aditivos,
+por lo que esos privilegios quedaban activos. `RLS` no cubre `TRUNCATE`, así que
+su retirada evita superficie innecesaria. `service_role` conserva `ALL` y `anon`
+no tiene acceso.
 
 Las estructuras de HU12 (`mensajes.modelo_utilizado`,
 `conversaciones.tipo_conversacion` y `fecha_actualizacion`, además de
@@ -1372,12 +1377,13 @@ están implementadas en `supabase/migrations/0009_hu12_chat.sql`.
 | `supabase/migrations/0013_hu15_planes_estudio.sql` | Tablas `planes_estudio` y `sesiones_estudio`, vínculo con `eventos_calendario`, índices, restricciones y RLS (HU15, idempotente). |
 | `supabase/migrations/0014_hu16_evaluacion.sql` | `preguntas.tema`, campos de retroalimentación en `intentos_cuestionario` y tabla `evaluaciones_respuesta` con índices, restricciones y RLS (HU16, idempotente). |
 | `supabase/migrations/0015_hu17_objetivos_progreso.sql` | Tabla `objetivos_estudio` con materia opcional, fecha límite, estado, índices, restricciones, trigger de actualización y RLS (HU17, idempotente). |
+| `supabase/migrations/0016_hu17_restringir_permisos_objetivos.sql` | Retira `TRUNCATE`, `TRIGGER` y `REFERENCES` a `authenticated` en `objetivos_estudio`; confirma `ALL` a `service_role` y ningún permiso a `anon` (HU17, idempotente). |
 
 - El script `backend/scripts/run-migrations.js` (`npm run migrate`) aplica estas
   migraciones en orden: identidad, materias, tareas, calendario, documentos,
   fragmentos, reemplazo de fragmentos, resumenes, búsqueda semántica, chat,
   cuestionarios, idempotencia, tarjetas de memoria, planes de estudio,
-  evaluación y objetivos académicos.
+  evaluación, objetivos académicos y permisos de objetivos.
 
 - Flujo:
 
@@ -1431,6 +1437,7 @@ on conflict (nombre) do nothing;
 
 | Fecha | Cambio |
 |---|---|
+| 2026-11-19 | HU17: retirados `TRUNCATE`, `TRIGGER` y `REFERENCES` a `authenticated` en `objetivos_estudio` para cumplir el mínimo privilegio. Migración `0016_hu17_restringir_permisos_objetivos.sql`. |
 | 2026-11-19 | HU17: tabla `objetivos_estudio` con materia opcional, fecha límite, estado, índices, restricciones, trigger y RLS; el progreso se calcula en el backend. Migración `0015_hu17_objetivos_progreso.sql`. |
 | 2026-11-19 | HU16: `preguntas.tema`, campos de retroalimentación en `intentos_cuestionario` y tabla `evaluaciones_respuesta` con índices, restricciones y RLS. Migración `0014_hu16_evaluacion.sql`. |
 | 2026-11-19 | HU15: tablas `planes_estudio` y `sesiones_estudio` con vínculo opcional a `eventos_calendario`, índices, restricciones y RLS. Migración `0013_hu15_planes_estudio.sql`. |
