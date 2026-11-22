@@ -1,10 +1,10 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
 Description: >-
-  MINGO - HU07, HU09 y HU18. Bucket privado de documentos academicos,
-  procesamiento asincrono (S3 -> SQS -> Lambda) y recordatorios horarios
-  (Scheduler -> Lambda -> SNS). Sin servidores, sin VPC, sin concurrencia
-  provisionada y con DLQ acotada. Solo capa gratuita.
+  MINGO - HU07, HU09 y HU18. API HTTP (Express en Lambda), bucket privado de
+  documentos academicos, procesamiento asincrono (S3 -> SQS -> Lambda) y
+  recordatorios horarios (Scheduler -> Lambda -> SNS). Sin servidores, sin VPC,
+  sin concurrencia provisionada y con DLQ acotada. Solo capa gratuita.
 
 Parameters:
   Environment:
@@ -533,7 +533,6 @@ Resources:
           AWS_S3_BUCKET: !Ref DocumentosBucket
           AWS_SQS_QUEUE_URL: !Ref ProcesamientoQueue
           AWS_SNS_TOPIC_ARN: !Ref NotificacionesTopic
-          AWS_LAMBDA_FUNCTION_NAME: !Ref ProcesadorFunction
           AI_PROVIDER: !Ref AiProvider
           AI_API_KEY: !Ref AiApiKey
           AI_BASE_URL: !Ref AiBaseUrl
