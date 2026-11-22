@@ -158,7 +158,7 @@ Resources:
               CachedMethods: [GET, HEAD]
               Compress: true
               CachePolicyId: '4135ea2d-6df8-44a3-9df3-4b5a84be39ad'
-              OriginRequestPolicyId: 'b689b0a8-76d3-4183-96f4-bc0d9b0ce9f0'
+              OriginRequestPolicyId: 'b689b0a8-53d0-40ab-baf2-68738e2966ac'
           - !Ref AWS::NoValue
       Tags:
         - { Key: Project, Value: MINGO }
