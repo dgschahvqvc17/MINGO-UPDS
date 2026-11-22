@@ -36,6 +36,33 @@ Parameters:
       Concurrencia reservada del worker. 2 en dev y 5 en prod; nunca
       concurrencia provisionada.
 
+  ApiConcurrency:
+    Type: Number
+    Default: 5
+    MinValue: 1
+    MaxValue: 10
+    Description: >
+      Concurrencia reservada de la Lambda de la API solo en prod. En dev se
+      omite: la cuenta compartida no puede reservar concurrencia.
+
+  CorsOrigins:
+    Type: String
+    Default: 'http://localhost:4200,https://d4qnw8e73f6co.cloudfront.net'
+    Description: >
+      Origenes autorizados por CORS en Express, separados por coma. El frontend
+      desplegado llama a la API por el mismo origen de CloudFront.
+
+  ApiRoleArn:
+    Type: String
+    Description: >
+      ARN de un rol IAM existente para la Lambda de la API. Debe confiar en
+      lambda.amazonaws.com, incluir AWSLambdaBasicExecutionRole y permitir
+      s3:GetObject/PutObject/DeleteObject en el bucket de documentos,
+      sqs:SendMessage en la cola de procesamiento y sns:Publish en el topic
+      de notificaciones. MINGO no crea roles IAM.
+    AllowedPattern: '^arn:aws:iam::[0-9]{12}:role/.+$'
+    ConstraintDescription: Debe ser el ARN de un rol IAM existente.
+
   SupabaseUrl:
     Type: String
     Description: URL del proyecto de Supabase.
@@ -445,6 +472,87 @@ Resources:
       # AWS::Scheduler::Schedule no admite Tags en CloudFormation. Las etiquetas
       # obligatorias las llevan la funcion y el log group asociados al schedule.
 
+  # --- API HTTP (Express en Lambda) ------------------------------------------
+  ApiLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/lambda/${AWS::StackName}-api'
+      RetentionInDays: !If [IsProd, 30, 7]
+      Tags:
+        - { Key: Project, Value: MINGO }
+        - { Key: Environment, Value: !Ref Environment }
+        - { Key: Owner, Value: equipo-mingo }
+        - { Key: ManagedBy, Value: sam }
+        - { Key: CostCenter, Value: academico }
+
+  ApiHttpApi:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      StageName: '$default'
+      Description: API publica de MINGO. La autorizacion la aplica Express con Supabase.
+      DefinitionBody:
+        openapi: '3.0.1'
+        info:
+          title: MINGO API
+          version: '1.0.0'
+        paths: {}
+      DefaultRouteSettings:
+        ThrottlingBurstLimit: 40
+        ThrottlingRateLimit: 20
+      Tags:
+        Project: MINGO
+        Environment: !Ref Environment
+        Owner: equipo-mingo
+        ManagedBy: sam
+        CostCenter: academico
+
+  ApiFunction:
+    Type: AWS::Serverless::Function
+    DependsOn: ApiLogGroup
+    Properties:
+      FunctionName: !Sub '${AWS::StackName}-api'
+      Description: API REST de MINGO servida por Express con serverless-http.
+      CodeUri: ../backend/
+      Handler: src/lambda/api.handler
+      Runtime: nodejs22.x
+      Architectures: [arm64]
+      MemorySize: 512
+      Timeout: 30
+      # Igual que el worker: sin concurrencia reservada en dev (cuenta compartida).
+      ReservedConcurrentExecutions: !If [IsProd, !Ref ApiConcurrency, !Ref AWS::NoValue]
+      # El rol lo crea el usuario; MINGO solo lo referencia.
+      Role: !Ref ApiRoleArn
+      Environment:
+        Variables:
+          NODE_ENV: production
+          API_PREFIX: /api
+          CORS_ORIGINS: !Ref CorsOrigins
+          SUPABASE_URL: !Ref SupabaseUrl
+          SUPABASE_ANON_KEY: !Ref SupabaseAnonKey
+          SUPABASE_SERVICE_ROLE_KEY: !Ref SupabaseServiceRoleKey
+          AWS_S3_BUCKET: !Ref DocumentosBucket
+          AWS_SQS_QUEUE_URL: !Ref ProcesamientoQueue
+          AWS_SNS_TOPIC_ARN: !Ref NotificacionesTopic
+          AWS_LAMBDA_FUNCTION_NAME: !Ref ProcesadorFunction
+          AI_PROVIDER: !Ref AiProvider
+          AI_API_KEY: !Ref AiApiKey
+          AI_BASE_URL: !Ref AiBaseUrl
+          AI_EMBEDDING_MODEL: !Ref AiEmbeddingModel
+          AI_EMBEDDING_DIMENSIONS: !Ref AiEmbeddingDimensions
+      Events:
+        Proxy:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref ApiHttpApi
+            Path: /{proxy+}
+            Method: ANY
+      Tags:
+        Project: MINGO
+        Environment: !Ref Environment
+        Owner: equipo-mingo
+        ManagedBy: sam
+        CostCenter: academico
+
 Outputs:
   BucketName:
     Description: Nombre del bucket de documentos.
@@ -501,3 +609,17 @@ Outputs:
   RecordatoriosScheduleState:
     Description: Estado del schedule unico de recordatorios.
     Value: !If [IsProd, ENABLED, DISABLED]
+
+  ApiId:
+    Description: ID de la API Gateway HTTP API.
+    Value: !Ref ApiHttpApi
+    Export:
+      Name: !Sub '${AWS::StackName}-ApiId'
+
+  ApiInvokeUrl:
+    Description: URL de invocacion de la API (CloudFront hace proxy en /api/*).
+    Value: !Sub 'https://${ApiHttpApi}.execute-api.${AWS::Region}.amazonaws.com'
+
+  ApiFunctionName:
+    Description: Nombre de la Lambda de la API.
+    Value: !Ref ApiFunction

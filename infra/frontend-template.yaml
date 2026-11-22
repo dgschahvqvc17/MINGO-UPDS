@@ -20,6 +20,16 @@ Parameters:
       Nombre unico del bucket privado que almacena el build de Angular.
       No es el bucket de documentos del backend.
 
+  ApiDomainName:
+    Type: String
+    Default: ''
+    Description: >
+      Dominio de la API Gateway HTTP API (sin https://). Si se deja vacio no
+      se crea el comportamiento /api/*. Se rellena despues de desplegar la API.
+
+Conditions:
+  TieneApi: !Not [!Equals [!Ref ApiDomainName, '']]
+
 Resources:
   FrontendBucket:
     Type: AWS::S3::Bucket
@@ -76,31 +86,50 @@ Resources:
               StringEquals:
                 AWS:SourceArn: !Sub 'arn:aws:cloudfront::${AWS::AccountId}:distribution/${FrontendDistribution}'
 
+  SpaRewriteFunction:
+    Type: AWS::CloudFront::Function
+    Properties:
+      Name: !Sub '${AWS::StackName}-spa-rewrite'
+      AutoPublish: true
+      FunctionConfig:
+        Comment: Rutas del SPA a /index.html sin alterar /api/*
+        Runtime: cloudfront-js-2.0
+      FunctionCode: |
+        function handler(event) {
+          const uri = event.request.uri;
+          if (uri.startsWith('/api') || uri.includes('.')) {
+            return event.request;
+          }
+          event.request.uri = '/index.html';
+          return event.request;
+        }
+
   FrontendDistribution:
     Type: AWS::CloudFront::Distribution
     Properties:
       DistributionConfig:
         Enabled: true
-        Comment: MINGO frontend estatico (dev) v2
+        Comment: MINGO frontend estatico + API (dev) v3
         PriceClass: PriceClass_100
         IPV6Enabled: true
         HttpVersion: http2and3
         DefaultRootObject: index.html
-        CustomErrorResponses:
-          - ErrorCode: 403
-            ResponseCode: 200
-            ResponsePagePath: /index.html
-            ErrorCachingMinTTL: 0
-          - ErrorCode: 404
-            ResponseCode: 200
-            ResponsePagePath: /index.html
-            ErrorCachingMinTTL: 0
         Origins:
           - Id: FrontendS3Origin
             DomainName: !GetAtt FrontendBucket.RegionalDomainName
             OriginAccessControlId: !GetAtt FrontendOriginAccessControl.Id
             S3OriginConfig:
               OriginAccessIdentity: ''
+          - !If
+            - TieneApi
+            - Id: ApiOrigin
+              DomainName: !Ref ApiDomainName
+              CustomOriginConfig:
+                HTTPPort: 80
+                HTTPSPort: 443
+                OriginProtocolPolicy: https-only
+                OriginSSLProtocols: [TLSv1.2]
+            - !Ref AWS::NoValue
         DefaultCacheBehavior:
           TargetOriginId: FrontendS3Origin
           ViewerProtocolPolicy: redirect-to-https
@@ -117,6 +146,20 @@ Resources:
           # cabeceras al bucket. UseOriginCacheControlHeaders devolvia 404
           # desde S3 con OAC; ver docs/entornos-y-despliegue.md.
           CachePolicyId: '658327ea-f89d-4fab-a63d-7e88639e58f6'
+          FunctionAssociations:
+            - EventType: viewer-request
+              FunctionARN: !GetAtt SpaRewriteFunction.FunctionARN
+        CacheBehaviors: !If
+          - TieneApi
+          - - PathPattern: /api/*
+              TargetOriginId: ApiOrigin
+              ViewerProtocolPolicy: redirect-to-https
+              AllowedMethods: [DELETE, GET, HEAD, OPTIONS, PATCH, POST, PUT]
+              CachedMethods: [GET, HEAD]
+              Compress: true
+              CachePolicyId: '4135ea2d-6df8-44a3-9df3-4b5a84be39ad'
+              OriginRequestPolicyId: 'b689b0a8-76d3-4183-96f4-bc0d9b0ce9f0'
+          - !Ref AWS::NoValue
       Tags:
         - { Key: Project, Value: MINGO }
         - { Key: Environment, Value: !Ref Environment }
@@ -137,3 +180,6 @@ Outputs:
   FrontendUrl:
     Description: URL publica del frontend.
     Value: !Sub 'https://${FrontendDistribution.DomainName}'
+  ApiProxyPath:
+    Description: Ruta de la API a traves de CloudFront (o vacia si no se configuro).
+    Value: !If [TieneApi, '/api/*', '']

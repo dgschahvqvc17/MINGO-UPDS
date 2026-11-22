@@ -123,7 +123,8 @@ Ese comando crea los archivos `*.generated.ts` a partir de `frontend/.env`. Los 
 
 - Las claves **no** se escriben en archivos versionados. Solo viven en `frontend/.env` local o en variables del pipeline.
 - El frontend solo usa la clave pública `anon`/`publishable`. Nunca `service_role`, AWS keys ni claves de IA.
-- `apiUrl` en desarrollo puede ser `/api` con proxy; en producción apunta a API Gateway.
+- `apiUrl` es `/api` en desarrollo (proxy de Angular) y en producción (CloudFront
+  envía `/api/*` a la API Gateway HTTP API; el navegador ve el mismo origen).
 - En CI, definir `SUPABASE_URL` y `SUPABASE_ANON_KEY` como variables del pipeline; el script las toma del entorno si no existe `frontend/.env`.
 - Si faltan las variables, el build funciona pero el inicio de sesión queda deshabilitado y se muestra una advertencia.
 
@@ -216,12 +217,11 @@ El backend Express se despliega con un adaptador (`serverless-http`).
 |---|---|---|---|
 | Procesadora de documentos (HU09) | `backend/src/lambda/procesador.js` | `src/lambda/procesador.handler` | Definida en `infra/template.yaml`. |
 | Recordatorios (HU18) | `backend/src/lambda/recordatorios.js` | `src/lambda/recordatorios.handler` | Definida en `infra/template.yaml`; invocada por un schedule horario. |
-| API HTTP (Express) | `backend/src/app.js` | Pendiente de adaptador | No incluida aún en la plantilla. |
+| API HTTP (Express) | `backend/src/lambda/api.js` | `src/lambda/api.handler` | Definida en `infra/template.yaml` con `serverless-http`. |
 
-Las funciones procesadora y de recordatorios ya existen y forman parte de
-`infra/template.yaml`. La API HTTP se ejecutará en una Lambda aparte cuando se
-agregue el adaptador `serverless-http`; hasta entonces, la plantilla no crea la
-función de API.
+Las tres funciones forman parte de `infra/template.yaml`. La API HTTP usa el
+mismo paquete del backend y se expone mediante una API Gateway HTTP API con una
+ruta `/{proxy+}`. CloudFront reenvía `/api/*` a esa API.
 
 ### 5.2. Reglas de empaquetado
 
@@ -231,8 +231,9 @@ función de API.
 - ZIP menor a 50 MB (límite directo de Lambda); si crece, revisar dependencias.
 - Sin `.env`, `tests/`, `node_modules` de desarrollo ni archivos temporales.
 - `CodeUri: ../backend/` es relativo a `infra/template.yaml`.
-- `handler: src/lambda/procesador.handler` para la procesadora y
-  `src/lambda/recordatorios.handler` para los recordatorios.
+- `handler: src/lambda/procesador.handler` para la procesadora,
+  `src/lambda/recordatorios.handler` para los recordatorios y
+  `src/lambda/api.handler` para la API HTTP.
 
 ### 5.3. Empaquetado
 
@@ -425,6 +426,22 @@ opcional, un log group, una Lambda ARM64 de 512 MB con timeout de 30 s y un
 schedule horario sin reintentos. El schedule queda `DISABLED` en `dev` y
 `ENABLED` en `prod`.
 
+Parámetros de la API HTTP: `ApiRoleArn` (ARN de un rol IAM que crea el usuario;
+el agente no crea roles), `ApiConcurrency` (solo se aplica en `prod`) y
+`CorsOrigins` (orígenes separados por coma; por defecto `localhost:4200` y el
+dominio de CloudFront de `dev`). La Lambda de la API usa `serverless-http`,
+ARM64, 512 MB, timeout de 30 s y un log group con retención de 7 días en `dev`.
+La API Gateway HTTP API tiene un stage `$default`, throttling de 20 req/s con
+bursto de 40 y sin logs de acceso ni caché. Gasto esperado `$0` con tráfico de
+dev: por debajo del free tier de 1 M peticiones/mes de API Gateway y de Lambda.
+**No ejecutar el changeset sin la aprobación explícita del usuario.**
+
+El rol de la API (`mingo-api-dev-lambda-role`) debe confiar en
+`lambda.amazonaws.com`, adjuntar `AWSLambdaBasicExecutionRole` y permitir
+`s3:GetObject`/`PutObject`/`DeleteObject` en `mingo-documentos-dev-591015654164/*`,
+`sqs:SendMessage` en la cola de procesamiento y `sns:Publish` en el topic de
+notificaciones. Se pasa como parámetro `ApiRoleArn`; la plantilla no crea roles.
+
 Costo verificado para el cambio horario: 744 invocaciones/mes de Scheduler
 (free tier de 14 millones), 744 invocaciones de Lambda con 512 MB ARM64 (free
 tier de 1 millón de peticiones y 400.000 GB-s) y como máximo 30 correos SNS/día
@@ -451,15 +468,20 @@ con alertas al 80 % real y 100 % pronosticado. No se crea un presupuesto de $5
 La infraestructura del frontend está en `infra/frontend-template.yaml` y se
 despliega como un stack **independiente** (`mingo-frontend-dev`), separado del
 backend. Crea un bucket S3 privado distinto al de documentos, un Origin Access
-Control (OAC) y una sola distribución CloudFront `pay-as-you-go`.
+Control (OAC) y una sola distribución CloudFront `pay-as-you-go`. El parámetro
+`ApiDomainName` (por ejemplo,
+`abc123.execute-api.us-east-1.amazonaws.com`) agrega un comportamiento `/api/*`
+hacia la API Gateway HTTP API del stack del backend.
 
 ```text
-Servicio: CloudFront pay-as-you-go + S3 privado con OAC.
+Servicio: CloudFront pay-as-you-go + S3 privado con OAC + proxy /api/*.
 Costo esperado: $0/mes dentro del Always Free (1 TB y 10 M peticiones).
 Límites: 1 distribución, PriceClass_100, sin WAF, sin Lambda@Edge,
 sin Origin Shield, sin logs en tiempo real, sin dominio propio
 (se usa el dominio *.cloudfront.net, por lo que no se necesitan
 ACM ni Route 53). Invalidación máxima: 1.000 paths/mes (gratis).
+El comportamiento /api/* usa CachingDisabled y reenvía todas las cabeceras
+del viewer excepto Host.
 ```
 
 El despliegue se hace con un changeset que ejecuta el administrador desde la
@@ -518,7 +540,12 @@ Reglas:
 - Sin Lambda@Edge ni WAF.
 - HTTPS con el certificado por defecto de `*.cloudfront.net` (no se crea ACM
   ni se usa Route 53; están fuera de la lista blanca de MINGO).
-- `403` y `404` se reescriben a `/index.html` para soportar rutas del SPA.
+- Una CloudFront Function reescribe las rutas del SPA a `/index.html`, salvo
+  `/api/*` y las rutas con extensión (assets). Antes se usaban respuestas de
+  error personalizadas, que enmascaraban los 404 reales de la API.
+- `/api/*` se envía a la API Gateway HTTP API con `CachingDisabled`, sin
+  reenvío del `Host` del navegador. El frontend usa `apiUrl: '/api'` y no
+  necesita CORS entre dominios.
 
 #### Diagnóstico del 404 con OAC
 
@@ -627,7 +654,7 @@ jobs:
 ## 9. Smoke tests después del despliegue
 
 ```bash
-curl -f https://<api>/api/health
+curl -f https://d4qnw8e73f6co.cloudfront.net/api/health
 ```
 
 Verificar:
