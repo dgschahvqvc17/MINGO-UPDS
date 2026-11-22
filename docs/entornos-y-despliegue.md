@@ -436,6 +436,12 @@ bursto de 40 y sin logs de acceso ni caché. Gasto esperado `$0` con tráfico de
 dev: por debajo del free tier de 1 M peticiones/mes de API Gateway y de Lambda.
 **No ejecutar el changeset sin la aprobación explícita del usuario.**
 
+Los parámetros `SupabaseAnonKey`, `SupabaseServiceRoleKey` y `AiApiKey` deben
+mantenerse sincronizados con `backend/.env`. Si el stack quedó con valores
+placeholder, `/api/auth/me` responde `401 Token invalido o expirado` aunque el
+login de Supabase funcione, porque la Lambda valida el token contra otro
+proyecto o con una clave equivocada.
+
 El rol de la API (`mingo-api-dev-lambda-role`) debe confiar en
 `lambda.amazonaws.com`, adjuntar `AWSLambdaBasicExecutionRole` y permitir
 `s3:GetObject`/`PutObject`/`DeleteObject` en `mingo-documentos-dev-591015654164/*`,
