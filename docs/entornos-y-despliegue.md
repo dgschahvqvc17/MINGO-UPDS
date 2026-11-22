@@ -461,6 +461,19 @@ MINGO usa un único presupuesto compartido de **$1/mes** (`ConcesionariaBMW-1USD
 con alertas al 80 % real y 100 % pronosticado. No se crea un presupuesto de $5
 (decisión del 2026-11-12, revisión 2027-02-12).
 
+### 6.5. Estado desplegado en `dev` (2026-11-22)
+
+| Stack | Output | Valor |
+|---|---|---|
+| `mingo-hu09-dev` | `ApiInvokeUrl` | `https://ioqyer0j8l.execute-api.us-east-1.amazonaws.com` |
+| `mingo-hu09-dev` | `ApiFunctionName` | `mingo-hu09-dev-api` |
+| `mingo-frontend-dev` | `FrontendUrl` | `https://d4qnw8e73f6co.cloudfront.net` |
+| `mingo-frontend-dev` | `DistributionId` | `E3KT1CRPPEGF3B` |
+
+El navegador llama siempre a `https://d4qnw8e73f6co.cloudfront.net/api/*`;
+CloudFront reenvía esas peticiones a la API sin CORS entre dominios. La URL
+`execute-api` queda como salida de referencia, no se expone al frontend.
+
 ## 7. Frontend en S3 + CloudFront
 
 ### 7.0. Infraestructura
