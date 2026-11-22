@@ -1,0 +1,138 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >
+  Frontend estatico de MINGO en S3 privado + CloudFront (pay-as-you-go).
+  Una sola distribucion, sin WAF, sin Lambda@Edge, sin Origin Shield,
+  sin dominio propio y sin logs en tiempo real. Costo esperado: $0/mes
+  dentro del Always Free de CloudFront (1 TB y 10 millones de peticiones).
+
+Parameters:
+  Environment:
+    Type: String
+    Default: dev
+    AllowedValues:
+      - dev
+    Description: Entorno del frontend. Por ahora solo se despliega dev.
+
+  FrontendBucketName:
+    Type: String
+    Default: mingo-frontend-dev-591015654164
+    Description: >
+      Nombre unico del bucket privado que almacena el build de Angular.
+      No es el bucket de documentos del backend.
+
+Resources:
+  FrontendBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BucketName: !Ref FrontendBucketName
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      LifecycleConfiguration:
+        Rules:
+          - Id: AbortarCargasIncompletas
+            Status: Enabled
+            AbortIncompleteMultipartUpload:
+              DaysAfterInitiation: 1
+      Tags:
+        - { Key: Project, Value: MINGO }
+        - { Key: Environment, Value: !Ref Environment }
+        - { Key: Owner, Value: equipo-mingo }
+        - { Key: ManagedBy, Value: cloudformation }
+        - { Key: CostCenter, Value: academico }
+
+  FrontendOriginAccessControl:
+    Type: AWS::CloudFront::OriginAccessControl
+    Properties:
+      OriginAccessControlConfig:
+        Name: !Sub '${AWS::StackName}-frontend-oac'
+        Description: Solo CloudFront puede leer el bucket del frontend.
+        OriginAccessControlOriginType: s3
+        SigningBehavior: always
+        SigningProtocol: sigv4
+
+  FrontendBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref FrontendBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: PermitirSoloLecturaACloudFront
+            Effect: Allow
+            Principal:
+              Service: cloudfront.amazonaws.com
+            Action: s3:GetObject
+            Resource: !Sub '${FrontendBucket.Arn}/*'
+            Condition:
+              StringEquals:
+                AWS:SourceArn: !Sub 'arn:aws:cloudfront::${AWS::AccountId}:distribution/${FrontendDistribution}'
+
+  FrontendDistribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Enabled: true
+        Comment: MINGO frontend estatico (dev)
+        PriceClass: PriceClass_100
+        IPV6Enabled: true
+        HttpVersion: http2and3
+        DefaultRootObject: index.html
+        CustomErrorResponses:
+          - ErrorCode: 403
+            ResponseCode: 200
+            ResponsePagePath: /index.html
+            ErrorCachingMinTTL: 0
+          - ErrorCode: 404
+            ResponseCode: 200
+            ResponsePagePath: /index.html
+            ErrorCachingMinTTL: 0
+        Origins:
+          - Id: FrontendS3Origin
+            DomainName: !GetAtt FrontendBucket.RegionalDomainName
+            OriginAccessControlId: !GetAtt FrontendOriginAccessControl.Id
+            S3OriginConfig:
+              OriginAccessIdentity: ''
+        DefaultCacheBehavior:
+          TargetOriginId: FrontendS3Origin
+          ViewerProtocolPolicy: redirect-to-https
+          AllowedMethods:
+            - GET
+            - HEAD
+            - OPTIONS
+          CachedMethods:
+            - GET
+            - HEAD
+            - OPTIONS
+          Compress: true
+          # UseOriginCacheControlHeaders: TTL minimo 0. Los assets con hash
+          # llevan max-age largo y index.html lleva no-cache.
+          CachePolicyId: '83da9c7e-98b4-4e11-a168-04f0df8e2c65'
+      Tags:
+        - { Key: Project, Value: MINGO }
+        - { Key: Environment, Value: !Ref Environment }
+        - { Key: Owner, Value: equipo-mingo }
+        - { Key: ManagedBy, Value: cloudformation }
+        - { Key: CostCenter, Value: academico }
+
+Outputs:
+  FrontendBucketName:
+    Description: Bucket privado del build de Angular.
+    Value: !Ref FrontendBucket
+  DistributionId:
+    Description: ID de la distribucion de CloudFront.
+    Value: !Ref FrontendDistribution
+  DistributionDomainName:
+    Description: Dominio publico de CloudFront.
+    Value: !GetAtt FrontendDistribution.DomainName
+  FrontendUrl:
+    Description: URL publica del frontend.
+    Value: !Sub 'https://${FrontendDistribution.DomainName}'

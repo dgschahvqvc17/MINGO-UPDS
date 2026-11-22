@@ -446,6 +446,43 @@ con alertas al 80 % real y 100 % pronosticado. No se crea un presupuesto de $5
 
 ## 7. Frontend en S3 + CloudFront
 
+### 7.0. Infraestructura
+
+La infraestructura del frontend está en `infra/frontend-template.yaml` y se
+despliega como un stack **independiente** (`mingo-frontend-dev`), separado del
+backend. Crea un bucket S3 privado distinto al de documentos, un Origin Access
+Control (OAC) y una sola distribución CloudFront `pay-as-you-go`.
+
+```text
+Servicio: CloudFront pay-as-you-go + S3 privado con OAC.
+Costo esperado: $0/mes dentro del Always Free (1 TB y 10 M peticiones).
+Límites: 1 distribución, PriceClass_100, sin WAF, sin Lambda@Edge,
+sin Origin Shield, sin logs en tiempo real, sin dominio propio
+(se usa el dominio *.cloudfront.net, por lo que no se necesitan
+ACM ni Route 53). Invalidación máxima: 1.000 paths/mes (gratis).
+```
+
+El despliegue se hace con un changeset que ejecuta el administrador desde la
+consola (el usuario `mingo-agente` no tiene permisos de CloudFront):
+
+```bash
+aws cloudformation create-change-set \
+  --stack-name mingo-frontend-dev \
+  --change-set-name mingo-frontend-inicial \
+  --change-set-type CREATE \
+  --template-body file://infra/frontend-template.yaml \
+  --profile mingo-agente --region us-east-1
+```
+
+Tras ejecutar el changeset, los valores de salida (`FrontendBucketName`,
+`DistributionId`, `DistributionDomainName`, `FrontendUrl`) se leen con:
+
+```bash
+aws cloudformation describe-stacks --stack-name mingo-frontend-dev \
+  --profile mingo-agente --region us-east-1 \
+  --query "Stacks[0].Outputs"
+```
+
 ### 7.1. Build
 
 ```bash
@@ -453,12 +490,15 @@ cd frontend
 npm run build -- --configuration production
 ```
 
-Salida: `frontend/dist/<proyecto>/browser`.
+Salida: `frontend/dist/frontend/browser` (el proyecto se llama `frontend`; la
+configuración `production` ya aplica `outputHashing: all`).
 
 ### 7.2. Publicación
 
 ```bash
-aws s3 sync dist/<proyecto>/browser s3://<bucket-frontend> --delete
+cd frontend
+aws s3 sync dist/frontend/browser s3://mingo-frontend-dev-591015654164 \
+  --profile mingo-agente --region us-east-1 --delete
 aws cloudfront create-invalidation --distribution-id <DIST_ID> --paths "/*"
 ```
 
@@ -466,10 +506,15 @@ Reglas:
 
 - Bucket privado; acceso solo por CloudFront (Origin Access Control).
 - Sin versionado ilimitado.
-- Cache-Control largo para assets con hash y corto para `index.html`.
+- Cache-Control largo para assets con hash y corto para `index.html` (la
+  política administrada `UseOriginCacheControlHeaders` respeta los headers
+  que Angular emite; no se usa `CachingOptimized` para que `index.html` no
+  quede en caché).
 - Una sola distribución.
 - Sin Lambda@Edge ni WAF.
-- HTTPS con certificado ACM gratuito.
+- HTTPS con el certificado por defecto de `*.cloudfront.net` (no se crea ACM
+  ni se usa Route 53; están fuera de la lista blanca de MINGO).
+- `403` y `404` se reescriben a `/index.html` para soportar rutas del SPA.
 
 ### 7.3. Alternativa sin costo AWS
 
