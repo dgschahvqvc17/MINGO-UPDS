@@ -1,0 +1,17 @@
+.notificaciones-page .card {
+  background: var(--mingo-surface, #ffffff);
+  border-color: rgba(37, 99, 235, 0.16);
+}
+
+.notificaciones-page .notificacion-no-leida {
+  border-left: 3px solid var(--mingo-ai, #2563eb);
+  padding-left: 0.85rem !important;
+}
+
+.notificaciones-page .list-group-item {
+  background: transparent;
+}
+
+.notificaciones-page .text-muted-soft {
+  color: var(--mingo-muted, #6b7280);
+}

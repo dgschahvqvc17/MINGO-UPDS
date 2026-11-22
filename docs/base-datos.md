@@ -1296,8 +1296,6 @@ El diagrama actual cubre el núcleo académico, documental, de IA y de evaluaci�
 | Estructura | Historias | Uso |
 |---|---|---|
 | `unidades` y `unidad_id` en `tareas`/`documentos` | HU03, HU04, HU07 | Organización por unidades dentro de una materia. |
-| `notificaciones` | HU18 | Notificaciones y recordatorios. |
-| `preferencias_usuario` | HU18 | Zona horaria, idioma y canales. |
 | `cuestionarios.descripcion` | HU13 | Descripción opcional del cuestionario. |
 | `documentos.nombre_archivo`, `tipo_archivo` | HU07, HU08 | Metadatos del archivo. |
 | `tareas.tipo`, `fecha_asignacion`, `fecha_actualizacion` | HU04 | Implementado en `0002_hu04_tareas.sql`. |
@@ -1346,6 +1344,22 @@ por lo que esos privilegios quedaban activos. `RLS` no cubre `TRUNCATE`, así qu
 su retirada evita superficie innecesaria. `service_role` conserva `ALL` y `anon`
 no tiene acceso.
 
+Las estructuras de HU18 se implementan en
+`supabase/migrations/0017_hu18_notificaciones.sql`. `preferencias_usuario` usa
+`usuario_id` como PK y FK a `perfiles`, con valores por defecto
+`notificaciones_activas = true`, `anticipacion_minutos = 60`,
+`canal_email = false`, `zona_horaria = 'America/Bogota'` e `idioma = 'es'`.
+`notificaciones` guarda el historial con UUID, `tipo` restringido a `tarea`,
+`evaluacion` y `sesion`, y una sola FK opcional por actividad (`tarea_id`,
+`evento_calendario_id` o `sesion_estudio_id`) con `on delete set null` para
+conservar el historial. El índice único `(usuario_id, clave_idempotencia)`
+garantiza que un recordatorio no se duplique. Hay índices por usuario/fecha,
+usuario/leída, usuario/tipo y fecha programada pendiente de envío; un trigger
+actualiza `fecha_actualizacion`. RLS permite a `authenticated` leer y marcar
+como leídas solo sus notificaciones, y gestionar solo sus preferencias;
+`service_role` inserta los avisos generados por el worker. La migración es
+idempotente; la aplica el usuario de forma manual, nunca el agente.
+
 Las estructuras de HU12 (`mensajes.modelo_utilizado`,
 `conversaciones.tipo_conversacion` y `fecha_actualizacion`, además de
 `mensajes.intencion` y `referencias_respuesta.documento_nombre`/`extracto`) ya
@@ -1378,12 +1392,13 @@ están implementadas en `supabase/migrations/0009_hu12_chat.sql`.
 | `supabase/migrations/0014_hu16_evaluacion.sql` | `preguntas.tema`, campos de retroalimentación en `intentos_cuestionario` y tabla `evaluaciones_respuesta` con índices, restricciones y RLS (HU16, idempotente). |
 | `supabase/migrations/0015_hu17_objetivos_progreso.sql` | Tabla `objetivos_estudio` con materia opcional, fecha límite, estado, índices, restricciones, trigger de actualización y RLS (HU17, idempotente). |
 | `supabase/migrations/0016_hu17_restringir_permisos_objetivos.sql` | Retira `TRUNCATE`, `TRIGGER` y `REFERENCES` a `authenticated` en `objetivos_estudio`; confirma `ALL` a `service_role` y ningún permiso a `anon` (HU17, idempotente). |
+| `supabase/migrations/0017_hu18_notificaciones.sql` | Tablas `preferencias_usuario` y `notificaciones` con idempotencia, índices, trigger, RLS y permisos (HU18, idempotente). |
 
 - El script `backend/scripts/run-migrations.js` (`npm run migrate`) aplica estas
   migraciones en orden: identidad, materias, tareas, calendario, documentos,
   fragmentos, reemplazo de fragmentos, resumenes, búsqueda semántica, chat,
   cuestionarios, idempotencia, tarjetas de memoria, planes de estudio,
-  evaluación, objetivos académicos y permisos de objetivos.
+  evaluación, objetivos académicos, permisos de objetivos y notificaciones.
 
 - Flujo:
 
@@ -1437,6 +1452,7 @@ on conflict (nombre) do nothing;
 
 | Fecha | Cambio |
 |---|---|
+| 2026-11-20 | HU18: tablas `preferencias_usuario` y `notificaciones` con idempotencia por usuario+clave, FK de actividad con `on delete set null`, índices, trigger, RLS y permisos. Migración `0017_hu18_notificaciones.sql`. |
 | 2026-11-19 | HU17: retirados `TRUNCATE`, `TRIGGER` y `REFERENCES` a `authenticated` en `objetivos_estudio` para cumplir el mínimo privilegio. Migración `0016_hu17_restringir_permisos_objetivos.sql`. |
 | 2026-11-19 | HU17: tabla `objetivos_estudio` con materia opcional, fecha límite, estado, índices, restricciones, trigger y RLS; el progreso se calcula en el backend. Migración `0015_hu17_objetivos_progreso.sql`. |
 | 2026-11-19 | HU16: `preguntas.tema`, campos de retroalimentación en `intentos_cuestionario` y tabla `evaluaciones_respuesta` con índices, restricciones y RLS. Migración `0014_hu16_evaluacion.sql`. |

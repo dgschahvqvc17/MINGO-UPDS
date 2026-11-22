@@ -1583,29 +1583,90 @@ y se calculan con reglas deterministas a partir de esos registros y del promedio
 de cuestionarios: no consumen IA ni crean estado. El progreso siempre se calcula
 sobre los registros del usuario del token.
 
-## 13. Notificaciones
+## 13. Notificaciones (HU18)
 
-| Método | Endpoint | Historia | Descripción |
-|---|---|---|---|
-| GET | `/api/notificaciones` | HU18 | Lista notificaciones. |
-| PATCH | `/api/notificaciones/:id/leida` | HU18 | Marca como leída. |
-| PATCH | `/api/notificaciones/leer-todas` | HU18 | Marca todas como leídas. |
-| GET | `/api/notificaciones/preferencias` | HU18 | Consulta preferencias. |
-| PUT | `/api/notificaciones/preferencias` | HU18 | Actualiza preferencias. |
+Todos los endpoints requieren token; el `usuario_id` sale del JWT. RLS y el
+servicio limitan cada consulta a las notificaciones propias.
 
-**Filtros:** `leida=true|false`, `tipo`, `page`, `limit`.
+| Método | Endpoint | Descripción |
+|---|---|---|
+| GET | `/api/notificaciones` | Lista el historial con paginación y filtros. |
+| PATCH | `/api/notificaciones/:id/leida` | Marca una notificación como leída. |
+| PATCH | `/api/notificaciones/leer-todas` | Marca todas las no leídas como leídas. |
+| GET | `/api/notificaciones/preferencias` | Consulta las preferencias del usuario. |
+| PUT | `/api/notificaciones/preferencias` | Actualiza una o más preferencias. |
 
-**Body `PUT /api/notificaciones/preferencias`**
+### `GET /api/notificaciones`
+
+| Parámetro | Tipo | Regla |
+|---|---|---|
+| `leida` | `true` \| `false` | Opcional; sin valor se devuelven todas. |
+| `tipo` | `tarea` \| `evaluacion` \| `sesion` | Opcional. |
+| `page` | entero | Mínimo `1`, por defecto `1`. |
+| `limit` | entero | Entre `1` y `100`, por defecto `20`. |
+
+Orden: `fecha_creacion` descendente. Respuesta con `data` y `meta` estándar.
+Cada elemento contiene `id`, `usuario_id`, `tipo`, `titulo`, `mensaje`,
+`tarea_id`, `evento_calendario_id`, `sesion_estudio_id`,
+`clave_idempotencia`, `fecha_actividad`, `fecha_programada`, `leida`,
+`fecha_envio`, `fecha_creacion` y `fecha_actualizacion`. Las FK a la actividad
+son `null` si la actividad original fue eliminada.
+
+### `PATCH /api/notificaciones/:id/leida`
+
+Responde `200` con la notificación actualizada. Un ID ajeno o inexistente
+responde `404`; el `id` debe ser UUID.
+
+### `PATCH /api/notificaciones/leer-todas`
+
+Responde `200` con `{ "success": true, "data": { "actualizadas": 4 } }`.
+
+### preferencias
+
+`GET` devuelve:
 
 ```json
 {
-  "notificaciones_activas": true,
-  "anticipacion_minutos": 60,
-  "canal_email": true,
-  "zona_horaria": "America/Bogota",
-  "idioma": "es"
+  "success": true,
+  "data": {
+    "usuario_id": "3f2b7e5c-1a4d-4c8e-9f10-2b6d8a7c9e01",
+    "notificaciones_activas": true,
+    "anticipacion_minutos": 60,
+    "canal_email": false,
+    "zona_horaria": "America/Bogota",
+    "idioma": "es",
+    "fecha_creacion": "2026-11-20T12:00:00.000Z",
+    "fecha_actualizacion": null
+  }
 }
 ```
+
+Si el usuario no tiene fila, `GET` la crea con esos valores por defecto. `PUT`
+acepta al menos uno de esos campos configurables; `anticipacion_minutos` debe
+estar entre `5` y `10080`, `zona_horaria` debe ser una zona IANA válida e
+`idioma` solo admite `es`. Responde `200` con las preferencias ya guardadas.
+
+**Generación y envío**
+
+- Un único EventBridge Scheduler horario (`cron(0 * * * ? *)`, UTC) invoca la
+  Lambda de recordatorios; en `dev` el schedule queda deshabilitado.
+- El worker consulta tareas no completadas, evaluaciones `examen` y sesiones
+  `pendiente` entre `ahora - 60 min` y `ahora + anticipacion_minutos`. El margen
+  de 60 minutos rescata actividades que quedaron fuera de la ventana de la
+  ejecución anterior, incluso con anticipaciones de 5 minutos.
+- `fecha_programada = fecha_actividad - anticipacion_minutos`. Con una cadencia
+  horaria el aviso se genera como tarde en la siguiente ejecución después de
+  esa hora (desfase máximo de ~60 minutos); nunca se genera antes.
+- La clave de idempotencia es `tipo:id:fecha:anticipacion`, única por usuario;
+  una segunda ejecución no duplica ni reenvía el aviso.
+- Máximo `20` notificaciones por usuario y ejecución, `100` usuarios por
+  ejecución y `30` correos SNS por día (`<= 930`/mes, dentro de los 1.000
+  correos gratuitos de SNS email). El cupo diario se cuenta en la tabla
+  `notificaciones` y se descuenta entre ejecuciones.
+- SNS solo se publica si `notificaciones_activas = true`, `canal_email = true`
+  y el topic está configurado. Si falla o no hay topic, la notificación interna
+  se conserva y el error solo se contabiliza.
+- La generación es determinista: no consume IA.
 
 ## 14. Administración
 
@@ -1817,6 +1878,6 @@ El panel entrega en una sola respuesta los datos que el estudiante necesita al i
 - `proximos_examenes` filtra `tipo in ('examen', 'parcial')`.
 - `proximos_eventos` excluye los eventos automáticos `tipo_evento = 'entrega'` para no repetir las tareas.
 - `progreso.porcentaje_completado` se calcula como `tareas_completadas / tareas_totales`, redondeado a entero entre 0 y 100.
-- `notificaciones` devuelve `[]` hasta que se implemente HU18; el panel muestra un estado vacío explícito.
+- `notificaciones` de `/api/dashboard` sigue devolviendo `[]`: el historial real se consulta en `/api/notificaciones` y el panel muestra un estado vacío explícito.
 - No acepta filtros ni identificadores de usuario: el alcance sale del JWT.
 - Los errores usan el sobre estándar; un fallo de Supabase responde `503`.

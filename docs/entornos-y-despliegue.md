@@ -61,7 +61,7 @@ Archivo `backend/.env` (no se versiona). Plantilla en `backend/.env.example`.
 | `AWS_SECRET_ACCESS_KEY` | Solo local | `...` | En Lambda se usa el rol IAM. |
 | `AWS_S3_BUCKET` | Sí | `mingo-documentos-dev-591015654164` | Bucket privado creado por el stack SAM; debe coincidir con `BucketName`. |
 | `AWS_LAMBDA_FUNCTION_NAME` | No | `mingo-document-processor` | Función procesadora. |
-| `AWS_SNS_TOPIC_ARN` | No | `arn:aws:sns:...` | Recordatorios por email. |
+| `AWS_SNS_TOPIC_ARN` | Solo worker | `arn:aws:sns:...` | Topic del stack SAM para recordatorios; si falta, la notificación interna sigue funcionando. |
 | `AWS_SQS_QUEUE_URL` | No | `https://sqs...` | Cola de documentos. |
 | `AI_PROVIDER` | Sí | `gemini` \| `openai` | Proveedor de IA. |
 | `AI_API_KEY` | Sí en prod | `AIza...` o `sk-...` | Clave privada. Nunca al frontend. |
@@ -215,11 +215,13 @@ El backend Express se despliega con un adaptador (`serverless-http`).
 | Función | Archivo | Handler | Estado |
 |---|---|---|---|
 | Procesadora de documentos (HU09) | `backend/src/lambda/procesador.js` | `src/lambda/procesador.handler` | Definida en `infra/template.yaml`. |
+| Recordatorios (HU18) | `backend/src/lambda/recordatorios.js` | `src/lambda/recordatorios.handler` | Definida en `infra/template.yaml`; invocada por un schedule horario. |
 | API HTTP (Express) | `backend/src/app.js` | Pendiente de adaptador | No incluida aún en la plantilla. |
 
-La función procesadora ya existe y es la que despliega `infra/template.yaml`. La API
-HTTP se ejecutará en una Lambda aparte cuando se agregue el adaptador
-`serverless-http`; hasta entonces, la plantilla no crea la función de API.
+Las funciones procesadora y de recordatorios ya existen y forman parte de
+`infra/template.yaml`. La API HTTP se ejecutará en una Lambda aparte cuando se
+agregue el adaptador `serverless-http`; hasta entonces, la plantilla no crea la
+función de API.
 
 ### 5.2. Reglas de empaquetado
 
@@ -229,7 +231,8 @@ HTTP se ejecutará en una Lambda aparte cuando se agregue el adaptador
 - ZIP menor a 50 MB (límite directo de Lambda); si crece, revisar dependencias.
 - Sin `.env`, `tests/`, `node_modules` de desarrollo ni archivos temporales.
 - `CodeUri: ../backend/` es relativo a `infra/template.yaml`.
-- `handler: src/lambda/procesador.handler` para la procesadora.
+- `handler: src/lambda/procesador.handler` para la procesadora y
+  `src/lambda/recordatorios.handler` para los recordatorios.
 
 ### 5.3. Empaquetado
 
@@ -260,9 +263,10 @@ necesita un ZIP manual, se construye en un directorio limpio con
 | `AWS::Serverless::HttpApi` | API Gateway HTTP API. |
 | `AWS::S3::Bucket` | Documentos. |
 | `AWS::SQS::Queue` | Cola y DLQ. |
-| `AWS::SNS::Topic` | Notificaciones email. |
-| `AWS::Scheduler::Schedule` | Recordatorios (opcional). |
-| `AWS::Logs::LogGroup` | Logs con retención. |
+| `AWS::SNS::Topic` | Un topic privado para notificaciones email; suscripción solo si se pasa `NotificacionesEmail`. |
+| `AWS::Scheduler::Schedule` | Un schedule horario de recordatorios, deshabilitado en `dev`. |
+| `AWS::IAM::Role` | Solo el rol ya existente del procesador; los roles de HU18 los crea el usuario y se pasan por ARN. |
+| `AWS::Logs::LogGroup` | Logs con retención (7 días en `dev`, 30 en `prod`). |
 | `AWS::Budgets::Budget` | Presupuesto (crear una vez). |
 
 **Prohibido:** EC2, ECS, EKS, RDS, ElastiCache, NAT Gateway, load balancers, IP elástica, VPC, contenedores permanentes.
@@ -410,6 +414,23 @@ En el primer despliegue:
 - Confirmar que no se crea VPC, NAT ni balanceadores.
 - Revisar los recursos del change set antes de aprobar.
 - Verificar etiquetas y límites.
+
+Parámetros SAM de HU18: `NotificacionesEmail` (vacío desactiva la suscripción),
+`RecordatorioCron` (por defecto `cron(0 * * * ? *)`, cada hora en punto en UTC),
+`RecordatoriosRoleArn` y `SchedulerInvocationRoleArn` (ARN de roles que crea el
+usuario; el agente no crea roles IAM).
+
+Recursos de HU18 incluidos en la plantilla: un topic SNS con suscripción email
+opcional, un log group, una Lambda ARM64 de 512 MB con timeout de 30 s y un
+schedule horario sin reintentos. El schedule queda `DISABLED` en `dev` y
+`ENABLED` en `prod`.
+
+Costo verificado para el cambio horario: 744 invocaciones/mes de Scheduler
+(free tier de 14 millones), 744 invocaciones de Lambda con 512 MB ARM64 (free
+tier de 1 millón de peticiones y 400.000 GB-s) y como máximo 30 correos SNS/día
+(930/mes, por debajo de los 1.000 correos email gratuitos). Gasto esperado
+`$0`. **No ejecutar `sam deploy` sin la aprobación explícita del usuario sobre
+esta plantilla y sus límites.**
 
 ### 6.4. Presupuestos
 

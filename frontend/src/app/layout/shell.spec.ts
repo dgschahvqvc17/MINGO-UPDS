@@ -1,8 +1,10 @@
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
+import { of } from 'rxjs';
 import { RolUsuario } from '../core/models/dominio.models';
 import { AuthService } from '../core/services/auth.service';
+import { NotificacionService } from '../core/services/notificacion.service';
 import { ShellComponent } from './shell';
 
 function createShell(role: RolUsuario, fullName = 'Ana Perez'): ShellComponent {
@@ -18,6 +20,13 @@ function createShell(role: RolUsuario, fullName = 'Ana Perez'): ShellComponent {
           profile: signal(null).asReadonly(),
           user: signal(null).asReadonly(),
           signOut: vi.fn(),
+        },
+      },
+      {
+        provide: NotificacionService,
+        useValue: {
+          noLeidas: signal(2).asReadonly(),
+          contarNoLeidas: vi.fn().mockReturnValue(of(2)),
         },
       },
     ],
@@ -51,6 +60,13 @@ describe('ShellComponent', () => {
     const shell = createShell('estudiante');
 
     expect(navigationPaths(shell)).toContain('/tarjetas-memoria');
+  });
+
+  it('ofrece acceso global a las notificaciones con su contador', () => {
+    const shell = createShell('estudiante');
+
+    expect(navigationPaths(shell)).toContain('/notificaciones');
+    expect(shell.notificacionesNoLeidas()).toBe(2);
   });
 
   it('calcula las iniciales con las dos primeras palabras del nombre', () => {

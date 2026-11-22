@@ -95,6 +95,12 @@ const ENLACES_ESTUDIANTE: readonly EnlaceRapido[] = [
     description: 'Planifica sesiones de aprendizaje',
   },
   {
+    path: '/notificaciones',
+    icon: 'bi-bell',
+    label: 'Notificaciones',
+    description: 'Revisa tus recordatorios y preferencias',
+  },
+  {
     path: '/asistente-ia',
     icon: 'bi-stars',
     label: 'Asistente IA',

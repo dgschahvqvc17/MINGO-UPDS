@@ -223,16 +223,25 @@ export interface RespuestaUsuario {
   es_correcta: boolean | null;
 }
 
+export const TIPOS_NOTIFICACION = ['tarea', 'evaluacion', 'sesion'] as const;
+export type TipoNotificacion = (typeof TIPOS_NOTIFICACION)[number];
+
 export interface Notificacion {
   id: string;
   usuario_id: string;
+  tipo: TipoNotificacion;
   titulo: string;
   mensaje: string;
-  tipo: string;
-  fecha_programada: string | null;
-  fecha_envio: string | null;
+  tarea_id: string | null;
+  evento_calendario_id: string | null;
+  sesion_estudio_id: string | null;
+  clave_idempotencia: string;
+  fecha_actividad: string;
+  fecha_programada: string;
   leida: boolean;
-  estado: EstadoGeneral;
+  fecha_envio: string | null;
+  fecha_creacion: string;
+  fecha_actualizacion: string | null;
 }
 
 export interface ObjetivoEstudio {
@@ -246,11 +255,13 @@ export interface ObjetivoEstudio {
   fecha_creacion: string;
 }
 
-export interface PreferenciasUsuario {
-  id: string;
+export interface PreferenciasNotificacion {
   usuario_id: string;
   notificaciones_activas: boolean;
+  anticipacion_minutos: number;
+  canal_email: boolean;
   zona_horaria: string;
-  idioma: string;
-  configuracion_ia: Record<string, unknown> | null;
+  idioma: 'es';
+  fecha_creacion: string;
+  fecha_actualizacion: string | null;
 }

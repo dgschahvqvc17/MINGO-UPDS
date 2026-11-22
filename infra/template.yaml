@@ -1,9 +1,10 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
 Description: >-
-  MINGO - HU07 y HU09. Bucket privado de documentos academicos y procesamiento
-  asincrono serverless (S3 -> SQS -> Lambda). Sin servidores, sin VPC, sin
-  concurrencia provisionada y con DLQ acotada. Solo capa gratuita.
+  MINGO - HU07, HU09 y HU18. Bucket privado de documentos academicos,
+  procesamiento asincrono (S3 -> SQS -> Lambda) y recordatorios horarios
+  (Scheduler -> Lambda -> SNS). Sin servidores, sin VPC, sin concurrencia
+  provisionada y con DLQ acotada. Solo capa gratuita.
 
 Parameters:
   Environment:
@@ -89,8 +90,45 @@ Parameters:
       Dimension fija de la columna vector(1536). Cambiarla exige migracion y
       reprocesar todos los documentos.
 
+  NotificacionesEmail:
+    Type: String
+    Default: ''
+    Description: >
+      Correo del suscriptor del unico topic SNS. Vacio desactiva el envio por
+      email; la notificacion interna de la plataforma sigue funcionando.
+    AllowedPattern: '^$|[^@\s]+@[^@\s]+\.[^@\s]+$'
+    ConstraintDescription: Debe ser un correo valido o una cadena vacia.
+
+  RecordatorioCron:
+    Type: String
+    Default: 'cron(0 * * * ? *)'
+    Description: >
+      Expresion cron UTC del unico schedule. Por defecto se ejecuta cada hora
+      en punto para cubrir vencimientos durante todo el dia (744 invocaciones
+      al mes, dentro del free tier de 14 millones de EventBridge Scheduler).
+
+  RecordatoriosRoleArn:
+    Type: String
+    Description: >
+      ARN de un rol IAM existente para la Lambda de recordatorios. Debe confiar
+      en lambda.amazonaws.com, incluir AWSLambdaBasicExecutionRole y permitir
+      sns:Publish sobre el topic de notificaciones. MINGO no crea roles IAM.
+    AllowedPattern: '^arn:aws:iam::[0-9]{12}:role/.+$'
+    ConstraintDescription: Debe ser el ARN de un rol IAM existente.
+
+  SchedulerInvocationRoleArn:
+    Type: String
+    Description: >
+      ARN de un rol IAM existente para que EventBridge Scheduler invoque la
+      Lambda. Debe confiar en scheduler.amazonaws.com y permitir
+      lambda:InvokeFunction sobre la funcion de recordatorios. MINGO no crea
+      roles IAM.
+    AllowedPattern: '^arn:aws:iam::[0-9]{12}:role/.+$'
+    ConstraintDescription: Debe ser el ARN de un rol IAM existente.
+
 Conditions:
   IsProd: !Equals [!Ref Environment, prod]
+  TieneCorreoNotificaciones: !Not [!Equals [!Ref NotificacionesEmail, '']]
 
 Resources:
   DocumentosBucket:
@@ -319,6 +357,94 @@ Resources:
         - ReportBatchItemFailures
       Enabled: true
 
+  # --- HU18: recordatorios programados ---------------------------------------
+  # Un solo topic para todos los avisos. Solo se publica si el estudiante
+  # activo `canal_email`; el servicio limita el dia a 30 correos para no
+  # superar los 1.000 correos/mes gratuitos de SNS email. Sin suscripcion
+  # no se envia ningun correo.
+  NotificacionesTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: !Sub '${AWS::StackName}-notificaciones'
+      DisplayName: MINGO-recordatorios
+      Tags:
+        - { Key: Project, Value: MINGO }
+        - { Key: Environment, Value: !Ref Environment }
+        - { Key: Owner, Value: equipo-mingo }
+        - { Key: ManagedBy, Value: sam }
+        - { Key: CostCenter, Value: academico }
+
+  NotificacionesSuscripcion:
+    Type: AWS::SNS::Subscription
+    Condition: TieneCorreoNotificaciones
+    Properties:
+      Protocol: email
+      TopicArn: !Ref NotificacionesTopic
+      Endpoint: !Ref NotificacionesEmail
+      # AWS::SNS::Subscription no expone la propiedad Tags en CloudFormation.
+      # Las etiquetas obligatorias las lleva el topic, que es el recurso padre.
+
+  RecordatoriosLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/lambda/${AWS::StackName}-recordatorios'
+      RetentionInDays: !If [IsProd, 30, 7]
+      Tags:
+        - { Key: Project, Value: MINGO }
+        - { Key: Environment, Value: !Ref Environment }
+        - { Key: Owner, Value: equipo-mingo }
+        - { Key: ManagedBy, Value: sam }
+        - { Key: CostCenter, Value: academico }
+
+  RecordatoriosFunction:
+    Type: AWS::Serverless::Function
+    DependsOn: RecordatoriosLogGroup
+    Properties:
+      FunctionName: !Sub '${AWS::StackName}-recordatorios'
+      Description: Genera recordatorios de tareas, evaluaciones y sesiones de estudio.
+      CodeUri: ../backend/
+      Handler: src/lambda/recordatorios.handler
+      Runtime: nodejs22.x
+      Architectures: [arm64]
+      MemorySize: 512
+      Timeout: 30
+      # Una ejecucion por hora: sin concurrencia reservada ni provisionada.
+      # El rol lo crea el usuario; MINGO solo lo referencia.
+      Role: !Ref RecordatoriosRoleArn
+      Environment:
+        Variables:
+          NODE_ENV: production
+          SUPABASE_URL: !Ref SupabaseUrl
+          SUPABASE_SERVICE_ROLE_KEY: !Ref SupabaseServiceRoleKey
+          SUPABASE_ANON_KEY: !Ref SupabaseAnonKey
+          AWS_SNS_TOPIC_ARN: !Ref NotificacionesTopic
+      Tags:
+        Project: MINGO
+        Environment: !Ref Environment
+        Owner: equipo-mingo
+        ManagedBy: sam
+        CostCenter: academico
+
+  RecordatoriosSchedule:
+    Type: AWS::Scheduler::Schedule
+    Properties:
+      Name: !Sub '${AWS::StackName}-recordatorios-horarios'
+      Description: Recordatorios academicos de MINGO, una vez por hora en UTC.
+      ScheduleExpression: !Ref RecordatorioCron
+      ScheduleExpressionTimezone: UTC
+      FlexibleTimeWindow:
+        Mode: 'OFF'
+      # En desarrollo queda deshabilitado; las reglas de AWS lo exigen.
+      State: !If [IsProd, ENABLED, DISABLED]
+      Target:
+        Arn: !GetAtt RecordatoriosFunction.Arn
+        RoleArn: !Ref SchedulerInvocationRoleArn
+        # Sin reintentos: evita bucles y gasto accidental.
+        RetryPolicy:
+          MaximumRetryAttempts: 0
+      # AWS::Scheduler::Schedule no admite Tags en CloudFormation. Las etiquetas
+      # obligatorias las llevan la funcion y el log group asociados al schedule.
+
 Outputs:
   BucketName:
     Description: Nombre del bucket de documentos.
@@ -359,3 +485,19 @@ Outputs:
     Value: !Ref ProcesadorFunction
     Export:
       Name: !Sub '${AWS::StackName}-ProcessorFunctionName'
+
+  NotificacionesTopicArn:
+    Description: ARN del topic SNS de notificaciones (HU18).
+    Value: !Ref NotificacionesTopic
+    Export:
+      Name: !Sub '${AWS::StackName}-NotificacionesTopicArn'
+
+  RecordatoriosFunctionName:
+    Description: Nombre de la Lambda de recordatorios (HU18).
+    Value: !Ref RecordatoriosFunction
+    Export:
+      Name: !Sub '${AWS::StackName}-RecordatoriosFunctionName'
+
+  RecordatoriosScheduleState:
+    Description: Estado del schedule unico de recordatorios.
+    Value: !If [IsProd, ENABLED, DISABLED]
