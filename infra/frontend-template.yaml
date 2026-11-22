@@ -81,7 +81,7 @@ Resources:
     Properties:
       DistributionConfig:
         Enabled: true
-        Comment: MINGO frontend estatico (dev)
+        Comment: MINGO frontend estatico (dev) v2
         PriceClass: PriceClass_100
         IPV6Enabled: true
         HttpVersion: http2and3
@@ -113,9 +113,10 @@ Resources:
             - HEAD
             - OPTIONS
           Compress: true
-          # UseOriginCacheControlHeaders: TTL minimo 0. Los assets con hash
-          # llevan max-age largo y index.html lleva no-cache.
-          CachePolicyId: '83da9c7e-98b4-4e11-a168-04f0df8e2c65'
+          # CachingOptimized respeta el Cache-Control del origen sin reenviar
+          # cabeceras al bucket. UseOriginCacheControlHeaders devolvia 404
+          # desde S3 con OAC; ver docs/entornos-y-despliegue.md.
+          CachePolicyId: '658327ea-f89d-4fab-a63d-7e88639e58f6'
       Tags:
         - { Key: Project, Value: MINGO }
         - { Key: Environment, Value: !Ref Environment }

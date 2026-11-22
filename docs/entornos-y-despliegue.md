@@ -463,7 +463,7 @@ ACM ni Route 53). Invalidación máxima: 1.000 paths/mes (gratis).
 ```
 
 El despliegue se hace con un changeset que ejecuta el administrador desde la
-consola (el usuario `mingo-agente` no tiene permisos de CloudFront):
+consola (el usuario `mingo-agente` no tiene permisos para ejecutar changesets):
 
 ```bash
 aws cloudformation create-change-set \
@@ -502,19 +502,34 @@ aws s3 sync dist/frontend/browser s3://mingo-frontend-dev-591015654164 \
 aws cloudfront create-invalidation --distribution-id <DIST_ID> --paths "/*"
 ```
 
+La invalidación no es necesaria en el flujo normal: `index.html` se revalida
+en cada petición y los assets llevan hash en el nombre. Solo se usa si se
+publica un cambio fuera de `/index.html` con el mismo nombre de archivo.
+
 Reglas:
 
 - Bucket privado; acceso solo por CloudFront (Origin Access Control).
 - Sin versionado ilimitado.
-- Cache-Control largo para assets con hash y corto para `index.html` (la
-  política administrada `UseOriginCacheControlHeaders` respeta los headers
-  que Angular emite; no se usa `CachingOptimized` para que `index.html` no
-  quede en caché).
+- Cache-Control largo para assets con hash y corto para `index.html`. La
+  distribución usa la política administrada `CachingOptimized`
+  (`658327ea-f89d-4fab-a63d-7e88639e58f6`), que respeta el `Cache-Control`
+  del origen sin reenviar cabeceras al bucket.
 - Una sola distribución.
 - Sin Lambda@Edge ni WAF.
 - HTTPS con el certificado por defecto de `*.cloudfront.net` (no se crea ACM
   ni se usa Route 53; están fuera de la lista blanca de MINGO).
 - `403` y `404` se reescriben a `/index.html` para soportar rutas del SPA.
+
+#### Diagnóstico del 404 con OAC
+
+Si CloudFront responde `404 NotFound` con `Server: AmazonS3` aunque los objetos
+existen, verifica en este orden: origen regional, `DefaultRootObject`, OAC
+(`sigv4` / `always` / tipo `s3`), bucket policy con `AWS:SourceArn` exacto y
+`CustomErrorResponses`. Si todo eso está correcto, revisa la **CachePolicy**:
+la política administrada `UseOriginCacheControlHeaders`
+(`83da9c7e-98b4-4e11-a168-04f0df8e2c65`) produjo este síntoma en MINGO;
+`CachingOptimized` lo resolvió sin quitar el cacheo de los assets con hash.
+La invalidación `/*` y un redeploy de la distribución no fueron suficientes.
 
 ### 7.3. Alternativa sin costo AWS
 
