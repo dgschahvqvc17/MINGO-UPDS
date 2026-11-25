@@ -22,7 +22,7 @@ Permite subir zips temporales solo a:
 s3://mingo-documentos-dev-591015654164/tmp/artifacts/*
 ```
 
-El bucket ya existe, es privado y tiene lifecycle que expira `tmp/` en 1 día. No se agrega `s3:DeleteObject`, `s3:PutObjectAcl` ni acceso a otros prefijos.
+El bucket ya existe, es privado y tiene lifecycle que expira `tmp/` en 1 día. No se agrega `s3:DeleteObject`, `s3:PutObjectAcl` ni acceso a otros prefijos. El JSON está en una sola línea (577 caracteres) para pegarlo directamente en el editor de IAM Console; los `Sid` se omitieron porque son solo etiquetas opcionales.
 
 No usar el bucket frontend para artefactos: su política permite `s3:GetObject` a CloudFront con `SourceArn` de la distribución `E3KT1CRPPEGF3B`, por lo que los zips quedarían servidos por CloudFront.
 
