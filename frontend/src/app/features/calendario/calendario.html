@@ -206,6 +206,32 @@
               <p class="cal-detail-desc">{{ evento.descripcion }}</p>
             }
 
+            @if (confirmandoEliminacionId() === evento.id) {
+              <div
+                class="alert alert-light border d-flex flex-wrap align-items-center gap-2"
+                role="group"
+                [attr.aria-label]="textoEliminacion(evento)"
+              >
+                <span class="small flex-grow-1">{{ textoEliminacion(evento) }}</span>
+                <button
+                  type="button"
+                  class="btn btn-sm btn-outline-secondary"
+                  (click)="cancelarEliminacion()"
+                  [disabled]="eliminando()"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  class="btn btn-sm btn-outline-danger"
+                  (click)="eliminarEvento(evento)"
+                  [disabled]="eliminando()"
+                >
+                  {{ eliminando() ? 'Eliminando...' : 'Confirmar' }}
+                </button>
+              </div>
+            }
+
             <div class="d-flex flex-wrap gap-2">
               <button type="button" class="btn btn-primary" (click)="editarEvento(evento)">
                 <i class="bi bi-pencil me-1" aria-hidden="true"></i>
@@ -215,7 +241,7 @@
                 type="button"
                 class="btn btn-outline-danger"
                 [disabled]="eliminando()"
-                (click)="eliminarEvento(evento)"
+                (click)="pedirEliminacion(evento)"
               >
                 @if (eliminando()) {
                   <span class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span>

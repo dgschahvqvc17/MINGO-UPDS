@@ -10,13 +10,15 @@
         </p>
       </div>
 
-      <button type="button" class="btn-cta" routerLink="/materias/nueva">
-        <span class="btn-cta-icon" aria-hidden="true"><i class="bi bi-plus-lg"></i></span>
-        <span class="btn-cta-copy">
-          <strong>Nueva materia</strong>
-          <small>Registra una asignatura</small>
-        </span>
-      </button>
+      @if (puedeGestionar()) {
+        <button type="button" class="btn-cta" routerLink="/materias/nueva">
+          <span class="btn-cta-icon" aria-hidden="true"><i class="bi bi-plus-lg"></i></span>
+          <span class="btn-cta-copy">
+            <strong>Nueva materia</strong>
+            <small>Registra una asignatura</small>
+          </span>
+        </button>
+      }
     </div>
   </header>
 
@@ -146,6 +148,14 @@
     </div>
   }
 
+  @if (errorMetadatos()) {
+    <div class="alert alert-warning" role="status">{{ errorMetadatos() }}</div>
+  }
+
+  @if (mensajeEstado()) {
+    <div class="alert alert-success" role="status">{{ mensajeEstado() }}</div>
+  }
+
   @if (mostrarListaVacia()) {
     <div class="mat-state mat-state--empty" role="status">
       <span class="mat-empty-icon" aria-hidden="true"><i class="bi bi-journal-bookmark"></i></span>
@@ -157,10 +167,12 @@
           Comienza registrando tu primera materia académica.
         }
       </p>
-      <button type="button" class="btn btn-primary" routerLink="/materias/nueva">
-        <i class="bi bi-plus-lg me-1" aria-hidden="true"></i>
-        Registrar primera materia
-      </button>
+      @if (puedeGestionar()) {
+        <button type="button" class="btn btn-primary" routerLink="/materias/nueva">
+          <i class="bi bi-plus-lg me-1" aria-hidden="true"></i>
+          Registrar primera materia
+        </button>
+      }
     </div>
   }
 
@@ -212,22 +224,24 @@
                         <i class="bi bi-eye me-2" aria-hidden="true"></i>Ver detalles
                       </a>
                     </li>
-                    <li>
-                      <a class="dropdown-item" [routerLink]="['/materias', materia.id, 'editar']">
-                        <i class="bi bi-pencil me-2" aria-hidden="true"></i>Editar
-                      </a>
-                    </li>
-                    <li><hr class="dropdown-divider" /></li>
-                    <li>
-                      <button
-                        type="button"
-                        class="dropdown-item mat-archive-item"
-                        (click)="cambiarEstado(materia)"
-                      >
-                        <i class="bi bi-archive me-2" aria-hidden="true"></i>
-                        {{ materia.estado === 'activo' ? 'Archivar' : 'Activar' }}
-                      </button>
-                    </li>
+                    @if (puedeGestionar()) {
+                      <li>
+                        <a class="dropdown-item" [routerLink]="['/materias', materia.id, 'editar']">
+                          <i class="bi bi-pencil me-2" aria-hidden="true"></i>Editar
+                        </a>
+                      </li>
+                      <li><hr class="dropdown-divider" /></li>
+                      <li>
+                        <button
+                          type="button"
+                          class="dropdown-item mat-archive-item"
+                          (click)="pedirCambioEstado(materia)"
+                        >
+                          <i class="bi bi-archive me-2" aria-hidden="true"></i>
+                          {{ materia.estado === 'activo' ? 'Archivar' : 'Activar' }}
+                        </button>
+                      </li>
+                    }
                   </ul>
                 </div>
               </div>
@@ -236,6 +250,28 @@
                 <p class="mat-card-desc">
                   {{ materia.descripcion.length > 110 ? materia.descripcion.substring(0, 110) + '…' : materia.descripcion }}
                 </p>
+              }
+
+              @if (confirmandoCambioId() === materia.id) {
+                <div class="alert alert-light border d-flex flex-wrap align-items-center gap-2 py-2" role="group" [attr.aria-label]="textoConfirmacion(materia)">
+                  <span class="small flex-grow-1">{{ textoConfirmacion(materia) }}</span>
+                  <button
+                    type="button"
+                    class="btn btn-sm btn-outline-secondary"
+                    (click)="cancelarCambioEstado()"
+                    [disabled]="cambiandoEstadoId() === materia.id"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="button"
+                    class="btn btn-sm btn-outline-primary"
+                    (click)="cambiarEstado(materia)"
+                    [disabled]="cambiandoEstadoId() === materia.id"
+                  >
+                    {{ cambiandoEstadoId() === materia.id ? 'Guardando...' : 'Confirmar' }}
+                  </button>
+                </div>
               }
 
               <div class="mat-card-stats">

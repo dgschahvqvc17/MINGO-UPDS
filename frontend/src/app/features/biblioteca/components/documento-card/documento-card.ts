@@ -27,6 +27,7 @@ export class DocumentoCardComponent {
   private readonly documentoService = inject(DocumentoService);
 
   readonly documento = input.required<Documento>();
+  readonly puedeGestionar = input(false);
   readonly descargando = input(false);
   readonly eliminando = input(false);
   readonly procesando = input(false);

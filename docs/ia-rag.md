@@ -169,15 +169,15 @@ Reglas:
 - Si no se supera el umbral mínimo, responder que no hay información suficiente
   **sin llamar al modelo**: `modelo: null` y `referencias: []`.
 
-### 4.2. Filtro de propietario
+### 4.2. Filtro de acceso
 
-La búsqueda **siempre** incluye el propietario:
+La búsqueda usa la RPC `match_fragmentos(query_embedding, match_threshold, match_count, p_documento_id, p_materia_id)`, redefinida en `supabase/migrations/0018_roles_docente_inscripciones.sql`. Devuelve como máximo `least(match_count, 20)` fragmentos y filtra con:
 
 ```sql
-where d.usuario_id = auth.uid()
+public.usuario_puede_leer_documento(d.id)
 ```
 
-En el backend con `service_role`, el repository agrega `usuario_id = req.user.id` de forma explícita. Nunca se buscan embeddings de todos los usuarios.
+Esa función limita los resultados a documentos propios, de materias impartidas por el docente (`materias.docente_id`), de materias con inscripción `activa` del estudiante y a los permitidos por RLS para administradores. Nunca se buscan embeddings de todos los usuarios ni se omite el filtro de acceso; el backend usa el cliente JWT, nunca `service_role`, para esta búsqueda.
 
 ## 5. Construcción del prompt
 
@@ -612,6 +612,7 @@ Reglas:
 - El **tier gratuito de Google Gemini** usa el contenido enviado para mejorar sus productos. Por eso en desarrollo solo se procesan documentos de prueba o autorizados; producción exige un plan de pago con entrenamiento desactivado.
 - Permitir eliminar conversaciones y documentos.
 - Al eliminar un documento, eliminar sus fragmentos y embeddings.
+- Los artefactos derivados (resúmenes, conversaciones, cuestionarios, tarjetas y planes) siguen siendo privados de quien los genera: el rol docente o administrador no otorga acceso automático a ellos, aunque RLS permita leer documentos compartidos por docencia o inscripción activa.
 - Documentar qué proveedor se usa y qué datos se envían.
 
 ## 12. Evaluación de calidad

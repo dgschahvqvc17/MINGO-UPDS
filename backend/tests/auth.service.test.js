@@ -36,7 +36,9 @@ describe('AuthService', () => {
       apellido: 'Perez',
       correo: USER.email,
       estado: 'activo',
+      requiereCambioClave: false,
       role: 'estudiante',
+      rol: 'estudiante',
       roles: ['estudiante'],
     });
   });
@@ -47,7 +49,7 @@ describe('AuthService', () => {
     const authenticatedUser = await service.buildAuthenticatedUser(USER);
 
     expect(authenticatedUser.role).toBe('administrador');
-    expect(authenticatedUser.roles).toEqual(['estudiante', 'administrador']);
+    expect(authenticatedUser.roles).toEqual(['administrador', 'estudiante']);
   });
 
   it('rechaza una cuenta inactiva sin consultar sus roles', async () => {

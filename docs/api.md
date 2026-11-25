@@ -16,6 +16,8 @@
 6. Los identificadores de usuario (`perfiles.id`, `usuario_id`) son UUID. En la implementación actual, `materias` (HU03) y `tareas` (HU04) también usan `UUID`; el resto de las entidades de dominio migrará a `UUID` cuando se implemente su historia. El cliente no debe asumir el tipo de un ID: lo trata como cadena opaca.
 7. Los endpoints que modifican datos validan la entrada con Zod antes de llegar al controlador.
 8. Las operaciones de IA y de carga de archivos tienen límites de uso (ver [seguridad.md](seguridad.md) e [ia-rag.md](ia-rag.md)).
+9. Los roles vigentes son `estudiante`, `docente` y `administrador`, con precedencia `administrador > docente > estudiante`. `GET /api/auth/me` devuelve `role` (rol efectivo), `rol` (alias de compatibilidad) y `roles` (listado ordenado por precedencia).
+10. Una cuenta con `requiereCambioClave = true` solo puede llamar a `/api/auth/me` y `/api/auth/cambiar-clave`; cualquier otra ruta responde `403` hasta completar el cambio de contraseña.
 
 ## 2. Sobre de respuesta
 
@@ -85,42 +87,17 @@
 
 ## 4. Autenticación
 
-El frontend inicia sesión directamente con Supabase Auth y envía el token al backend. El backend valida el token con Supabase, consulta `perfiles` y `usuario_roles`, y obtiene `id`, `email`, `role` y `estado`. El rol **no** se toma de los metadatos del JWT.
+El frontend inicia sesión directamente con Supabase Auth (no hay endpoints de registro ni login en el backend) y envía el token al backend. El backend valida el token con Supabase, consulta `perfiles` y `usuario_roles` y construye la sesión con `id`, `email`, `nombre`, `apellido`, `correo`, `estado`, `role`, `rol`, `roles` y `requiereCambioClave`. El rol **no** se toma de los metadatos del JWT: se resuelve desde la base de datos con precedencia `administrador > docente > estudiante`.
 
-> En HU01 solo se implementa `GET /api/auth/me`. El registro y el login desde backend quedan fuera del alcance.
+> Un usuario sin roles válidos conserva el privilegio mínimo (`estudiante`). Las cuentas con estado distinto de `activo` se rechazan con `403`.
 
 ### 4.1. `POST /api/auth/register`
 
-Registro opcional desde backend. Si el frontend usa Supabase Auth directamente, este endpoint no es necesario.
-
-**Body**
-
-```json
-{
-  "correo": "ana@universidad.edu",
-  "password": "Minimo8Caracteres!",
-  "nombre": "Ana",
-  "apellido": "Pérez"
-}
-```
-
-**Respuesta `201`**
-
-```json
-{
-  "success": true,
-  "data": {
-    "id": "3f2b7e5c-1a4d-4c8e-9f10-2b6d8a7c9e01",
-    "correo": "ana@universidad.edu",
-    "nombre": "Ana",
-    "apellido": "Pérez"
-  }
-}
-```
+**No implementado.** El registro público lo hace el frontend con el SDK de Supabase; el trigger `handle_new_user` crea el perfil y asigna el rol `estudiante` por defecto. El alta de cuentas con otro rol la hace un administrador mediante `POST /api/usuarios` (ver §14).
 
 ### 4.2. `POST /api/auth/login`
 
-No recomendado si el frontend usa el SDK de Supabase. Si se implementa, devuelve el token y los datos del perfil.
+**No implementado.** El inicio de sesión lo hace el frontend directamente con Supabase Auth, que emite el `access_token` usado en el resto de endpoints.
 
 ### 4.3. `POST /api/auth/logout`
 
@@ -140,9 +117,49 @@ Devuelve el perfil, el rol y el estado del usuario autenticado. Requiere `Author
     "apellido": "Pérez",
     "correo": "ana@universidad.edu",
     "estado": "activo",
-    "role": "estudiante",
-    "roles": ["estudiante"]
+    "role": "docente",
+    "rol": "docente",
+    "roles": ["docente", "estudiante"],
+    "requiereCambioClave": false
   }
+}
+```
+
+- `role` es el rol efectivo (el más privilegiado); `rol` se mantiene como alias de compatibilidad con el mismo valor.
+- `roles` está ordenado por precedencia e incluye todos los roles asignados en la base de datos.
+- `requiereCambioClave` indica que la cuenta fue dada de alta con contraseña temporal y debe cambiarla antes de usar el resto de la API.
+- Este endpoint está disponible aunque `requiereCambioClave` sea `true`.
+
+**Errores**
+
+| Código | Causa |
+|---|---|
+| `401` | Token ausente, vencido o inválido. |
+| `403` | Perfil inexistente, cuenta con `estado = 'inactivo'` o middleware de ruta que no admite clave temporal. |
+| `503` | Supabase no configurado en el backend. |
+
+### 4.5. `POST /api/auth/cambiar-clave`
+
+Cambia la contraseña temporal. Requiere token válido; es una de las dos rutas permitidas mientras `requiereCambioClave = true`.
+
+**Body**
+
+```json
+{
+  "claveActual": "ClaveTemporal123!",
+  "claveNueva": "NuevaClaveSegura456!"
+}
+```
+
+- `claveActual` y `claveNueva`: 8 a 72 caracteres y obligatoriamente distintas.
+- Se verifica la clave actual con el cliente anónimo de Supabase; la actualización se hace con la `service_role` y después se marca `requiere_cambio_clave = false` en `perfiles`.
+
+**Respuesta `200`**
+
+```json
+{
+  "success": true,
+  "data": { "mensaje": "Contraseña actualizada correctamente." }
 }
 ```
 
@@ -150,9 +167,9 @@ Devuelve el perfil, el rol y el estado del usuario autenticado. Requiere `Author
 
 | Código | Causa |
 |---|---|
-| `401` | Token ausente, vencido o inválido. |
-| `403` | Perfil inexistente o cuenta con `estado = 'inactivo'`. |
-| `503` | Supabase no configurado en el backend. |
+| `400` | Datos inválidos o claves iguales. |
+| `401` | Clave actual incorrecta. |
+| `403` | Cuenta inactiva o sin perfil. |
 
 ## 5. Perfil
 
@@ -183,48 +200,109 @@ Pendiente para HU02. Contrato previsto:
 - `semestre`: entero entre 1 y 20.
 - `foto_perfil`: URL HTTPS o `null`.
 
-## 6. Materias y unidades
+## 6. Materias e inscripciones
 
-| Método | Endpoint | Historia | Descripción |
+Todas las rutas de esta sección requieren autenticación. La creación, actualización y el cambio de estado de materias requieren además el rol `administrador`.
+
+| Método | Endpoint | Roles | Descripción |
 |---|---|---|---|
-| GET | `/api/materias` | HU03 | Lista materias del usuario. |
-| POST | `/api/materias` | HU03 | Crea una materia. |
-| GET | `/api/materias/:id` | HU03 | Detalle de una materia. |
-| PUT | `/api/materias/:id` | HU03 | Actualiza una materia. |
-| DELETE | `/api/materias/:id` | HU03 | Archiva o elimina una materia. |
-| GET | `/api/materias/:id/unidades` | HU03 | Lista unidades de la materia. |
-| POST | `/api/materias/:id/unidades` | HU03 | Crea una unidad. |
-| PUT | `/api/unidades/:id` | HU03 | Actualiza una unidad. |
-| DELETE | `/api/unidades/:id` | HU03 | Elimina una unidad. |
+| GET | `/api/materias` | Autenticado | Lista las materias accesibles (propias, impartidas o con inscripción activa). |
+| GET | `/api/materias/estadisticas` | Autenticado | Contadores de materias accesibles. |
+| GET | `/api/materias/colores` | Autenticado | Colores disponibles. |
+| GET | `/api/materias/periodos` | Autenticado | Periodos académicos presentes en las materias accesibles. |
+| GET | `/api/materias/buscar` | Autenticado | Búsqueda rápida por nombre, código o docente. |
+| GET | `/api/materias/:id` | Autenticado | Detalle de una materia accesible. |
+| GET | `/api/materias/:id/acceso` | Autenticado | Verifica si el usuario tiene acceso a la materia. |
+| POST | `/api/materias` | `administrador` | Crea una materia. |
+| PATCH | `/api/materias/:id` | `administrador` | Actualiza una materia. |
+| PATCH | `/api/materias/:id/estado` | `administrador` | Activa o archiva una materia. |
+| GET | `/api/materias/:id/inscripciones` | `administrador`, `docente` | Lista inscripciones de la materia. |
+| POST | `/api/materias/:id/inscripciones` | `administrador`, `docente` | Inscribe o reactiva a un estudiante. |
+| DELETE | `/api/materias/:id/inscripciones/:usuarioId` | `administrador`, `docente` | Da de baja lógica a una inscripción. |
+
+> Las rutas `/api/materias/:id/unidades` y `/api/unidades/:id` no están implementadas: el modelo actual guarda el periodo como texto en la materia y no dispone de tabla `unidades`.
 
 **Filtros de `GET /api/materias`**
 
 | Parámetro | Tipo | Ejemplo |
 |---|---|---|
-| `periodo_id` | entero | `?periodo_id=1` |
-| `estado` | `activa` \| `archivada` | `?estado=activa` |
-| `q` | texto | `?q=calculo` |
-| `page`, `limit` | enteros | `?page=2&limit=10` |
+| `query` | texto 1–100 | `?query=calculo` |
+| `estado` | `activo` \| `archivado` | `?estado=activo` |
+| `periodo_academico` | texto | `?periodo_academico=2026-2` |
+| `limit` | entero 1–100 (por defecto 20) | `?limit=10` |
+| `offset` | entero ≥ 0 (por defecto 0) | `?offset=20` |
 
 **Body `POST /api/materias`**
 
 ```json
 {
-  "periodo_id": 1,
   "nombre": "Cálculo Diferencial",
   "codigo": "MAT-101",
   "docente": "Ing. Gómez",
+  "docente_id": "3f2b7e5c-1a4d-4c8e-9f10-2b6d8a7c9e01",
   "descripcion": "Límites, derivadas y aplicaciones.",
+  "periodo_academico": "2026-2",
   "color": "#2563eb"
 }
 ```
 
-**Validaciones**
+- `docente` es el nombre legible que se muestra al usuario; `docente_id` es el UUID del perfil con rol `docente` responsable. Si no se envía, el backend usa el del administrador que crea la materia.
+- `docente_id` permite al docente responsable gestionar inscripciones y tareas de la materia; la gestión de documentos depende de las reglas de propiedad y RLS descritas en §10.
+- `nombre`: obligatorio, 1–100 caracteres.
+- `codigo`: obligatorio, 1–20 caracteres, solo letras mayúsculas, números y guiones; único por usuario.
+- `docente`: obligatorio, 1–100 caracteres.
+- `color`: hexadecimal `#RRGGBB`, por defecto `#3B82F6`.
+- `periodo_academico`: obligatorio, formato `AAAA-S` (`1` o `2`).
 
-- `nombre`: obligatorio, 2–120 caracteres.
-- `codigo`: opcional, máximo 30 caracteres, único por usuario y periodo.
-- `color`: hexadecimal `#RRGGBB`.
-- `periodo_id`: debe pertenecer al usuario.
+### 6.1. Inscripciones por materia
+
+**Acceso.** Todas las rutas de `/api/materias/:id/inscripciones` están protegidas con `requireRole(administrador, docente)`. **Los estudiantes no pueden consultar ni modificar este recurso.** El administrador puede operar sobre cualquier materia; el docente solo si `materias.docente_id` coincide con su ID, en cuyo caso una materia ajena responde `404`.
+
+**`GET /api/materias/:id/inscripciones`**
+
+| Parámetro | Tipo | Regla |
+|---|---|---|
+| `limit` | entero | 1–100, por defecto 50. |
+| `offset` | entero | ≥ 0, por defecto 0. |
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": "c1d2e3f4-...",
+      "materia_id": "5c9f2a10-...",
+      "estudiante_id": "7a8b9c0d-...",
+      "usuario_id": "7a8b9c0d-...",
+      "estado": "activa",
+      "fecha_inscripcion": "2026-11-10T10:00:00.000Z",
+      "fecha_actualizacion": null,
+      "estudiante": { "id": "7a8b9c0d-...", "nombre": "Ana", "apellido": "Pérez", "correo": "ana@example.com" }
+    }
+  ],
+  "meta": { "total": 1, "limit": 50, "offset": 0 }
+}
+```
+
+- `usuario_id` se incluye como alias de `estudiante_id` para los clientes que esperan ese nombre.
+- Orden: `fecha_inscripcion` descendente.
+
+**`POST /api/materias/:id/inscripciones`**
+
+```json
+{ "usuario_id": "7a8b9c0d-4e5f-4a6b-8c9d-0e1f2a3b4c5d" }
+```
+
+- `usuario_id` es el UUID del estudiante y se valida con Zod; el ID de la materia se valida en `params`.
+- Si ya existe inscripción para la materia y el estudiante, se reactiva con `estado = 'activa'`; si no, se crea. Respuesta `201` con la inscripción.
+- No se acepta `estado` desde el cliente: el backend lo calcula.
+
+**`DELETE /api/materias/:id/inscripciones/:usuarioId`**
+
+- No elimina la fila: aplica baja lógica con `estado = 'inactiva'` para conservar el historial. Responde `200` con la inscripción actualizada.
+- Una inscripción inexistente responde `404`.
+
+**Estados de inscripción:** `activa` e `inactiva` (lista cerrada en la base de datos). Una inscripción `activa` es la que da acceso a materias, tareas, documentos y fragmentos.
 
 ## 7. Periodos académicos
 
@@ -246,16 +324,18 @@ Pendiente para HU02. Contrato previsto:
 
 ## 8. Tareas
 
-| Método | Endpoint | Historia | Descripción |
+| Método | Endpoint | Roles | Descripción |
 |---|---|---|---|
-| GET | `/api/tareas` | HU04 | Lista tareas con filtros y paginación. |
-| POST | `/api/tareas` | HU04 | Crea una tarea. |
-| GET | `/api/tareas/proximas` | HU04, HU06 | Tareas no completadas próximas a vencer. |
-| GET | `/api/tareas/estadisticas` | HU04 | Contadores por estado, prioridad y vencidas. |
-| GET | `/api/tareas/:id` | HU04 | Detalle. |
-| PUT | `/api/tareas/:id` | HU04 | Actualiza total o parcialmente. |
-| PATCH | `/api/tareas/:id/estado` | HU04 | Cambia solo el estado. |
-| DELETE | `/api/tareas/:id` | HU04 | Elimina. |
+| GET | `/api/tareas` | Autenticado | Lista tareas accesibles con filtros y paginación. |
+| GET | `/api/tareas/proximas` | Autenticado | Tareas no completadas próximas a vencer. |
+| GET | `/api/tareas/estadisticas` | Autenticado | Contadores por estado, prioridad y vencidas. |
+| GET | `/api/tareas/:id` | Autenticado | Detalle. |
+| POST | `/api/tareas` | `docente`, `administrador` | Crea una definición de tarea para una materia. |
+| PUT | `/api/tareas/:id` | `docente`, `administrador` | Actualiza total o parcialmente. |
+| PATCH | `/api/tareas/:id/estado` | Autenticado | Cambia solo el estado propio del estudiante. |
+| DELETE | `/api/tareas/:id` | `docente`, `administrador` | Elimina la definición. |
+
+> Un docente solo puede crear, actualizar o eliminar tareas de materias cuyo `docente_id` sea suyo; una materia ajena responde `404`. El administrador no hereda acceso automático a tareas privadas de otros usuarios.
 
 **Objeto `tarea`**
 
@@ -386,6 +466,15 @@ Una tarea cuenta como vencida cuando tiene `fecha_entrega` anterior a ahora y su
 - `DELETE /api/tareas/:id` responde `200` con `{ "id": "<uuid>" }`.
 - Al crear o actualizar una tarea con `fecha_entrega`, HU05 genera o sincroniza automáticamente un evento de calendario tipo `entrega` (ver §9).
 
+**Definición y estado personal**
+
+- Una tarea es una definición creada por un docente o administrador para una materia; no se copia por estudiante.
+- `docente_id` identifica al docente que creó la definición. En tareas heredadas del modelo anterior puede ser `null`.
+- `PATCH /api/tareas/:id/estado` guarda el estado **del estudiante autenticado** en `tarea_estados` con `onConflict: 'tarea_id,estudiante_id'`. La definición compartida solo se actualiza cuando quien cambia el estado es el creador de la tarea (`tareas.usuario_id`) y tiene permiso de gestión.
+- El repositorio expone `estado_definicion` con el estado original de la tarea y sobrescribe `estado` con el estado personal del estudiante cuando existe. Quien no tiene fila en `tarea_estados` ve el estado de la definición, que por defecto es `pendiente`.
+- `GET /api/tareas/estadisticas` usa el estado efectivo (`coalesce(tarea_estados.estado, tareas.estado)`) a través de la RPC `obtener_estadisticas_tareas`.
+- La visibilidad por RLS cubre al creador (`tareas.usuario_id`), al docente creador (`tareas.docente_id`) y a los estudiantes con inscripción `activa` en la materia cuando la tarea tiene `docente_id` asignado.
+
 ## 9. Calendario
 
 | Método | Endpoint | Historia | Descripción |
@@ -507,17 +596,19 @@ Parámetros `dias` (1–30, por defecto 7) y `limit` (1–50, por defecto 10). D
 
 ## 10. Documentos y biblioteca
 
-| Método | Endpoint | Historia | Descripción |
+| Método | Endpoint | Roles | Descripción |
 |---|---|---|---|
-| POST | `/api/documentos/url-carga` | HU07 | Devuelve URL prefirmada para subir a S3. |
-| POST | `/api/documentos` | HU07 | Registra metadatos tras la subida. |
-| GET | `/api/documentos` | HU08 | Lista documentos con filtros. |
-| GET | `/api/documentos/:id` | HU08 | Detalle del documento. |
-| GET | `/api/documentos/:id/descarga` | HU08 | URL prefirmada de descarga. |
-| DELETE | `/api/documentos/:id` | HU08 | Elimina el objeto S3 y los metadatos. |
-| POST | `/api/documentos/:id/procesar` | HU09 | Encola el procesamiento. |
-| GET | `/api/documentos/:id/estado` | HU09 | Estado del procesamiento. |
-| GET | `/api/documentos/buscar` | HU11 | Búsqueda semántica. |
+| POST | `/api/documentos/url-carga` | `docente`, `administrador` | Devuelve URL prefirmada para subir a S3. |
+| POST | `/api/documentos` | `docente`, `administrador` | Registra metadatos tras la subida. |
+| POST | `/api/documentos/:id/procesar` | `docente`, `administrador` | Encola el procesamiento. |
+| DELETE | `/api/documentos/:id` | `docente`, `administrador` | Elimina el objeto S3 y los metadatos. |
+| GET | `/api/documentos` | Autenticado | Lista documentos accesibles con filtros. |
+| GET | `/api/documentos/:id` | Autenticado | Detalle del documento. |
+| GET | `/api/documentos/:id/descarga` | Autenticado | URL prefirmada de descarga. |
+| GET | `/api/documentos/:id/estado` | Autenticado | Estado del procesamiento. |
+| GET | `/api/documentos/buscar` | Autenticado | Búsqueda semántica. |
+
+> La lectura alcanza a documentos propios, a los de materias impartidas por el docente, a los de materias con inscripción activa y a los visibles para un administrador según RLS. La gestión (carga, registro, procesamiento y borrado) está restringida a `docente` y `administrador`, pero el servicio exige además que la materia indicada exista y sea accesible para el usuario autenticado y que la clave `objectKey` esté bajo `usuarios/<usuario_id>/documentos/`.
 
 ### 10.1. Flujo de carga (HU07)
 
@@ -766,8 +857,9 @@ GET /api/documentos/buscar?q=derivadas%20de%20funciones&materia_id=6d1c2a53-4f7e
 }
 ```
 
-- Requiere la migración `supabase/migrations/0008_hu11_busqueda_semantica.sql` (RPC `match_fragmentos`).
-- Solo devuelve fragmentos de documentos del usuario autenticado; la RPC filtra por `auth.uid()` y se usa el cliente JWT, nunca `service_role`.
+- Requiere la RPC `match_fragmentos` definida en `supabase/migrations/0018_roles_docente_inscripciones.sql` (reescribe la versión de `0008`).
+- Firma actual: `match_fragmentos(vector(1536), double precision, integer, uuid, uuid)` con parámetros `query_embedding`, `match_threshold`, `match_count`, `p_documento_id` y `p_materia_id`; devuelve hasta `least(match_count, 20)` fragmentos.
+- La RPC filtra con `public.usuario_puede_leer_documento(d.id)`: fragmentos propios, de materias impartidas por el docente, de materias con inscripción activa o accesibles a un administrador. Se usa el cliente JWT, nunca `service_role`.
 - Umbral de similitud coseno: `0.55`, calibrado para `gemini-embedding-001`. Los resultados se ordenan de mayor a menor similitud.
 - Si no hay resultados con similitud suficiente, devuelve `data: []` y un mensaje orientativo en `meta.mensaje`.
 - Errores: `400` validación, `404` documento o materia ajena, `422` documento no procesado, `429` cuota agotada (`AI_QUOTA_EXCEEDED`, 50 búsquedas/día), `503` IA no configurada.
@@ -1668,39 +1760,73 @@ estar entre `5` y `10080`, `zona_horaria` debe ser una zona IANA válida e
   se conserva y el error solo se contabiliza.
 - La generación es determinista: no consume IA.
 
-## 14. Administración
+## 14. Administración de usuarios
 
-Todos requieren rol `administrador`.
+Todos requieren autenticación y rol `administrador`. El prefijo real es `/api/usuarios`; el router `/api/admin` existe pero todavía no expone endpoints.
 
 | Método | Endpoint | Descripción |
 |---|---|---|
-| GET | `/api/admin/usuarios` | Lista usuarios con búsqueda y paginación. |
-| GET | `/api/admin/usuarios/:id` | Detalle de un usuario. |
-| PATCH | `/api/admin/usuarios/:id/estado` | Activa o desactiva una cuenta. |
-| PATCH | `/api/admin/usuarios/:id/roles` | Asigna roles. |
-| GET | `/api/admin/estadisticas` | Métricas generales agregadas. |
-| GET | `/api/admin/auditoria` | Registro de operaciones administrativas. |
-| GET | `/api/admin/configuracion-ia` | Límites de IA por rol o usuario. |
-| PUT | `/api/admin/configuracion-ia` | Actualiza límites de IA. |
+| GET | `/api/usuarios` | Lista usuarios con búsqueda, paginación y estadísticas por rol. |
+| GET | `/api/usuarios/buscar` | Búsqueda rápida por nombre, apellido o correo. |
+| GET | `/api/usuarios/roles` | Catálogo de roles disponibles. |
+| GET | `/api/usuarios/:id` | Detalle de un usuario con sus roles. |
+| POST | `/api/usuarios` | Da de alta una cuenta con contraseña temporal. |
+| PATCH | `/api/usuarios/:id/roles` | Reemplaza los roles del usuario. |
+| PATCH | `/api/usuarios/:id/estado` | Activa o desactiva una cuenta. |
 
-**Body `PATCH /api/admin/usuarios/:id/estado`**
+**Filtros de `GET /api/usuarios`**
+
+| Parámetro | Tipo | Regla |
+|---|---|---|
+| `query` | texto | Opcional, 1–100 caracteres. |
+| `estado` | `activo` \| `inactivo` | Opcional. |
+| `rol` | `estudiante` \| `docente` \| `administrador` | Opcional. |
+| `limit` | entero | 1–100, por defecto 50. |
+| `offset` | entero | ≥ 0, por defecto 0. |
+
+La respuesta incluye `meta.paginacion` y `meta.estadisticas` con totales de `administradores`, `docentes`, `estudiantes`, `activos` e `inactivos`.
+
+**Body `POST /api/usuarios`**
+
+```json
+{
+  "nombre": "Ana",
+  "apellido": "Pérez",
+  "correo": "ana@example.com",
+  "carrera": "Ingeniería de Sistemas",
+  "rol": "docente",
+  "claveTemporal": "ClaveTemporal123!"
+}
+```
+
+- `rol` acepta solo `estudiante`, `docente` u `administrador`; `claveTemporal` tiene entre 8 y 72 caracteres.
+- La cuenta se crea en Supabase Auth con `email_confirm: true`. El trigger crea el perfil con el rol mínimo `estudiante`; el backend asigna el rol solicitado con `service_role` y marca `requiere_cambio_clave = true`. Los metadatos enviados por el cliente no otorgan roles.
+- La respuesta `201` devuelve `claveTemporal` **una sola vez**. Si falla la actualización del perfil o la asignación del rol, se elimina la cuenta recién creada.
+- El usuario debe usar `POST /api/auth/cambiar-clave` antes de acceder al resto de la API.
+
+**Body `PATCH /api/usuarios/:id/roles`**
+
+```json
+{ "roles": ["docente", "estudiante"] }
+```
+
+- Se aceptan entre 1 y 5 roles del catálogo; `administrador` no puede combinarse con otros roles.
+- Respuesta: `{ "success": true, "data": { "usuarioId", "roles", "mensaje" }, "meta": { "operacion" } }`.
+
+**Body `PATCH /api/usuarios/:id/estado`**
 
 ```json
 { "estado": "inactivo" }
 ```
 
-**Body `PATCH /api/admin/usuarios/:id/roles`**
-
-```json
-{ "roles": ["estudiante"] }
-```
+- Respuesta: `{ "success": true, "data": { "usuarioId", "estado", "mensaje" }, "meta": { "operacion" } }`.
 
 **Reglas**
 
-- Un administrador **no** puede desactivarse ni quitarse su propio rol.
-- El administrador **no** recibe acceso a documentos, conversaciones ni contenido privado de estudio.
-- Las estadísticas son agregadas; no incluyen texto de documentos.
-- Toda operación administrativa se registra en auditoría.
+- Un administrador **no** puede modificar sus propios roles ni estado: `noSelfModificationMiddleware` y el servicio lo rechazan con `403`.
+- No se puede desactivar ni quitar el rol a un administrador cuando sería el único del sistema.
+- El administrador **no** recibe acceso automático a conversaciones ni contenido privado de estudio; el acceso a documentos se rige por las reglas de propiedad, materia y RLS descritas en §10.
+- Un recurso de otro usuario responde `404`, no `403`.
 
 ## 15. Salud del servicio
 

@@ -92,23 +92,27 @@
 
                 <div class="col-md-6">
                   <div class="mb-3">
-                    <label for="docente" class="form-label">
+                    <label for="docente-id" class="form-label">
                       Docente <span class="text-danger">*</span>
                     </label>
-                    <input
-                      type="text"
-                      id="docente"
-                      class="form-control"
-                      formControlName="docente"
-                      placeholder="Ej: Dr. Juan Pérez"
-                      [class.is-invalid]="tieneError('docente', 'required')"
-                    />
-                    @if (tieneError('docente', 'required')) {
+                    <select
+                      id="docente-id"
+                      class="form-select"
+                      formControlName="docente_id"
+                      [disabled]="!esAdmin()"
+                      [class.is-invalid]="tieneError('docente_id', 'required')"
+                    >
+                      <option value="" disabled>Selecciona un docente</option>
+                      @for (docente of docentes(); track docente.id) {
+                        <option [value]="docente.id">{{ docente.nombre }}</option>
+                      }
+                    </select>
+                    @if (tieneError('docente_id', 'required')) {
                       <div class="invalid-feedback">
-                        {{ obtenerMensajeError('docente') }}
+                        {{ obtenerMensajeError('docente_id') }}
                       </div>
                     }
-                    <div class="form-text">Nombre del docente responsable</div>
+                    <div class="form-text">Docente responsable de la materia</div>
                   </div>
                 </div>
               </div>
@@ -168,7 +172,7 @@
                   </div>
                 }
                 <div class="form-text">
-                  Máximo 500 caracteres. {{ form.get('descripcion')?.value?.length || 0 }}/500
+                  Máximo 500 caracteres. {{ form.controls.descripcion.value.length }}/500
                 </div>
               </div>
             </div>
@@ -233,28 +237,28 @@
                 <span class="form-label d-block">Vista previa</span>
                 <div
                   class="preview-card"
-                  [style.background-color]="(form.get('color')?.value || '#3B82F6') + '1f'"
-                  [style.border-left]="'4px solid ' + (form.get('color')?.value || '#3B82F6')"
+                  [style.background-color]="(form.controls.color.value || '#3B82F6') + '1f'"
+                  [style.border-left]="'4px solid ' + (form.controls.color.value || '#3B82F6')"
                 >
                   <div class="d-flex align-items-center gap-3">
                     <div
                       class="preview-avatar"
-                      [style.background-color]="form.get('color')?.value || '#3B82F6'"
-                      [style.color]="obtenerColorTexto(form.get('color')?.value || '#3B82F6')"
+                      [style.background-color]="form.controls.color.value || '#3B82F6'"
+                      [style.color]="obtenerColorTexto(form.controls.color.value || '#3B82F6')"
                     >
-                      @if (form.get('nombre')?.value) {
-                        {{ form.get('nombre')?.value?.substring(0, 2)?.toUpperCase() }}
+                      @if (form.controls.nombre.value) {
+                        {{ form.controls.nombre.value.substring(0, 2).toUpperCase() }}
                       } @else {
                         <i class="bi bi-book" aria-hidden="true"></i>
                       }
                     </div>
                     <div class="min-width-0">
                       <div class="preview-name">
-                        {{ form.get('nombre')?.value || 'Nombre de la materia' }}
+                        {{ form.controls.nombre.value || 'Nombre de la materia' }}
                       </div>
                       <div class="preview-meta">
-                        {{ form.get('codigo')?.value || 'CÓDIGO' }} •
-                        {{ form.get('docente')?.value || 'Docente' }}
+                        {{ form.controls.codigo.value || 'CÓDIGO' }} •
+                        {{ nombreDocente() || 'Docente' }}
                       </div>
                     </div>
                   </div>

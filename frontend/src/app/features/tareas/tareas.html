@@ -10,13 +10,15 @@
         </p>
       </div>
 
-      <button type="button" class="btn-cta" routerLink="/tareas/nueva">
-        <span class="btn-cta-icon" aria-hidden="true"><i class="bi bi-plus-lg"></i></span>
-        <span class="btn-cta-copy">
-          <strong>Nueva tarea</strong>
-          <small>Registra una actividad</small>
-        </span>
-      </button>
+      @if (puedeGestionar()) {
+        <button type="button" class="btn-cta" routerLink="/tareas/nueva">
+          <span class="btn-cta-icon" aria-hidden="true"><i class="bi bi-plus-lg"></i></span>
+          <span class="btn-cta-copy">
+            <strong>Nueva tarea</strong>
+            <small>Registra una actividad</small>
+          </span>
+        </button>
+      }
     </div>
   </header>
 
@@ -269,10 +271,12 @@
           Comienza registrando tu primera tarea académica.
         }
       </p>
-      <button type="button" class="btn btn-primary" routerLink="/tareas/nueva">
-        <i class="bi bi-plus-lg me-1" aria-hidden="true"></i>
-        Registrar primera tarea
-      </button>
+      @if (puedeGestionar()) {
+        <button type="button" class="btn btn-primary" routerLink="/tareas/nueva">
+          <i class="bi bi-plus-lg me-1" aria-hidden="true"></i>
+          Registrar primera tarea
+        </button>
+      }
     </div>
   }
 
@@ -406,23 +410,45 @@
                   }
                 </div>
 
-                <div class="d-flex gap-2">
-                  <a
-                    class="btn btn-sm btn-outline-primary"
-                    [routerLink]="['/tareas', tarea.id, 'editar']"
-                    [attr.aria-label]="'Editar tarea ' + tarea.titulo"
-                  >
-                    <i class="bi bi-pencil" aria-hidden="true"></i>
-                  </a>
-                  <button
-                    type="button"
-                    class="btn btn-sm btn-outline-danger"
-                    [attr.aria-label]="'Eliminar tarea ' + tarea.titulo"
-                    (click)="eliminarTarea(tarea)"
-                  >
-                    <i class="bi bi-trash" aria-hidden="true"></i>
-                  </button>
-                </div>
+                @if (puedeGestionar()) {
+                  <div class="d-flex flex-wrap gap-2 align-items-center">
+                    @if (tareaAEliminar()?.id === tarea.id) {
+                      <span class="small text-danger" role="alert">¿Eliminar esta tarea?</span>
+                      <button
+                        type="button"
+                        class="btn btn-sm btn-danger"
+                        (click)="eliminarTarea(tarea)"
+                        [attr.aria-label]="'Confirmar eliminación de ' + tarea.titulo"
+                      >
+                        Confirmar
+                      </button>
+                      <button
+                        type="button"
+                        class="btn btn-sm btn-outline-secondary"
+                        (click)="cancelarEliminacion()"
+                        aria-label="Cancelar eliminación"
+                      >
+                        Cancelar
+                      </button>
+                    } @else {
+                      <a
+                        class="btn btn-sm btn-outline-primary"
+                        [routerLink]="['/tareas', tarea.id, 'editar']"
+                        [attr.aria-label]="'Editar tarea ' + tarea.titulo"
+                      >
+                        <i class="bi bi-pencil" aria-hidden="true"></i>
+                      </a>
+                      <button
+                        type="button"
+                        class="btn btn-sm btn-outline-danger"
+                        [attr.aria-label]="'Eliminar tarea ' + tarea.titulo"
+                        (click)="eliminarTarea(tarea)"
+                      >
+                        <i class="bi bi-trash" aria-hidden="true"></i>
+                      </button>
+                    }
+                  </div>
+                }
               </div>
             </div>
           </article>

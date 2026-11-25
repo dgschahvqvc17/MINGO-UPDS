@@ -55,8 +55,23 @@ function createSupabaseServiceRoleClient() {
   return supabaseAdmin;
 }
 
+/**
+ * Crea un cliente anonimo sin sesion persistida. Se usa solo para verificar
+ * credenciales sin contaminar la sesion del cliente service_role compartido.
+ *
+ * @returns {import('@supabase/supabase-js').SupabaseClient}
+ */
+function createSupabaseAnonClient() {
+  if (!config.supabase.url || !config.supabase.anonKey) {
+    throw new Error('Supabase no esta configurado (SUPABASE_URL / SUPABASE_ANON_KEY).');
+  }
+
+  return createClient(config.supabase.url, config.supabase.anonKey, createClientOptions);
+}
+
 module.exports = { 
   supabaseAdmin, 
   createSupabaseClient,
-  createSupabaseServiceRoleClient 
+  createSupabaseServiceRoleClient,
+  createSupabaseAnonClient,
 };

@@ -1,8 +1,11 @@
 const { Router } = require('express');
 const authMiddleware = require('../middlewares/auth.middleware');
+const { requireRole } = require('../middlewares/roles.middleware');
 const validationMiddleware = require('../middlewares/validation.middleware');
 const asyncHandler = require('../utils/asyncHandler');
 const { createMateriaService } = require('../container');
+const inscripcionRoutes = require('./inscripcion.routes');
+const { ROLE_ADMINISTRADOR } = require('../models/roles.model');
 
 const {
   materiaBusquedaSchema,
@@ -26,12 +29,15 @@ router.use(authMiddleware);
 router.use((req, _res, next) => {
   try {
     // Crear servicio con el cliente del usuario para que RLS se aplique.
-    req.materiaService = createMateriaService(req.user.id, req.accessToken);
+    req.materiaService = createMateriaService(req.user.id, req.accessToken, req.user.role);
     next();
   } catch (error) {
     next(error);
   }
 });
+
+/** Gestión de inscripciones: admins y docente responsable. */
+router.use('/:materiaId/inscripciones', inscripcionRoutes);
 
 /**
  * GET /materias
@@ -113,6 +119,7 @@ router.get(
  */
 router.post(
   '/',
+  requireRole(ROLE_ADMINISTRADOR),
   validationMiddleware({ body: materiaCrearSchema }),
   asyncHandler(async (req, res) => {
     const controller = new (require('../controllers/materia.controller'))(req.materiaService);
@@ -126,6 +133,7 @@ router.post(
  */
 router.patch(
   '/:id',
+  requireRole(ROLE_ADMINISTRADOR),
   validationMiddleware({ params: materiaIdParamSchema }),
   validationMiddleware({ body: materiaActualizarSchema }),
   asyncHandler(async (req, res) => {
@@ -140,6 +148,7 @@ router.patch(
  */
 router.patch(
   '/:id/estado',
+  requireRole(ROLE_ADMINISTRADOR),
   validationMiddleware({ params: materiaIdParamSchema }),
   validationMiddleware({ body: materiaCambiarEstadoSchema }),
   asyncHandler(async (req, res) => {

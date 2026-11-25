@@ -20,7 +20,10 @@ import {
   type PaginacionDocumentos,
 } from '../../core/services/documento.service';
 import { MateriaService, type Materia } from '../../core/services/materia.service';
+import { AuthService } from '../../core/services/auth.service';
+import { ROLES_GESTION_ACADEMICA } from '../../core/models/dominio.models';
 import { mensajeDeErrorHttp } from '../../core/utils/http-error';
+import { valorDeCampo } from '../../core/utils/form-event';
 import { BusquedaSemanticaComponent } from './components/busqueda-semantica/busqueda-semantica';
 import { DocumentoCardComponent } from './components/documento-card/documento-card';
 import { DocumentoUploadComponent } from './components/documento-upload/documento-upload';
@@ -52,6 +55,7 @@ const PAGINACION_INICIAL: PaginacionDocumentos = {
 export class BibliotecaPage {
   private readonly documentoService = inject(DocumentoService);
   private readonly materiaService = inject(MateriaService);
+  private readonly authService = inject(AuthService);
   private readonly route = inject(ActivatedRoute);
   private readonly destroyRef = inject(DestroyRef);
 
@@ -71,11 +75,16 @@ export class BibliotecaPage {
   readonly materiaFiltro = signal('');
   readonly estadoFiltro = signal<EstadoDocumento | ''>('');
   readonly terminoBusqueda = signal('');
+  readonly valorCampo = valorDeCampo;
   readonly descargandoId = signal<string | null>(null);
   readonly eliminandoId = signal<string | null>(null);
   readonly procesandoId = signal<string | null>(null);
 
   readonly estados = ESTADOS_DOCUMENTO;
+
+  readonly puedeGestionar = computed(() =>
+    ROLES_GESTION_ACADEMICA.includes(this.authService.role() as (typeof ROLES_GESTION_ACADEMICA)[number]),
+  );
 
   readonly materiasDisponibles = computed(() =>
     this.materias().filter((materia) => materia.estado === 'activo'),
@@ -89,6 +98,7 @@ export class BibliotecaPage {
   );
 
   readonly sinMaterias = computed(() => !this.loading() && this.materiasDisponibles().length === 0);
+  readonly mostrarAvisoSinMaterias = computed(() => this.puedeGestionar() && this.sinMaterias());
 
   readonly hayFiltrosActivos = computed(
     () =>
@@ -129,7 +139,7 @@ export class BibliotecaPage {
       this.materiaFiltro.set(materiaId);
     }
 
-    if (this.route.snapshot.queryParamMap.get('subir') === '1') {
+    if (this.puedeGestionar() && this.route.snapshot.queryParamMap.get('subir') === '1') {
       this.mostrarFormulario.set(true);
     }
 
@@ -243,7 +253,7 @@ export class BibliotecaPage {
   }
 
   eliminar(documento: Documento): void {
-    if (this.eliminandoId()) {
+    if (!this.puedeGestionar() || this.eliminandoId()) {
       return;
     }
 
@@ -283,6 +293,7 @@ export class BibliotecaPage {
 
   procesar(documento: Documento): void {
     if (
+      !this.puedeGestionar() ||
       this.procesandoId() ||
       !this.documentoService.puedeProcesar(documento.estado_procesamiento)
     ) {
@@ -315,6 +326,10 @@ export class BibliotecaPage {
   }
 
   abrirFormulario(): void {
+    if (!this.puedeGestionar()) {
+      return;
+    }
+
     this.mensajeExito.set(null);
     this.mostrarFormulario.set(true);
   }

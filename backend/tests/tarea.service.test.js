@@ -3,6 +3,7 @@ const ApiError = require('../src/utils/ApiError');
 const TareaService = require('../src/services/tarea.service');
 
 const USUARIO_ID = '3f2b7e5c-1a4d-4c8e-9f10-2b6d8a7c9e01';
+const OTRO_USUARIO_ID = 'a1b2c3d4-5e6f-4a7b-8c9d-0e1f2a3b4c5d';
 const MATERIA_ID = '6d1c2a53-4f7e-4b8a-9c1d-2e3f4a5b6c7d';
 const TAREA_ID = '9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d';
 
@@ -19,12 +20,13 @@ describe('TareaService', () => {
       crearTarea: j.fn(),
       actualizarTarea: j.fn(),
       cambiarEstadoTarea: j.fn(),
+      guardarEstadoEstudiante: j.fn().mockResolvedValue({ estado: 'pendiente' }),
       eliminarTarea: j.fn(),
       obtenerEstadisticas: j.fn(),
     };
 
     materiaRepository = {
-      existeMateria: j.fn(),
+      obtenerMateriaPorId: j.fn(),
     };
 
     service = new TareaService({
@@ -85,21 +87,24 @@ describe('TareaService', () => {
     };
 
     it('rechaza una materia que no pertenece al usuario y no crea la tarea', async () => {
-      materiaRepository.existeMateria.mockResolvedValue(false);
+      materiaRepository.obtenerMateriaPorId.mockResolvedValue(null);
 
       await expect(service.crearTarea(datosBase)).rejects.toBeInstanceOf(ApiError);
       expect(tareaRepository.crearTarea).not.toHaveBeenCalled();
     });
 
     it('crea la tarea con fecha de asignación por defecto y entrega nula', async () => {
-      materiaRepository.existeMateria.mockResolvedValue(true);
+      materiaRepository.obtenerMateriaPorId.mockResolvedValue({
+        id: MATERIA_ID,
+        docente_id: USUARIO_ID,
+      });
       tareaRepository.crearTarea.mockImplementation((_usuarioId, datos) =>
         Promise.resolve({ id: TAREA_ID, ...datos }),
       );
 
       const tarea = await service.crearTarea(datosBase);
 
-      expect(materiaRepository.existeMateria).toHaveBeenCalledWith(USUARIO_ID, MATERIA_ID);
+      expect(materiaRepository.obtenerMateriaPorId).toHaveBeenCalledWith(USUARIO_ID, MATERIA_ID);
       expect(tarea.fecha_asignacion).toBeInstanceOf(Date);
       expect(tarea.fecha_entrega).toBeNull();
       expect(tarea.estado).toBe('pendiente');
@@ -107,7 +112,10 @@ describe('TareaService', () => {
     });
 
     it('registra una actividad vencida sin fecha de asignación de forma coherente', async () => {
-      materiaRepository.existeMateria.mockResolvedValue(true);
+      materiaRepository.obtenerMateriaPorId.mockResolvedValue({
+        id: MATERIA_ID,
+        docente_id: USUARIO_ID,
+      });
       tareaRepository.crearTarea.mockImplementation((_usuarioId, datos) =>
         Promise.resolve({ id: TAREA_ID, ...datos }),
       );
@@ -154,7 +162,7 @@ describe('TareaService', () => {
         fecha_asignacion: '2026-11-10T10:00:00.000Z',
         fecha_entrega: null,
       });
-      materiaRepository.existeMateria.mockResolvedValue(false);
+      materiaRepository.obtenerMateriaPorId.mockResolvedValue(null);
 
       await expect(
         service.actualizarTarea(TAREA_ID, { materia_id: nuevaMateria }),
@@ -177,7 +185,10 @@ describe('TareaService', () => {
     });
 
     it('crea el evento cuando la tarea se crea con fecha de entrega', async () => {
-      materiaRepository.existeMateria.mockResolvedValue(true);
+      materiaRepository.obtenerMateriaPorId.mockResolvedValue({
+        id: MATERIA_ID,
+        docente_id: USUARIO_ID,
+      });
       tareaRepository.crearTarea.mockResolvedValue({ id: TAREA_ID });
 
       await servicioConCalendario.crearTarea({
@@ -190,7 +201,10 @@ describe('TareaService', () => {
     });
 
     it('no llama al calendario cuando la tarea se crea sin fecha de entrega', async () => {
-      materiaRepository.existeMateria.mockResolvedValue(true);
+      materiaRepository.obtenerMateriaPorId.mockResolvedValue({
+        id: MATERIA_ID,
+        docente_id: USUARIO_ID,
+      });
       tareaRepository.crearTarea.mockResolvedValue({ id: TAREA_ID });
 
       await servicioConCalendario.crearTarea({
@@ -216,7 +230,10 @@ describe('TareaService', () => {
     });
 
     it('devuelve la tarea aunque falle la sincronización con el calendario', async () => {
-      materiaRepository.existeMateria.mockResolvedValue(true);
+      materiaRepository.obtenerMateriaPorId.mockResolvedValue({
+        id: MATERIA_ID,
+        docente_id: USUARIO_ID,
+      });
       tareaRepository.crearTarea.mockResolvedValue({ id: TAREA_ID });
       calendarioService.crearEventoDesdeTarea.mockRejectedValue(new Error('RPC no disponible'));
 
@@ -231,20 +248,48 @@ describe('TareaService', () => {
   });
 
   describe('cambiarEstadoTarea', () => {
-    it('lanza 404 cuando el repositorio no encuentra la tarea', async () => {
-      tareaRepository.cambiarEstadoTarea.mockResolvedValue(null);
+    it('lanza 404 cuando la tarea no existe o no es accesible', async () => {
+      tareaRepository.obtenerTareaPorId.mockResolvedValue(null);
 
       await expect(service.cambiarEstadoTarea(TAREA_ID, 'completada')).rejects.toMatchObject({
         statusCode: 404,
       });
+      expect(tareaRepository.guardarEstadoEstudiante).not.toHaveBeenCalled();
     });
 
-    it('devuelve la tarea actualizada', async () => {
-      tareaRepository.cambiarEstadoTarea.mockResolvedValue({ id: TAREA_ID, estado: 'completada' });
+    it('guarda el estado personal y devuelve la tarea actualizada', async () => {
+      tareaRepository.obtenerTareaPorId.mockResolvedValue({
+        id: TAREA_ID,
+        usuario_id: OTRO_USUARIO_ID,
+        docente_id: OTRO_USUARIO_ID,
+        estado: 'pendiente',
+      });
 
       const tarea = await service.cambiarEstadoTarea(TAREA_ID, 'completada');
 
+      expect(tareaRepository.guardarEstadoEstudiante).toHaveBeenCalledWith({
+        tareaId: TAREA_ID,
+        estudianteId: USUARIO_ID,
+        estado: 'completada',
+      });
       expect(tarea.estado).toBe('completada');
+    });
+
+    it('actualiza también la definición cuando la gestiona su responsable', async () => {
+      tareaRepository.obtenerTareaPorId.mockResolvedValue({
+        id: TAREA_ID,
+        usuario_id: USUARIO_ID,
+        docente_id: USUARIO_ID,
+        estado: 'pendiente',
+      });
+
+      await service.cambiarEstadoTarea(TAREA_ID, 'completada');
+
+      expect(tareaRepository.cambiarEstadoTarea).toHaveBeenCalledWith(
+        USUARIO_ID,
+        TAREA_ID,
+        'completada',
+      );
     });
   });
 

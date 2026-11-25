@@ -9,22 +9,24 @@
         </p>
       </div>
 
-      <button
-        type="button"
-        class="btn-cta"
-        (click)="abrirFormulario()"
-        [disabled]="sinMaterias() || mostrarFormulario()"
-      >
-        <span class="btn-cta-icon" aria-hidden="true"><i class="bi bi-cloud-arrow-up"></i></span>
-        <span class="btn-cta-copy">
-          <strong>Subir documento</strong>
-          <small>PDF, Word, PowerPoint o TXT</small>
-        </span>
-      </button>
+      @if (puedeGestionar()) {
+        <button
+          type="button"
+          class="btn-cta"
+          (click)="abrirFormulario()"
+          [disabled]="sinMaterias() || mostrarFormulario()"
+        >
+          <span class="btn-cta-icon" aria-hidden="true"><i class="bi bi-cloud-arrow-up"></i></span>
+          <span class="btn-cta-copy">
+            <strong>Subir documento</strong>
+            <small>PDF, Word, PowerPoint o TXT</small>
+          </span>
+        </button>
+      }
     </div>
   </header>
 
-  @if (sinMaterias()) {
+  @if (mostrarAvisoSinMaterias()) {
     <div class="alert alert-info d-flex flex-wrap align-items-center gap-2" role="status">
       <i class="bi bi-info-circle-fill" aria-hidden="true"></i>
       <span class="flex-grow-1">
@@ -97,7 +99,7 @@
           id="filtro-materia-doc"
           class="form-select"
           [value]="materiaFiltro()"
-          (change)="cambiarMateria($any($event.target).value)"
+          (change)="cambiarMateria(valorCampo($event))"
         >
           <option value="">Todas las materias</option>
           @for (materia of materiasDisponibles(); track materia.id) {
@@ -115,7 +117,7 @@
           id="filtro-estado-doc"
           class="form-select"
           [value]="estadoFiltro()"
-          (change)="alCambiarEstado($any($event.target).value)"
+          (change)="alCambiarEstado(valorCampo($event))"
         >
           <option value="">Todos los estados</option>
           @for (estado of estados; track estado) {
@@ -136,7 +138,7 @@
           placeholder="Ej. Cálculo diferencial"
           autocomplete="off"
           [value]="terminoBusqueda()"
-          (input)="alBuscar($any($event.target).value)"
+          (input)="alBuscar(valorCampo($event))"
         />
       </div>
     </div>
@@ -168,8 +170,10 @@
       <p class="text-muted-soft mb-0">
         @if (hayFiltrosActivos()) {
           Ningún documento coincide con los filtros aplicados. Prueba con otro término o límpialos.
-        } @else {
+        } @else if (puedeGestionar()) {
           Sube tu primer documento para empezar tu biblioteca académica.
+        } @else {
+          Aún no hay documentos disponibles para tus materias inscritas.
         }
       </p>
       @if (hayFiltrosActivos()) {
@@ -186,6 +190,7 @@
         <div class="col-12 col-md-6 col-xl-4">
           <app-documento-card
             [documento]="documento"
+            [puedeGestionar]="puedeGestionar()"
             [descargando]="descargandoId() === documento.id"
             [eliminando]="eliminandoId() === documento.id"
             [procesando]="procesandoId() === documento.id"

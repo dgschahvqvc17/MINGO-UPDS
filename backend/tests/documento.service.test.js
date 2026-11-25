@@ -42,7 +42,7 @@ describe('DocumentoService', () => {
     };
 
     materiaRepository = {
-      existeMateria: j.fn().mockResolvedValue(true),
+      obtenerMateriaPorId: j.fn().mockResolvedValue({ id: MATERIA_ID, docente_id: USUARIO_ID }),
     };
 
     almacenamientoRepository = {
@@ -77,7 +77,7 @@ describe('DocumentoService', () => {
     it('devuelve la URL firmada y una clave bajo la carpeta del usuario', async () => {
       const resultado = await service.solicitarUrlCarga(DATOS_URL_CARGA);
 
-      expect(materiaRepository.existeMateria).toHaveBeenCalledWith(USUARIO_ID, MATERIA_ID);
+      expect(materiaRepository.obtenerMateriaPorId).toHaveBeenCalledWith(USUARIO_ID, MATERIA_ID);
       expect(resultado.uploadUrl).toBe('https://s3.example.com/firmada');
       expect(resultado.objectKey).toMatch(
         new RegExp(`^usuarios/${USUARIO_ID}/documentos/[0-9a-f-]{36}/calculo\\.pdf$`),
@@ -87,7 +87,7 @@ describe('DocumentoService', () => {
     });
 
     it('responde 404 cuando la materia no existe o es de otro usuario', async () => {
-      materiaRepository.existeMateria.mockResolvedValue(false);
+      materiaRepository.obtenerMateriaPorId.mockResolvedValue(null);
 
       await expect(service.solicitarUrlCarga(DATOS_URL_CARGA)).rejects.toMatchObject({
         statusCode: 404,
@@ -176,7 +176,7 @@ describe('DocumentoService', () => {
     });
 
     it('responde 404 cuando la materia no pertenece al usuario', async () => {
-      materiaRepository.existeMateria.mockResolvedValue(false);
+      materiaRepository.obtenerMateriaPorId.mockResolvedValue(null);
 
       await expect(service.registrarDocumento(DATOS_REGISTRO)).rejects.toMatchObject({
         statusCode: 404,

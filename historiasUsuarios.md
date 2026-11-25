@@ -9,6 +9,23 @@
 
 ---
 
+## Nota de implementación vigente (roles docente, inscripciones y permisos)
+
+Las historias de esta sección describen el alcance original. La implementación actual de la rama `feature/roles-docente-inscripciones` incorpora lo siguiente, según el código y la migración `0018_roles_docente_inscripciones.sql`:
+
+- Los roles vigentes son `estudiante`, `docente` y `administrador`, con precedencia `administrador > docente > estudiante`. Una cuenta sin roles válidos conserva `estudiante`.
+- Las cuentas creadas por un administrador usan contraseña temporal (`requiere_cambio_clave = true`) y deben llamar a `POST /api/auth/cambiar-clave` antes de usar el resto de la API.
+- HU02: la administración de usuarios está en `/api/usuarios`. Un administrador no puede modificar sus propios roles ni estado, ni dejar al único administrador sin rol o inactivo.
+- HU03: un administrador crea, actualiza y archiva materias. `materias.docente_id` designa al docente responsable; las materias visibles incluyen las propias, las impartidas y las que tienen inscripción activa.
+- Inscripciones por materia: `GET`, `POST` y `DELETE` en `/api/materias/:id/inscripciones` requieren `administrador` o `docente`. El docente solo opera sobre materias cuyo `docente_id` sea suyo; los estados son `activa` e `inactiva` y la baja es lógica.
+- HU04: crear, actualizar y eliminar tareas requiere `docente` o `administrador`. El cambio de estado por un estudiante autenticado se guarda en `tarea_estados`, sin modificar la definición compartida.
+- HU07 y HU08: la carga, el registro, el procesamiento y el borrado de documentos requieren `docente` o `administrador`; la lectura depende de propiedad, materia y RLS.
+- Los artefactos de IA derivados de documentos (resúmenes, conversaciones, cuestionarios, tarjetas y planes) siguen siendo privados de quien los genera.
+
+No se documenta aquí la validación final del frontend, que queda pendiente.
+
+---
+
 # 1. Objetivo general del proyecto
 
 Desarrollar una plataforma web académica inteligente que permita a los estudiantes universitarios organizar sus materias, tareas, evaluaciones y materiales de estudio, incorporando un agente de inteligencia artificial capaz de analizar documentos, responder consultas, generar recursos de aprendizaje y proporcionar acompañamiento académico personalizado.

@@ -11,11 +11,17 @@
           </p>
         </div>
         
-        <div class="admin-badge">
-          <span class="role-badge role-administrador">
-            <i class="bi bi-shield-check me-1"></i>
-            Administrador
-          </span>
+        <div class="d-flex flex-column flex-sm-row align-items-sm-center gap-2">
+          <div class="admin-badge">
+            <span class="role-badge role-administrador">
+              <i class="bi bi-shield-check me-1"></i>
+              Administrador
+            </span>
+          </div>
+          <button type="button" class="btn btn-primary" (click)="abrirAlta()">
+            <i class="bi bi-person-plus me-1" aria-hidden="true"></i>
+            Dar de alta usuario
+          </button>
         </div>
       </div>
 
@@ -56,6 +62,14 @@
         <div class="col-6 col-md">
           <div class="app-card text-center h-100">
             <div class="card-body py-3">
+              <div class="h3 fw-bold text-primary">{{ estadisticas().docentes }}</div>
+              <small class="text-muted">Docentes</small>
+            </div>
+          </div>
+        </div>
+        <div class="col-6 col-md">
+          <div class="app-card text-center h-100">
+            <div class="card-body py-3">
               <div class="h3 fw-bold text-info">{{ estadisticas().estudiantes }}</div>
               <small class="text-muted">Estudiantes</small>
             </div>
@@ -63,6 +77,152 @@
         </div>
       </div>
     </header>
+
+    <!-- Alta de usuarios con clave temporal -->
+    @if (mostrarAlta()) {
+      <section class="mb-4" aria-labelledby="alta-usuario-title">
+        <app-card>
+          <div class="card-body">
+            <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
+              <div>
+                <h2 id="alta-usuario-title" class="h5 fw-semibold mb-1">Nuevo usuario</h2>
+                <p class="text-muted small mb-0">
+                  La clave temporal se muestra una sola vez después de crear la cuenta.
+                </p>
+              </div>
+              <button
+                type="button"
+                class="btn-icon"
+                aria-label="Cerrar formulario de alta"
+                (click)="cerrarAlta()"
+              >
+                <i class="bi bi-x-lg" aria-hidden="true"></i>
+              </button>
+            </div>
+
+            @if (claveTemporal(); as clave) {
+              <div class="alert alert-success" role="status">
+                <strong>Usuario creado.</strong> Copia la clave temporal y entréguela al usuario;
+                no volverá a mostrarse.
+                <div class="mt-2">
+                  <code class="user-select-all">{{ clave }}</code>
+                </div>
+                <button
+                  type="button"
+                  class="btn btn-sm btn-outline-success mt-2"
+                  (click)="descartarClaveTemporal()"
+                >
+                  Ya la copié
+                </button>
+              </div>
+            }
+
+            @if (errorCreacion()) {
+              <div class="alert alert-danger" role="alert">{{ errorCreacion() }}</div>
+            }
+
+            <form [formGroup]="crearForm" (ngSubmit)="crearUsuario()" novalidate>
+              <div class="row g-3">
+                <div class="col-md-6 col-lg-3">
+                  <label for="nuevo-nombre" class="form-label">Nombre</label>
+                  <input
+                    id="nuevo-nombre"
+                    type="text"
+                    class="form-control"
+                    formControlName="nombre"
+                    [class.is-invalid]="tieneErrorCreacion('nombre', 'required')"
+                  />
+                  @if (tieneErrorCreacion('nombre', 'required')) {
+                    <div class="invalid-feedback" role="alert">El nombre es obligatorio.</div>
+                  }
+                </div>
+
+                <div class="col-md-6 col-lg-3">
+                  <label for="nuevo-apellido" class="form-label">Apellido</label>
+                  <input
+                    id="nuevo-apellido"
+                    type="text"
+                    class="form-control"
+                    formControlName="apellido"
+                    [class.is-invalid]="tieneErrorCreacion('apellido', 'required')"
+                  />
+                  @if (tieneErrorCreacion('apellido', 'required')) {
+                    <div class="invalid-feedback" role="alert">El apellido es obligatorio.</div>
+                  }
+                </div>
+
+                <div class="col-md-6 col-lg-3">
+                  <label for="nuevo-correo" class="form-label">Correo</label>
+                  <input
+                    id="nuevo-correo"
+                    type="email"
+                    class="form-control"
+                    formControlName="correo"
+                    [class.is-invalid]="tieneErrorCreacion('correo', 'required') || tieneErrorCreacion('correo', 'email')"
+                  />
+                  @if (tieneErrorCreacion('correo', 'required')) {
+                    <div class="invalid-feedback" role="alert">El correo es obligatorio.</div>
+                  } @else if (tieneErrorCreacion('correo', 'email')) {
+                    <div class="invalid-feedback" role="alert">Ingresa un correo válido.</div>
+                  }
+                </div>
+
+                <div class="col-md-6 col-lg-3">
+                  <label for="nuevo-rol" class="form-label">Rol</label>
+                  <select id="nuevo-rol" class="form-select" formControlName="rol">
+                    @for (rol of rolesDisponibles; track rol) {
+                      <option [value]="rol">{{ etiquetaRol(rol) }}</option>
+                    }
+                  </select>
+                </div>
+
+                <div class="col-md-6">
+                  <label for="nueva-carrera" class="form-label">Carrera (opcional)</label>
+                  <input
+                    id="nueva-carrera"
+                    type="text"
+                    class="form-control"
+                    formControlName="carrera"
+                  />
+                </div>
+
+                <div class="col-md-6">
+                  <label for="nueva-clave" class="form-label">Clave temporal</label>
+                  <input
+                    id="nueva-clave"
+                    type="text"
+                    class="form-control"
+                    formControlName="claveTemporal"
+                    autocomplete="off"
+                    [class.is-invalid]="tieneErrorCreacion('claveTemporal', 'minlength')"
+                    aria-describedby="nueva-clave-ayuda"
+                  />
+                  <div id="nueva-clave-ayuda" class="form-text">Mínimo 8 caracteres.</div>
+                  @if (tieneErrorCreacion('claveTemporal', 'minlength')) {
+                    <div class="invalid-feedback" role="alert">La clave debe tener al menos 8 caracteres.</div>
+                  }
+                </div>
+
+                <div class="col-12 d-flex gap-2">
+                  <button type="submit" class="btn btn-primary" [disabled]="creando()">
+                    @if (creando()) {
+                      <span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
+                      Creando...
+                    } @else {
+                      <i class="bi bi-person-plus me-1" aria-hidden="true"></i>
+                      Crear usuario
+                    }
+                  </button>
+                  <button type="button" class="btn btn-outline-secondary" (click)="cerrarAlta()">
+                    Cancelar
+                  </button>
+                </div>
+              </div>
+            </form>
+          </div>
+        </app-card>
+      </section>
+    }
 
     <!-- Filtros de búsqueda -->
     <section class="mb-4" aria-labelledby="filtros-title">
@@ -111,6 +271,7 @@
               >
                 <option value="todos">Todos los roles</option>
                 <option value="administrador">Administradores</option>
+                <option value="docente">Docentes</option>
                 <option value="estudiante">Estudiantes</option>
               </select>
             </div>
@@ -142,6 +303,10 @@
         </div>
       </app-card>
     </section>
+
+    @if (mensajeEstado()) {
+      <div class="alert alert-success mb-4" role="status">{{ mensajeEstado() }}</div>
+    }
 
     <!-- Lista de usuarios -->
     <section aria-labelledby="lista-usuarios-title">
@@ -287,9 +452,17 @@
                   <td>
                     <div class="d-flex flex-wrap gap-1">
                       @for (rol of usuario.roles; track rol) {
-                        <span [class]="obtenerRolBadgeClase(rol)" [title]="rol === 'administrador' ? 'Administrador del sistema' : 'Usuario estudiante'">
-                          <i [class]="rol === 'administrador' ? 'bi bi-shield-check me-1' : 'bi bi-person me-1'"></i>
-                          {{ rol === 'administrador' ? 'Admin' : 'Estudiante' }}
+                        <span [class]="obtenerRolBadgeClase(rol)" [title]="etiquetaRol(rol)">
+                          <i
+                            [class]="
+                              rol === 'administrador'
+                                ? 'bi bi-shield-check me-1'
+                                : rol === 'docente'
+                                  ? 'bi bi-person-badge me-1'
+                                  : 'bi bi-person me-1'
+                            "
+                          ></i>
+                          {{ etiquetaRol(rol) }}
                         </span>
                       }
                     </div>

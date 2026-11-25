@@ -357,9 +357,12 @@ class DocumentoService {
    * @returns {Promise<void>}
    */
   async verificarMateria(materiaId) {
-    const existe = await this.materiaRepository.existeMateria(this.usuarioActualId, materiaId);
+    const materia = await this.materiaRepository.obtenerMateriaPorId(
+      this.usuarioActualId,
+      materiaId,
+    );
 
-    if (!existe) {
+    if (!materia) {
       throw ApiError.notFound('Materia no encontrada.');
     }
   }

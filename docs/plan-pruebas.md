@@ -67,12 +67,16 @@ Reglas:
 
 | Caso | Resultado esperado |
 |---|---|
-| Estudiante accede a `/api/admin/*` | 403. |
-| Administrador lista usuarios | 200 con paginación. |
+| Estudiante accede a `/api/usuarios` o a cualquier ruta de administración | 403. |
+| Administrador lista usuarios | 200 con paginación y estadísticas por rol. |
+| Administrador crea usuario con rol `docente` y clave temporal | 201; `claveTemporal` solo en la respuesta; `requiereCambioClave = true`. |
+| Usuario con clave temporal llama a una ruta distinta de `/auth/me` o `/auth/cambiar-clave` | 403 hasta completar el cambio. |
+| Usuario cambia la clave temporal | 200; `requiereCambioClave = false` y el resto de rutas quedan disponibles. |
 | Administrador desactiva usuario | Cuenta inactiva; el usuario ya no puede autenticarse. |
-| Administrador intenta quitarse su rol | 400/403, no se aplica. |
-| Administrador consulta documentos de un estudiante | 403/404, no hay acceso. |
-| Cambio de rol genera auditoría | Registro creado. |
+| Administrador intenta quitarse su rol o cambiar su estado | 403, no se aplica. |
+| Administrador intenta dejar al único administrador sin rol o inactivo | 403, no se aplica. |
+| `/api/auth/me` con varios roles | `role` y `rol` coinciden con el de mayor precedencia; `roles` está ordenado. |
+| Administrador consulta una conversación de un estudiante | 404/403, sin acceso automático. |
 
 ### 4.3. Materias (HU03)
 
@@ -81,24 +85,40 @@ Reglas:
 | Crear materia válida | 201 y aparece en el listado. |
 | Crear sin nombre | 400 `VALIDATION_ERROR`. |
 | Crear con color inválido | 400. |
-| Crear con periodo de otro usuario | 404. |
-| Listar solo materias propias | No aparecen las de B. |
-| Actualizar materia propia | 200. |
-| Actualizar materia ajena | 404. |
-| Eliminar materia con tareas | Regla definida (archivar o 409). |
+| Crear como estudiante, actualizar o cambiar estado | 403. |
+| Crear con `docente_id` | 201; el docente responsable puede gestionar la materia. |
+| Listar materias propias, impartidas o con inscripción activa | No aparecen las ajenas sin acceso. |
+| Actualizar materia ajena | 404/403 según rol. |
+| Archivar materia con `PATCH /:id/estado` | 200; `estado = archivado`. |
 | Filtros y paginación | Resultados correctos y `meta` coherente. |
+
+### 4.3.1. Inscripciones por materia (migración `0018`)
+
+| Caso | Resultado esperado |
+|---|---|
+| Estudiante consulta `/api/materias/:id/inscripciones` | 403. |
+| Docente responsable lista inscripciones de su materia | 200 con `meta` y estados `activa`/`inactiva`. |
+| Docente consulta inscripciones de una materia ajena | 404. |
+| Administrador inscribe a un estudiante | 201 con `estado = activa`. |
+| Inscripción repetida | Reactiva la fila existente; no duplica. |
+| Administrador o docente da de baja una inscripción | 200 con `estado = inactiva`; la fila se conserva. |
+| Inscripción inexistente | 404. |
+| `limit` fuera de 1–100 u `offset` negativo | 400 `VALIDATION_ERROR`. |
+| Parámetro de ruta `:materiaId` | Prueba de integración HTTP: se valida como UUID y llega al servicio sin mapeo adicional. |
 
 ### 4.4. Tareas (HU04)
 
 | Caso | Resultado esperado |
 |---|---|
-| Crear tarea válida | 201. |
+| Estudiante crea, actualiza o elimina una tarea | 403. |
+| Docente responsable crea tarea para su materia | 201 con `docente_id` del creador. |
+| Docente crea tarea para materia ajena | 404. |
 | Fecha de entrega anterior a asignación | 400. |
-| Materia de otro usuario | 404. |
-| Cambiar estado a `completada` | 200 y se refleja en dashboard. |
+| Estudiante con inscripción activa cambia su estado a `completada` | 200; se guarda en `tarea_estados` y se refleja en dashboard. |
+| Dos estudiantes cambian el estado de la misma tarea | Cada uno ve el suyo; `UNIQUE (tarea_id, estudiante_id)` y RLS lo garantizan. |
 | Filtro por prioridad y estado | Solo resultados que cumplen. |
 | Tareas próximas | Ordenadas por fecha de entrega. |
-| Eliminar tarea propia | 204. |
+| Docente elimina tarea propia | 200 con `{ "id": "<uuid>" }`. |
 
 ### 4.5. Calendario (HU05)
 
@@ -329,14 +349,15 @@ Reglas:
 | UI `/notificaciones` | Estados de carga, vacío y error; filtros de estado/tipo; paginación; marcar una/todas; formulario de preferencias con validación de anticipación. |
 | Contador del shell | Muestra `noLeidas` y se actualiza al consultar o marcar notificaciones. |
 
-### 4.14. Administración
+### 4.14. Administración de usuarios
 
 | Caso | Resultado esperado |
 |---|---|
-| Estadísticas agregadas | No incluyen texto de documentos. |
-| Auditoría | Registra operaciones administrativas. |
-| Configuración de IA | Se aplica a los límites. |
-| Usuario sin rol admin | 403. |
+| `GET /api/usuarios` como administrador | 200 con `meta.paginacion` y `meta.estadisticas` agregadas; sin secretos. |
+| Filtros `query`, `estado`, `rol`, `limit` y `offset` | Se aplican; valores inválidos responden `400`. |
+| Usuario sin rol administrador | 403. |
+| `PATCH /api/usuarios/:id/roles` | Reemplaza roles; `administrador` no se combina con otros roles. |
+| `PATCH /api/usuarios/:id/estado` | Activa o desactiva; responde con `meta.operacion`. |
 
 ## 5. Pruebas de RLS y aislamiento
 
@@ -352,7 +373,7 @@ Tablas mínimas a cubrir:
 
 - `perfiles`, `usuario_roles`
 - `periodos_academicos`, `materias`, `unidades`
-- `tareas`, `eventos_calendario`
+- `tareas`, `tarea_estados`, `inscripciones`, `eventos_calendario`
 - `documentos`, `fragmentos_documento`
 - `conversaciones`, `mensajes`, `referencias_respuesta`
 - `planes_estudio`, `sesiones_estudio`

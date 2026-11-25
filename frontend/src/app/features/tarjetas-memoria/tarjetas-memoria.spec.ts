@@ -17,6 +17,7 @@ const materia: Materia = {
   usuario_id: 'usuario-1',
   nombre: 'Cálculo Diferencial',
   codigo: 'MAT-101',
+  docente_id: null,
   docente: 'Ana Pérez',
   descripcion: null,
   periodo_academico: '2026-1',

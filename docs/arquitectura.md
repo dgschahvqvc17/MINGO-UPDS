@@ -90,8 +90,8 @@ Angular
   -> interceptor agrega Authorization: Bearer <token>
   -> API Gateway
   -> Lambda (Express)
-  -> auth.middleware (verifica JWT con Supabase)
-  -> roles.middleware (si aplica)
+  -> auth.middleware (verifica JWT, perfil, roles desde BD y clave temporal)
+  -> roles.middleware (si aplica; admin/docente en gestión)
   -> validation.middleware (Zod)
   -> controller
   -> service (reglas de negocio, IA, AWS)
@@ -120,10 +120,10 @@ Errores:
 
 | Módulo | Sprint | Historias |
 |---|---|---|
-| Autenticación y perfiles | 1 | HU01, HU02 |
+| Autenticación y perfiles | 1 | HU01, HU02 (roles `estudiante`, `docente`, `administrador` y clave temporal). |
 | Dashboard académico | 1 | HU06 |
-| Materias y unidades | 1 | HU03 |
-| Tareas y evaluaciones | 1 | HU04 |
+| Materias, docente responsable e inscripciones | 1 | HU03; migración `0018`. |
+| Tareas compartidas y estado por estudiante | 1 | HU04; migración `0018`. |
 | Calendario académico | 1 | HU05 |
 | Biblioteca documental | 2 | HU07, HU08 |
 | Procesamiento de documentos | 2 | HU09 |
@@ -151,6 +151,8 @@ Errores:
 
 **No se usa:** EC2, ECS, EKS, RDS, ElastiCache, NAT Gateway, balanceadores, contenedores permanentes ni ningún recurso con costo por hora. Ver [reglas-aws.md](reglas-aws.md).
 
+> Los cambios de roles docente, inscripciones y estados de tarea de la rama `feature/roles-docente-inscripciones` están validados en local (`528/528` pruebas backend, `209/209` frontend y build de producción). El despliegue previsto con esos cambios es solo en `dev`, con el perfil AWS local `mingo-agente`, región `us-east-1`, stacks `mingo-hu09-dev` y `mingo-frontend-dev`, costo estimado `$0` y presupuesto compartido `ConcesionariaBMW-1USD`. `prod` queda fuera de alcance sin autorización separada.
+
 ## 8. Decisiones clave
 
 | Decisión | Motivo |
@@ -167,7 +169,7 @@ Errores:
 ## 9. Fuera de alcance del MVP
 
 - Integración directa con Moodle mediante servicios web institucionales.
-- Rol docente y espacios compartidos.
+- Espacios compartidos distintos de los habilitados por `docente_id` e inscripciones por materia.
 - Notificaciones push nativas.
 - Aplicación móvil.
 - Multi-región o alta disponibilidad empresarial.

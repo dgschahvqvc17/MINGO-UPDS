@@ -78,7 +78,7 @@
                   id="materia"
                   class="form-select"
                   [value]="materiaId()"
-                  (change)="cambiarMateria($any($event.target).value)"
+                  (change)="cambiarMateria(valorCampo($event))"
                 >
                   <option value="">Selecciona una materia</option>
                   @for (materia of materiasActivas(); track materia.id) {
@@ -96,7 +96,7 @@
                   class="form-select"
                   [value]="documentoId()"
                   [disabled]="!materiaId() || cargandoDocumentos()"
-                  (change)="cambiarDocumento($any($event.target).value)"
+                  (change)="cambiarDocumento(valorCampo($event))"
                 >
                   <option value="">
                     {{ cargandoDocumentos() ? 'Cargando documentos...' : 'Todos los documentos procesados' }}
@@ -121,7 +121,7 @@
                     max="20"
                     step="1"
                     [value]="cantidadPreguntas()"
-                    (input)="cambiarCantidad($any($event.target).value)"
+                    (input)="cambiarCantidad(valorCampo($event))"
                   />
                 </div>
                 <div class="col-6">
@@ -130,7 +130,7 @@
                     id="dificultad"
                     class="form-select"
                     [value]="dificultad()"
-                    (change)="cambiarDificultad($any($event.target).value)"
+                    (change)="cambiarDificultad(valorCampo($event))"
                   >
                     @for (opcion of dificultades; track opcion.valor) {
                       <option [value]="opcion.valor">{{ opcion.etiqueta }}</option>

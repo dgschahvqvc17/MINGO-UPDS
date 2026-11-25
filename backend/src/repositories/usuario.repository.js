@@ -19,7 +19,7 @@ class UsuarioRepository {
   async findById(userId) {
     const { data, error } = await this.requireClient()
       .from('perfiles')
-      .select('id, auth_user_id, nombre, apellido, correo, estado')
+      .select('id, auth_user_id, nombre, apellido, correo, estado, requiere_cambio_clave')
       .eq('id', userId)
       .maybeSingle();
 

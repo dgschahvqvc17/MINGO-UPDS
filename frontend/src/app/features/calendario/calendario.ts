@@ -73,6 +73,7 @@ export class CalendarioPage implements OnInit {
   readonly eliminando = signal(false);
   readonly error = signal<string | null>(null);
   readonly errorProximos = signal<string | null>(null);
+  readonly confirmandoEliminacionId = signal<string | null>(null);
 
   readonly eventosFullCalendar = computed(() =>
     this.calendarioService.aEventosFullCalendar(this.eventos()),
@@ -243,10 +244,23 @@ export class CalendarioPage implements OnInit {
     this.eventoSeleccionado.set(null);
   }
 
-  eliminarEvento(evento: EventoCalendario): void {
-    const confirmado = window.confirm(`¿Eliminar el evento "${evento.titulo}"?`);
+  pedirEliminacion(evento: EventoCalendario): void {
+    this.error.set(null);
+    this.confirmandoEliminacionId.set(
+      this.confirmandoEliminacionId() === evento.id ? null : evento.id,
+    );
+  }
 
-    if (!confirmado) {
+  cancelarEliminacion(): void {
+    this.confirmandoEliminacionId.set(null);
+  }
+
+  textoEliminacion(evento: EventoCalendario): string {
+    return `¿Eliminar el evento "${evento.titulo}"?`;
+  }
+
+  eliminarEvento(evento: EventoCalendario): void {
+    if (this.confirmandoEliminacionId() !== evento.id || this.eliminando()) {
       return;
     }
 
@@ -262,6 +276,7 @@ export class CalendarioPage implements OnInit {
             eventos.filter((actual) => actual.id !== evento.id),
           );
           this.eventoSeleccionado.set(null);
+          this.confirmandoEliminacionId.set(null);
           this.eliminando.set(false);
           this.cargarProximos();
         },

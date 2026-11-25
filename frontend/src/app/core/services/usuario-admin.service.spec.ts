@@ -214,6 +214,98 @@ describe('UsuarioAdminService', () => {
     });
   });
 
+  describe('crearUsuario', () => {
+    it('envia el alta con rol y clave temporal', () => {
+      const solicitud = {
+        nombre: 'Luis',
+        apellido: 'Torres',
+        correo: 'luis@universidad.edu',
+        carrera: 'Derecho',
+        rol: 'docente' as const,
+        claveTemporal: 'clave-temporal-123',
+      };
+      const creado = {
+        ...mockUsuarios[0],
+        id: '550e8400-e29b-41d4-a716-446655440002',
+        nombre: solicitud.nombre,
+        apellido: solicitud.apellido,
+        correo: solicitud.correo,
+        roles: ['docente' as const],
+        claveTemporal: solicitud.claveTemporal,
+      };
+
+      service.crearUsuario(solicitud).subscribe((usuario) => {
+        expect(usuario.roles).toEqual(['docente']);
+        expect(usuario.claveTemporal).toBe(solicitud.claveTemporal);
+      });
+
+      const req = httpMock.expectOne('/api/usuarios');
+      expect(req.request.method).toBe('POST');
+      expect(req.request.body).toEqual(solicitud);
+      req.flush({ success: true, data: creado });
+    });
+  });
+
+  describe('listarDocentes y listarEstudiantes', () => {
+    it('filtra el listado por el rol docente', () => {
+      const docente: UsuarioListado = {
+        ...mockUsuarios[1],
+        roles: ['docente'],
+      };
+
+      service.listarDocentes().subscribe((docentes) => {
+        expect(docentes).toEqual([docente]);
+      });
+
+      const req = httpMock.expectOne(
+        (request) => request.url === '/api/usuarios' && request.method === 'GET',
+      );
+      expect(req.request.params.get('rol')).toBe('docente');
+      expect(req.request.params.get('limit')).toBe('100');
+      req.flush({
+        success: true,
+        data: [docente],
+        meta: {
+          paginacion: { limit: 100, offset: 0, total: 1 },
+          estadisticas: {
+            total: 1,
+            activos: 1,
+            inactivos: 0,
+            administradores: 0,
+            docentes: 1,
+            estudiantes: 0,
+          },
+        },
+      });
+    });
+
+    it('filtra el listado por el rol estudiante', () => {
+      service.listarEstudiantes().subscribe((estudiantes) => {
+        expect(estudiantes).toEqual([mockUsuarios[0]]);
+      });
+
+      const req = httpMock.expectOne(
+        (request) => request.url === '/api/usuarios' && request.method === 'GET',
+      );
+      expect(req.request.params.get('rol')).toBe('estudiante');
+      expect(req.request.params.get('limit')).toBe('100');
+      req.flush({
+        success: true,
+        data: [mockUsuarios[0]],
+        meta: {
+          paginacion: { limit: 100, offset: 0, total: 1 },
+          estadisticas: {
+            total: 1,
+            activos: 1,
+            inactivos: 0,
+            administradores: 0,
+            estudiantes: 1,
+          },
+        },
+      });
+    });
+  });
+
   describe('helper methods', () => {
     const mockUsuario: UsuarioListado = {
       id: '550e8400-e29b-41d4-a716-446655440000',

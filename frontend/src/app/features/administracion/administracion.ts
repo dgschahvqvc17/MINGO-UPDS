@@ -1,19 +1,35 @@
-﻿import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+﻿import {
+  ChangeDetectionStrategy,
+  Component,
+  DestroyRef,
+  computed,
+  inject,
+  signal,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
+import { FormsModule, NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
-import { UsuarioAdminService, type UsuarioListado } from '../../core/services/usuario-admin.service';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { RolUsuario } from '../../core/models/dominio.models';
+import {
+  UsuarioAdminService,
+  type UsuarioBusquedaParams,
+  type UsuarioListado,
+} from '../../core/services/usuario-admin.service';
 import { AuthService } from '../../core/services/auth.service';
+import { mensajeDeErrorHttp } from '../../core/utils/http-error';
 import { CardComponent } from '../../shared/components/card/card.component';
 
 @Component({
   selector: 'app-administracion',
-  imports: [CommonModule, FormsModule, CardComponent],
+  imports: [CommonModule, FormsModule, ReactiveFormsModule, CardComponent],
   templateUrl: './administracion.html',
   styleUrl: './administracion.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class AdministracionPage {
+  private readonly formBuilder = inject(NonNullableFormBuilder);
+  private readonly destroyRef = inject(DestroyRef);
   private readonly usuarioAdminService = inject(UsuarioAdminService);
   // Exponer métodos de validación del servicio para el template
   readonly validarNoAutoModificacion = (usuarioId: string) => 
@@ -29,12 +45,29 @@ export class AdministracionPage {
   readonly usuarios = signal<UsuarioListado[]>([]);
   readonly loading = signal(false);
   readonly error = signal<string | null>(null);
+  readonly mensajeEstado = signal<string | null>(null);
   
   // Filtros de búsqueda
   readonly filtros = signal({
     query: '',
     estado: 'todos' as 'todos' | 'activo' | 'inactivo',
-    rol: 'todos' as 'todos' | 'administrador' | 'estudiante',
+    rol: 'todos' as 'todos' | RolUsuario,
+  });
+
+  readonly rolesDisponibles: readonly RolUsuario[] = ['administrador', 'docente', 'estudiante'];
+
+  readonly mostrarAlta = signal(false);
+  readonly creando = signal(false);
+  readonly claveTemporal = signal<string | null>(null);
+  readonly errorCreacion = signal<string | null>(null);
+
+  readonly crearForm = this.formBuilder.group({
+    nombre: ['', [Validators.required, Validators.minLength(2), Validators.maxLength(100)]],
+    apellido: ['', [Validators.required, Validators.minLength(2), Validators.maxLength(100)]],
+    correo: ['', [Validators.required, Validators.email]],
+    carrera: ['', [Validators.maxLength(100)]],
+    rol: ['estudiante' as RolUsuario, [Validators.required]],
+    claveTemporal: ['', [Validators.required, Validators.minLength(8)]],
   });
 
   // Paginación
@@ -50,6 +83,7 @@ export class AdministracionPage {
     activos: 0,
     inactivos: 0,
     administradores: 0,
+    docentes: 0,
     estudiantes: 0,
   });
 
@@ -75,33 +109,37 @@ export class AdministracionPage {
   /**
    * Carga la lista de usuarios con los filtros actuales
    */
-  async cargarUsuarios(): Promise<void> {
+  cargarUsuarios(): void {
     this.loading.set(true);
     this.error.set(null);
 
-    try {
-      const filtros = this.filtros();
-      const params: any = {};
+    const filtros = this.filtros();
+    const params: UsuarioBusquedaParams = {};
 
-      if (filtros.query) params.query = filtros.query;
-      if (filtros.estado !== 'todos') params.estado = filtros.estado;
-      if (filtros.rol !== 'todos') params.rol = filtros.rol;
-      if (this.paginacion().limit) params.limit = this.paginacion().limit;
-      if (this.paginacion().offset) params.offset = this.paginacion().offset;
+    if (filtros.query) params.query = filtros.query;
+    if (filtros.estado !== 'todos') params.estado = filtros.estado;
+    if (filtros.rol !== 'todos') params.rol = filtros.rol;
+    if (this.paginacion().limit) params.limit = this.paginacion().limit;
+    if (this.paginacion().offset) params.offset = this.paginacion().offset;
 
-      const respuesta = await this.usuarioAdminService.listarUsuarios(params).toPromise();
-      
-      if (respuesta) {
-        this.usuarios.set(respuesta.usuarios);
-        this.paginacion.set(respuesta.paginacion);
-        this.estadisticas.set(respuesta.estadisticas);
-      }
-    } catch (error) {
-      this.error.set(error instanceof Error ? error.message : 'Error al cargar usuarios');
-      console.error('Error al cargar usuarios:', error);
-    } finally {
-      this.loading.set(false);
-    }
+    this.usuarioAdminService
+      .listarUsuarios(params)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (respuesta) => {
+          this.usuarios.set(respuesta.usuarios);
+          this.paginacion.set(respuesta.paginacion);
+          this.estadisticas.set({
+            ...respuesta.estadisticas,
+            docentes: respuesta.estadisticas.docentes ?? 0,
+          });
+          this.loading.set(false);
+        },
+        error: (error: unknown) => {
+          this.error.set(mensajeDeErrorHttp(error, 'No se pudieron cargar los usuarios.'));
+          this.loading.set(false);
+        },
+      });
   }
 
   /**
@@ -125,6 +163,71 @@ export class AdministracionPage {
     this.aplicarFiltros();
   }
 
+  abrirAlta(): void {
+    this.mostrarAlta.set(true);
+    this.claveTemporal.set(null);
+    this.errorCreacion.set(null);
+  }
+
+  cerrarAlta(): void {
+    this.mostrarAlta.set(false);
+    this.claveTemporal.set(null);
+    this.errorCreacion.set(null);
+    this.crearForm.reset({
+      nombre: '',
+      apellido: '',
+      correo: '',
+      carrera: '',
+      rol: 'estudiante',
+      claveTemporal: '',
+    });
+  }
+
+  crearUsuario(): void {
+    if (this.creando() || this.crearForm.invalid) {
+      this.crearForm.markAllAsTouched();
+      return;
+    }
+
+    const valores = this.crearForm.getRawValue();
+    this.creando.set(true);
+    this.errorCreacion.set(null);
+
+    this.usuarioAdminService
+      .crearUsuario({
+        nombre: valores.nombre.trim(),
+        apellido: valores.apellido.trim(),
+        correo: valores.correo.trim(),
+        carrera: valores.carrera.trim() || undefined,
+        rol: valores.rol,
+        claveTemporal: valores.claveTemporal,
+      })
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (usuario) => {
+          this.claveTemporal.set(usuario.claveTemporal);
+          this.creando.set(false);
+          this.crearForm.reset({
+            nombre: '',
+            apellido: '',
+            correo: '',
+            carrera: '',
+            rol: 'estudiante',
+            claveTemporal: '',
+          });
+          this.cargarUsuarios();
+        },
+        error: (error: unknown) => {
+          this.errorCreacion.set(mensajeDeErrorHttp(error, 'No se pudo crear el usuario.'));
+          this.creando.set(false);
+        },
+      });
+  }
+
+  descartarClaveTemporal(): void {
+    this.claveTemporal.set(null);
+  }
+
   /**
    * Navega a la página de detalles de un usuario
    */
@@ -142,28 +245,29 @@ export class AdministracionPage {
   /**
    * Cambia el estado de un usuario (activar/desactivar)
    */
-  async cambiarEstado(usuario: UsuarioListado): Promise<void> {
+  cambiarEstado(usuario: UsuarioListado): void {
     if (!this.usuarioAdminService.validarNoAutoModificacion(usuario.id, this.usuarioActualId())) {
-      alert('No puedes modificar tu propio estado');
+      this.error.set('No puedes modificar tu propio estado.');
       return;
     }
 
     const nuevoEstado = usuario.estado === 'activo' ? 'inactivo' : 'activo';
-    const confirmacion = confirm(
-      `¿Estás seguro de ${nuevoEstado === 'activo' ? 'activar' : 'desactivar'} al usuario ${usuario.nombre} ${usuario.apellido}?`
-    );
+    this.mensajeEstado.set(null);
 
-    if (!confirmacion) return;
-
-    try {
-      await this.usuarioAdminService.actualizarEstadoUsuario(usuario.id, nuevoEstado).toPromise();
-      alert(`Usuario ${nuevoEstado === 'activo' ? 'activado' : 'desactivado'} exitosamente`);
-      
-      // Recargar la lista
-      this.cargarUsuarios();
-    } catch (error) {
-      alert(error instanceof Error ? error.message : 'Error al cambiar el estado del usuario');
-    }
+    this.usuarioAdminService
+      .actualizarEstadoUsuario(usuario.id, nuevoEstado)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () => {
+          this.mensajeEstado.set(
+            `Usuario ${nuevoEstado === 'activo' ? 'activado' : 'desactivado'} correctamente.`,
+          );
+          this.cargarUsuarios();
+        },
+        error: (error: unknown) => {
+          this.error.set(mensajeDeErrorHttp(error, 'No se pudo cambiar el estado del usuario.'));
+        },
+      });
   }
 
   /**
@@ -211,5 +315,22 @@ export class AdministracionPage {
 
   obtenerRolBadgeClase(rol: string): string {
     return this.usuarioAdminService.obtenerRolBadgeClase(rol);
+  }
+
+  etiquetaRol(rol: RolUsuario | string): string {
+    const etiquetas: Record<RolUsuario, string> = {
+      administrador: 'Administrador',
+      docente: 'Docente',
+      estudiante: 'Estudiante',
+    };
+    return etiquetas[rol as RolUsuario] ?? rol;
+  }
+
+  tieneErrorCreacion(
+    campo: 'nombre' | 'apellido' | 'correo' | 'carrera' | 'rol' | 'claveTemporal',
+    tipo: string,
+  ): boolean {
+    const control = this.crearForm.controls[campo];
+    return control.hasError(tipo) && (control.touched || control.dirty);
   }
 }

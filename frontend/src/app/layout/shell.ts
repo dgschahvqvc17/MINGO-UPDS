@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@a
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { filter, map } from 'rxjs';
+import { ROLES_GESTION_ACADEMICA, RolUsuario } from '../core/models/dominio.models';
 import { AuthService } from '../core/services/auth.service';
 import { NotificacionService } from '../core/services/notificacion.service';
 import { AyudanteFlotanteComponent } from '../shared/components/ayudante-flotante/ayudante-flotante.component';
@@ -11,6 +12,7 @@ interface NavItem {
   path: string;
   icon: string;
   adminOnly?: boolean;
+  roles?: readonly RolUsuario[];
   ai?: boolean;
   badgeNotificaciones?: boolean;
 }
@@ -41,9 +43,24 @@ const NAV_SECTIONS: NavSection[] = [
     items: [
       { label: 'Biblioteca', path: '/biblioteca', icon: 'bi-folder2-open' },
       { label: 'Centro de estudio', path: '/centro-estudio', icon: 'bi-mortarboard' },
-      { label: 'Tarjetas de memoria', path: '/tarjetas-memoria', icon: 'bi-collection' },
-      { label: 'Planes de estudio', path: '/planes-estudio', icon: 'bi-calendar2-week' },
-      { label: 'Objetivos y progreso', path: '/progreso', icon: 'bi-graph-up' },
+      {
+        label: 'Tarjetas de memoria',
+        path: '/tarjetas-memoria',
+        icon: 'bi-collection',
+        roles: ['estudiante', 'administrador'],
+      },
+      {
+        label: 'Planes de estudio',
+        path: '/planes-estudio',
+        icon: 'bi-calendar2-week',
+        roles: ['estudiante', 'administrador'],
+      },
+      {
+        label: 'Objetivos y progreso',
+        path: '/progreso',
+        icon: 'bi-graph-up',
+        roles: ['estudiante', 'administrador'],
+      },
       { label: 'Asistente IA', path: '/asistente-ia', icon: 'bi-stars', ai: true },
     ],
   },
@@ -77,15 +94,21 @@ export class ShellComponent {
   readonly collapsed = signal(false);
   readonly role = this.authService.role;
   readonly roleLabel = computed(() => {
-    const role = this.role();
-    return role ? role.charAt(0).toUpperCase() + role.slice(1) : 'Estudiante';
+    const etiquetas: Record<RolUsuario, string> = {
+      administrador: 'Administrador',
+      docente: 'Docente',
+      estudiante: 'Estudiante',
+    };
+    return etiquetas[this.role()];
   });
   readonly fullName = this.authService.fullName;
   readonly isAdmin = computed(() => this.role() === 'administrador');
+  readonly puedeGestionar = computed(() => ROLES_GESTION_ACADEMICA.includes(this.role()));
 
-  readonly email = computed(
-    () => this.authService.profile()?.correo ?? this.authService.user()?.email ?? '',
-  );
+  readonly email = computed(() => {
+    const profile = this.authService.profile();
+    return profile?.correo ?? profile?.email ?? this.authService.user()?.email ?? '';
+  });
 
   readonly initials = computed(() => {
     const name = this.fullName();
@@ -100,12 +123,18 @@ export class ShellComponent {
       .join('');
   });
 
-  readonly navSections = computed(() =>
-    NAV_SECTIONS.map((section) => ({
+  readonly navSections = computed(() => {
+    const role = this.role();
+
+    return NAV_SECTIONS.map((section) => ({
       ...section,
-      items: section.items.filter((item) => !item.adminOnly || this.isAdmin()),
-    })).filter((section) => section.items.length > 0),
-  );
+      items: section.items.filter(
+        (item) =>
+          (!item.adminOnly || this.isAdmin()) &&
+          (!item.roles || item.roles.includes(role)),
+      ),
+    })).filter((section) => section.items.length > 0);
+  });
 
   private readonly currentUrl = toSignal(
     this.router.events.pipe(
@@ -118,9 +147,9 @@ export class ShellComponent {
   private readonly activeNavItem = computed(() => {
     const url = this.currentUrl() ?? '';
 
-    return NAV_SECTIONS.flatMap((section) => section.items).find((item) =>
-      url.startsWith(item.path),
-    );
+    return this.navSections()
+      .flatMap((section) => section.items)
+      .find((item) => url.startsWith(item.path));
   });
 
   readonly sectionTitle = computed(() => this.activeNavItem()?.label ?? 'Panel académico');

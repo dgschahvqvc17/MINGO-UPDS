@@ -17,6 +17,7 @@ import {
   type ResultadoIntento,
 } from '../../../../core/services/cuestionario.service';
 import { mensajeDeErrorHttp } from '../../../../core/utils/http-error';
+import { valorDeCampo } from '../../../../core/utils/form-event';
 import { MascotaAgenteComponent } from '../../../../shared/components/mascota-agente/mascota-agente.component';
 import { crearEstadoMascota } from '../../../../shared/components/mascota-agente/estado-mascota';
 
@@ -47,6 +48,7 @@ export class CuestionarioResolverComponent implements OnInit {
   readonly intento = signal<IntentoCuestionarioResumen | null>(null);
   readonly preguntas = signal<PreguntaCuestionario[]>([]);
   readonly respuestas = signal<Record<string, string>>({});
+  readonly valorCampo = valorDeCampo;
   readonly resultado = signal<ResultadoIntento | null>(null);
 
   readonly hayResultado = computed(() => this.resultado() !== null);

@@ -11,8 +11,10 @@ export interface UsuarioSesion {
   email: string;
   nombre: string;
   apellido: string;
-  correo: string;
-  estado: EstadoCuenta;
+  correo?: string;
+  estado?: EstadoCuenta;
+  /** Rol efectivo calculado por el backend con precedencia administrador > docente > estudiante. */
   role: RolUsuario;
   roles: RolUsuario[];
+  requiereCambioClave: boolean;
 }

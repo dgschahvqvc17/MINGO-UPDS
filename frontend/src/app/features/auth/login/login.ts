@@ -47,7 +47,11 @@ export class LoginPage {
       await this.authService.signIn(email, password);
 
       const returnUrl = this.route.snapshot.queryParamMap.get('returnUrl');
-      const target = returnUrl?.startsWith('/') ? returnUrl : this.authService.homeRoute();
+      const target = this.authService.requiereCambioClave?.()
+        ? '/cambiar-clave'
+        : returnUrl?.startsWith('/')
+          ? returnUrl
+          : this.authService.homeRoute();
       await this.router.navigateByUrl(target);
     } catch (error) {
       this.error.set(error instanceof Error ? error.message : 'No fue posible iniciar sesion.');

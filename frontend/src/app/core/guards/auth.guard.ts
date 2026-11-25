@@ -10,11 +10,17 @@ export const authGuard: CanActivateFn = async (_route, state) => {
   const authService = inject(AuthService);
   const router = inject(Router);
 
-  if (await authService.ensureProfile()) {
-    return true;
+  const profile = await authService.ensureProfile();
+
+  if (!profile) {
+    return router.createUrlTree(['/auth/login'], {
+      queryParams: { returnUrl: state.url },
+    });
   }
 
-  return router.createUrlTree(['/auth/login'], {
-    queryParams: { returnUrl: state.url },
-  });
+  if (profile.requiereCambioClave) {
+    return router.createUrlTree(['/cambiar-clave']);
+  }
+
+  return true;
 };

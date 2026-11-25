@@ -56,6 +56,14 @@ describe('ShellComponent', () => {
     expect(navigationPaths(shell)).toContain('/administracion');
   });
 
+  it('identifica al docente y le muestra las materias', () => {
+    const shell = createShell('docente');
+
+    expect(shell.roleLabel()).toBe('Docente');
+    expect(navigationPaths(shell)).toContain('/materias');
+    expect(navigationPaths(shell)).not.toContain('/administracion');
+  });
+
   it('muestra las tarjetas de memoria en el area de aprendizaje', () => {
     const shell = createShell('estudiante');
 

@@ -9,6 +9,7 @@ import {
 } from '../../core/models/dominio.models';
 import { NotificacionService } from '../../core/services/notificacion.service';
 import { mensajeDeErrorHttp } from '../../core/utils/http-error';
+import { estaMarcado, valorDeCampo } from '../../core/utils/form-event';
 
 type FiltroLectura = 'todas' | 'no-leidas' | 'leidas';
 
@@ -60,6 +61,8 @@ export class NotificacionesPage {
   readonly canalEmail = signal(false);
   readonly anticipacionMinutos = signal(60);
   readonly zonaHoraria = signal<string>('America/Bogota');
+  readonly valorCampo = valorDeCampo;
+  readonly estaMarcado = estaMarcado;
   readonly guardandoPreferencias = signal(false);
   readonly errorPreferencias = signal<string | null>(null);
   readonly errorAnticipacion = computed(() => {

@@ -196,7 +196,7 @@
                 [id]="'respuesta-' + pregunta.id"
                 [value]="valor(pregunta.id)"
                 [disabled]="hayResultado()"
-                (input)="seleccionar(pregunta.id, $any($event.target).value)"
+                (input)="seleccionar(pregunta.id, valorCampo($event))"
               ></textarea>
             } @else {
               <div class="d-flex flex-column gap-2">

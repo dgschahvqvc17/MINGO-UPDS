@@ -1,14 +1,16 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { Injectable, computed, inject, signal } from '@angular/core';
 import type { Session } from '@supabase/supabase-js';
-import { firstValueFrom } from 'rxjs';
+import { Observable, firstValueFrom, tap } from 'rxjs';
 import { UsuarioSesion } from '../models/auth.models';
-import { RolUsuario } from '../models/dominio.models';
+import { ROLES_POR_PRIORIDAD, RolUsuario } from '../models/dominio.models';
 import { ApiService } from './api.service';
 import { SupabaseService } from './supabase.service';
 
 const ROL_ADMINISTRADOR: RolUsuario = 'administrador';
+const ROL_DOCENTE: RolUsuario = 'docente';
 const PERFIL_ENDPOINT = '/auth/me';
+const CAMBIAR_CLAVE_ENDPOINT = '/auth/cambiar-clave';
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
@@ -26,6 +28,15 @@ export class AuthService {
   readonly user = computed(() => this.sessionSignal()?.user ?? null);
   readonly isAuthenticated = computed(() => Boolean(this.sessionSignal()));
   readonly role = computed<RolUsuario>(() => this.profileSignal()?.role ?? 'estudiante');
+  readonly roles = computed<RolUsuario[]>(() => this.profileSignal()?.roles ?? ['estudiante']);
+  readonly requiereCambioClave = computed(
+    () => this.profileSignal()?.requiereCambioClave === true,
+  );
+  readonly isAdmin = computed(() => this.role() === ROL_ADMINISTRADOR);
+  readonly isDocente = computed(() => this.role() === ROL_DOCENTE);
+  readonly puedeGestionar = computed(
+    () => this.isAdmin() || this.isDocente(),
+  );
   readonly fullName = computed(() => {
     const profile = this.profileSignal();
     return profile ? `${profile.nombre} ${profile.apellido}`.trim() : '';
@@ -93,8 +104,26 @@ export class AuthService {
    */
   async loadProfile(): Promise<UsuarioSesion> {
     const profile = await firstValueFrom(this.api.get<UsuarioSesion>(PERFIL_ENDPOINT));
-    this.profileSignal.set(profile);
-    return profile;
+    const normalizedProfile = this.normalizeProfile(profile);
+    this.profileSignal.set(normalizedProfile);
+    return normalizedProfile;
+  }
+
+  /**
+   * Cambia la clave temporal. Al tener éxito se actualiza el perfil en memoria
+   * para que el bloqueo de navegación desaparezca sin recargar la página.
+   */
+  cambiarClave(claveActual: string, claveNueva: string): Observable<void> {
+    return this.api
+      .post<void>(CAMBIAR_CLAVE_ENDPOINT, { claveActual, claveNueva })
+      .pipe(
+        tap(() => {
+          const profile = this.profileSignal();
+          if (profile) {
+            this.profileSignal.set({ ...profile, requiereCambioClave: false });
+          }
+        }),
+      );
   }
 
   /**
@@ -126,7 +155,15 @@ export class AuthService {
    * Panel inicial segun el rol del usuario autenticado.
    */
   homeRoute(): string {
-    return this.role() === ROL_ADMINISTRADOR ? '/administracion' : '/dashboard';
+    if (this.requiereCambioClave()) {
+      return '/cambiar-clave';
+    }
+
+    if (this.role() === ROL_ADMINISTRADOR) {
+      return '/administracion';
+    }
+
+    return '/dashboard';
   }
 
   async getAccessToken(): Promise<string | null> {
@@ -182,6 +219,26 @@ export class AuthService {
       // Una sesión corrupta o un almacenamiento no disponible no deben romper el arranque.
       this.sessionSignal.set(null);
     }
+  }
+
+  /**
+   * El backend envía la precedencia resuelta en `role`; si algún despliegue
+   * antiguo solo envía `roles`, se calcula aquí para no bloquear la navegación.
+   */
+  private normalizeProfile(profile: UsuarioSesion): UsuarioSesion {
+    const roles = Array.isArray(profile.roles)
+      ? profile.roles.filter((role): role is RolUsuario => ROLES_POR_PRIORIDAD.includes(role))
+      : [];
+    const effectiveRole =
+      ROLES_POR_PRIORIDAD.find((role) => role === profile.role || roles.includes(role)) ??
+      'estudiante';
+
+    return {
+      ...profile,
+      roles: roles.length > 0 ? roles : [effectiveRole],
+      role: effectiveRole,
+      requiereCambioClave: profile.requiereCambioClave === true,
+    };
   }
 
   private translateError(message: string): string {

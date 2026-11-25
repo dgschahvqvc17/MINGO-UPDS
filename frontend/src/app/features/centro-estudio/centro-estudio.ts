@@ -22,6 +22,7 @@ import {
   type TipoPreguntaCuestionario,
 } from '../../core/services/cuestionario.service';
 import { mensajeDeErrorHttp } from '../../core/utils/http-error';
+import { valorDeCampo } from '../../core/utils/form-event';
 import { CuestionarioResolverComponent } from './components/cuestionario-resolver/cuestionario-resolver';
 
 const LIMITE_CUESTIONARIOS = 20;
@@ -72,6 +73,7 @@ export class CentroEstudioPage {
   readonly materiaId = signal('');
   readonly documentoId = signal('');
   readonly cantidadPreguntas = signal(CANTIDAD_PREGUNTAS_POR_DEFECTO);
+  readonly valorCampo = valorDeCampo;
   readonly dificultad = signal<DificultadCuestionario>('intermedia');
   readonly tipos = signal<TipoPreguntaCuestionario[]>([
     ...TIPOS_PREGUNTA_CUESTIONARIO,

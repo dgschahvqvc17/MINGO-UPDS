@@ -4,7 +4,9 @@
  */
 const UsuarioRepository = require('./repositories/usuario.repository');
 const UsuarioAdminRepository = require('./repositories/usuario-admin.repository');
+const AuthAdminRepository = require('./repositories/auth-admin.repository');
 const MateriaRepository = require('./repositories/materia.repository');
+const InscripcionRepository = require('./repositories/inscripcion.repository');
 const TareaRepository = require('./repositories/tarea.repository');
 const CalendarioRepository = require('./repositories/calendario.repository');
 const DocumentoRepository = require('./repositories/documento.repository');
@@ -26,6 +28,8 @@ const AlmacenamientoRepository = require('./repositories/almacenamiento.reposito
 const ColaRepository = require('./repositories/cola.repository');
 const AuthService = require('./services/auth.service');
 const UsuarioAdminService = require('./services/usuario-admin.service');
+const CambioClaveService = require('./services/cambio-clave.service');
+const InscripcionService = require('./services/inscripcion.service');
 const MateriaService = require('./services/materia.service');
 const TareaService = require('./services/tarea.service');
 const CalendarioService = require('./services/calendario.service');
@@ -49,6 +53,8 @@ const ProgresoService = require('./services/progreso.service');
 const NotificacionService = require('./services/notificacion.service');
 const PlanIaService = require('./services/ia/plan.ia.service');
 const AuthController = require('./controllers/auth.controller');
+const CambioClaveController = require('./controllers/cambio-clave.controller');
+const InscripcionController = require('./controllers/inscripcion.controller');
 const UsuarioAdminController = require('./controllers/usuario-admin.controller');
 const MateriaController = require('./controllers/materia.controller');
 const TareaController = require('./controllers/tarea.controller');
@@ -77,6 +83,7 @@ const planIaServiceCompartido = new PlanIaService();
 const {
   createSupabaseClient,
   createSupabaseServiceRoleClient,
+  createSupabaseAnonClient,
 } = require('./config/supabase');
 
 /**
@@ -101,7 +108,36 @@ function createAuthService(supabaseClient) {
 function createUsuarioAdminService(usuarioActualId) {
   const supabaseServiceRole = createSupabaseServiceRoleClient();
   const usuarioAdminRepository = new UsuarioAdminRepository(supabaseServiceRole);
-  return new UsuarioAdminService(usuarioAdminRepository, usuarioActualId);
+  const authAdminRepository = new AuthAdminRepository({
+    supabase: supabaseServiceRole,
+    createAnonClient: createSupabaseAnonClient,
+  });
+  return new UsuarioAdminService({
+    repository: usuarioAdminRepository,
+    authAdminRepository,
+    usuarioActualId,
+  });
+}
+
+/**
+ * Crea el servicio de cambio obligatorio de contraseña temporal.
+ * Verifica la contraseña actual y marca el perfil como actualizado.
+ *
+ * @returns {CambioClaveService}
+ */
+function createCambioClaveService() {
+  const supabaseServiceRole = createSupabaseServiceRoleClient();
+  const usuarioAdminRepository = new UsuarioAdminRepository(supabaseServiceRole);
+  const authAdminRepository = new AuthAdminRepository({
+    supabase: supabaseServiceRole,
+    createAnonClient: createSupabaseAnonClient,
+  });
+  return new CambioClaveService({ authAdminRepository, usuarioAdminRepository });
+}
+
+/** El controlador se crea por petición para no exigir service_role al cargar la app. */
+function createCambioClaveController() {
+  return new CambioClaveController({ cambioClaveService: createCambioClaveService() });
 }
 
 /**
@@ -110,12 +146,33 @@ function createUsuarioAdminService(usuarioActualId) {
  *
  * @param {string} usuarioActualId - ID del usuario que realiza la operación
  * @param {string} accessToken - JWT del usuario autenticado
+ * @param {string | null} rol - Rol principal de la sesión
  * @returns {MateriaService}
  */
-function createMateriaService(usuarioActualId, accessToken) {
+function createMateriaService(usuarioActualId, accessToken, rol = null) {
   const supabaseClient = createSupabaseClient(accessToken);
   const materiaRepository = new MateriaRepository({ supabase: supabaseClient });
-  return new MateriaService(materiaRepository, usuarioActualId);
+  return new MateriaService(materiaRepository, usuarioActualId, rol);
+}
+
+/**
+ * Servicio de inscripciones: escrituras con service_role (RLS no permite al
+ * cliente escribir inscripciones) y comprobación de rol en el servicio.
+ */
+function createInscripcionService(usuarioActualId, rol = null) {
+  const supabaseServiceRole = createSupabaseServiceRoleClient();
+  const inscripcionRepository = new InscripcionRepository({ supabase: supabaseServiceRole });
+  const materiaRepository = new MateriaRepository({ supabase: supabaseServiceRole });
+  return new InscripcionService({
+    inscripcionRepository,
+    materiaRepository,
+    usuarioActualId,
+    rol,
+  });
+}
+
+function createInscripcionController(inscripcionService) {
+  return new InscripcionController({ inscripcionService });
 }
 
 /**
@@ -125,14 +182,21 @@ function createMateriaService(usuarioActualId, accessToken) {
  *
  * @param {string} usuarioActualId - ID del usuario que realiza la operación
  * @param {string} accessToken - JWT del usuario autenticado
+ * @param {string | null} rol - Rol principal de la sesión
  * @returns {TareaService}
  */
-function createTareaService(usuarioActualId, accessToken) {
+function createTareaService(usuarioActualId, accessToken, rol = null) {
   const supabaseClient = createSupabaseClient(accessToken);
   const tareaRepository = new TareaRepository({ supabase: supabaseClient });
   const materiaRepository = new MateriaRepository({ supabase: supabaseClient });
   const calendarioService = createCalendarioService(usuarioActualId, accessToken);
-  return new TareaService({ tareaRepository, materiaRepository, calendarioService, usuarioActualId });
+  return new TareaService({
+    tareaRepository,
+    materiaRepository,
+    calendarioService,
+    usuarioActualId,
+    rol,
+  });
 }
 
 function createTareaController(tareaService) {
@@ -506,8 +570,12 @@ const authController = new AuthController();
 
 module.exports = {
   createAuthService,
+  createCambioClaveService,
+  createCambioClaveController,
   createUsuarioAdminService,
   createMateriaService,
+  createInscripcionService,
+  createInscripcionController,
   createTareaService,
   createCalendarioService,
   createDashboardService,

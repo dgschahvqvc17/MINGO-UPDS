@@ -248,7 +248,7 @@
                 maxlength="150"
                 placeholder="Ej. Aprobar el parcial de cálculo"
                 [value]="titulo()"
-                (input)="titulo.set($any($event.target).value)"
+                (input)="titulo.set(valorCampo($event))"
               />
               <div class="form-text">Entre 5 y 150 caracteres.</div>
             </div>
@@ -262,7 +262,7 @@
                 maxlength="1000"
                 placeholder="Detalles para alcanzar tu objetivo"
                 [value]="descripcion()"
-                (input)="descripcion.set($any($event.target).value)"
+                (input)="descripcion.set(valorCampo($event))"
               ></textarea>
             </div>
 
@@ -272,7 +272,7 @@
                 id="materia-objetivo"
                 class="form-select"
                 [value]="materiaId()"
-                (change)="materiaId.set($any($event.target).value)"
+                (change)="materiaId.set(valorCampo($event))"
               >
                 <option value="">Sin materia específica</option>
                 @for (materia of materiasActivas(); track materia.id) {
@@ -289,7 +289,7 @@
                   type="date"
                   class="form-control"
                   [value]="fechaLimite()"
-                  (input)="fechaLimite.set($any($event.target).value)"
+                  (input)="fechaLimite.set(valorCampo($event))"
                 />
               </div>
               @if (editandoId()) {
@@ -299,7 +299,7 @@
                     id="estado-objetivo"
                     class="form-select"
                     [value]="estado()"
-                    (change)="estado.set($any($event.target).value)"
+                    (change)="alCambiarEstado(valorCampo($event))"
                   >
                     @for (opcion of estados; track opcion) {
                       <option [value]="opcion">{{ etiquetasEstado[opcion] }}</option>

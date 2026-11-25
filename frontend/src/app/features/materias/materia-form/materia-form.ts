@@ -1,9 +1,45 @@
-import { ChangeDetectionStrategy, Component, computed, inject, OnInit, signal } from '@angular/core';
-import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  DestroyRef,
+  OnInit,
+  computed,
+  inject,
+  signal,
+} from '@angular/core';
+import {
+  AbstractControl,
+  NonNullableFormBuilder,
+  ReactiveFormsModule,
+  Validators,
+} from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { MateriaService, type Materia } from '../../../core/services/materia.service';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { forkJoin, map, of } from 'rxjs';
+import {
+  CrearMateriaRequest,
+  ActualizarMateriaRequest,
+  MateriaService,
+} from '../../../core/services/materia.service';
 import { AuthService } from '../../../core/services/auth.service';
+import { UsuarioAdminService } from '../../../core/services/usuario-admin.service';
+import { mensajeDeErrorHttp } from '../../../core/utils/http-error';
 import { CardComponent } from '../../../shared/components/card/card.component';
+
+interface DocenteOpcion {
+  id: string;
+  nombre: string;
+}
+
+type CampoFormulario =
+  | 'nombre'
+  | 'codigo'
+  | 'docente_id'
+  | 'descripcion'
+  | 'periodo_academico'
+  | 'color';
+
+const COLOR_PREDETERMINADO = '#3B82F6';
 
 @Component({
   selector: 'app-materia-form',
@@ -13,13 +49,14 @@ import { CardComponent } from '../../../shared/components/card/card.component';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class MateriaFormPage implements OnInit {
-  private readonly fb = inject(FormBuilder);
+  private readonly formBuilder = inject(NonNullableFormBuilder);
+  private readonly destroyRef = inject(DestroyRef);
   private readonly materiaService = inject(MateriaService);
+  private readonly usuarioAdminService = inject(UsuarioAdminService);
   private readonly authService = inject(AuthService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
 
-  // Estado del componente
   readonly materiaId = signal<string | null>(null);
   readonly modoEdicion = computed(() => this.materiaId() !== null);
   readonly estadoMateria = signal<'activo' | 'archivado' | null>(null);
@@ -27,303 +64,301 @@ export class MateriaFormPage implements OnInit {
   readonly error = signal<string | null>(null);
   readonly guardando = signal(false);
 
-  // Metadatos
   readonly coloresDisponibles = signal<string[]>([]);
   readonly periodosAcademicos = signal<string[]>([]);
+  readonly docentes = signal<DocenteOpcion[]>([]);
 
-  // Formulario
-  readonly form = this.fb.group({
-    nombre: ['', [
-      Validators.required,
-      Validators.minLength(2),
-      Validators.maxLength(100)
-    ]],
-    codigo: ['', [
-      Validators.required,
-      Validators.minLength(1),
-      Validators.maxLength(20),
-      Validators.pattern(/^[A-Z0-9\-]+$/)
-    ]],
-    docente: ['', [
-      Validators.required,
-      Validators.minLength(2),
-      Validators.maxLength(100)
-    ]],
-    descripcion: ['', [
-      Validators.maxLength(500)
-    ]],
-    periodo_academico: ['', [
-      Validators.required,
-      Validators.pattern(/^\d{4}-[12]$/)
-    ]],
-    color: ['#3B82F6', [
-      Validators.required,
-      Validators.pattern(/^#[0-9A-F]{6}$/i)
-    ]]
+  readonly form = this.formBuilder.group({
+    nombre: ['', [Validators.required, Validators.minLength(2), Validators.maxLength(100)]],
+    codigo: [
+      '',
+      [
+        Validators.required,
+        Validators.minLength(1),
+        Validators.maxLength(20),
+        Validators.pattern(/^[A-Z0-9-]+$/),
+      ],
+    ],
+    docente_id: ['', [Validators.required]],
+    descripcion: ['', [Validators.maxLength(500)]],
+    periodo_academico: ['', [Validators.required, Validators.pattern(/^\d{4}-[12]$/)]],
+    color: [COLOR_PREDETERMINADO, [Validators.required, Validators.pattern(/^#[0-9A-F]{6}$/i)]],
   });
 
-  // Computed properties
-  readonly tituloPagina = computed(() => 
-    this.modoEdicion() ? 'Editar materia' : 'Nueva materia'
+  readonly tituloPagina = computed(() =>
+    this.modoEdicion() ? 'Editar materia' : 'Nueva materia',
   );
 
-  readonly botonGuardarTexto = computed(() => 
-    this.guardando() ? 'Guardando...' : (this.modoEdicion() ? 'Actualizar materia' : 'Crear materia')
+  readonly botonGuardarTexto = computed(() =>
+    this.guardando() ? 'Guardando...' : this.modoEdicion() ? 'Actualizar materia' : 'Crear materia',
+  );
+
+  readonly nombreDocente = computed(
+    () => this.docentes().find((docente) => docente.id === this.form.controls.docente_id.value)?.nombre ?? '',
   );
 
   readonly descripcionPeriodo = computed(() => {
-    const periodo = this.form.get('periodo_academico')?.value;
-    if (!periodo || !this.materiaService.validarPeriodoAcademico(periodo)) {
-      return '';
-    }
-    return this.materiaService.obtenerDescripcionPeriodo(periodo);
+    const periodo = this.form.controls.periodo_academico.value;
+    return this.materiaService.validarPeriodoAcademico(periodo)
+      ? this.materiaService.obtenerDescripcionPeriodo(periodo)
+      : '';
   });
 
-  // Usuario actual
-  readonly usuarioActual = this.authService.profile;
+  readonly esAdmin = computed(() => this.authService.role() === 'administrador');
 
   ngOnInit(): void {
     this.cargarMetadatos();
     this.cargarMateriaSiEsEdicion();
   }
 
-  /**
-   * Carga metadatos necesarios (colores, periodos)
-   */
-  async cargarMetadatos(): Promise<void> {
-    try {
-      const [colores, periodos] = await Promise.all([
-        this.materiaService.obtenerColoresDisponibles().toPromise(),
-        this.materiaService.obtenerPeriodosAcademicos().toPromise()
-      ]);
+  cargarMetadatos(): void {
+    const docentes = this.esAdmin()
+      ? this.usuarioAdminService.listarDocentes().pipe(
+          map((usuarios) =>
+            usuarios.map((usuario) => ({
+              id: usuario.id,
+              nombre: `${usuario.nombre} ${usuario.apellido}`.trim(),
+            })),
+          ),
+        )
+      : of(this.docenteActualComoOpcion());
 
-      if (colores) this.coloresDisponibles.set(colores);
-      if (periodos) this.periodosAcademicos.set(periodos);
-    } catch (error) {
-      console.error('Error al cargar metadatos:', error);
-    }
+    forkJoin({
+      colores: this.materiaService.obtenerColoresDisponibles(),
+      periodos: this.materiaService.obtenerPeriodosAcademicos(),
+      docentes,
+    })
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: ({ colores, periodos, docentes: opciones }) => {
+          this.coloresDisponibles.set(colores);
+          this.periodosAcademicos.set(periodos);
+          this.docentes.set(opciones);
+          if (!this.modoEdicion() && opciones.length === 1) {
+            this.form.controls.docente_id.setValue(opciones[0].id);
+          }
+        },
+        error: (error: unknown) => {
+          this.error.set(mensajeDeErrorHttp(error, 'No se pudo preparar el formulario.'));
+        },
+      });
   }
 
-  /**
-   * Carga la materia si estamos en modo edición
-   */
-  async cargarMateriaSiEsEdicion(): Promise<void> {
+  cargarMateriaSiEsEdicion(): void {
     const id = this.route.snapshot.paramMap.get('id');
-    if (!id) return;
+    if (!id) {
+      return;
+    }
 
     this.materiaId.set(id);
     this.loading.set(true);
     this.error.set(null);
 
-    try {
-      const materia = await this.materiaService.obtenerMateria(id).toPromise();
-      if (materia) {
-        this.estadoMateria.set(materia.estado);
-        this.form.patchValue({
-          nombre: materia.nombre,
-          codigo: materia.codigo,
-          docente: materia.docente,
-          descripcion: materia.descripcion || '',
-          periodo_academico: materia.periodo_academico,
-          color: materia.color
-        });
-      }
-    } catch (error) {
-      this.error.set(error instanceof Error ? error.message : 'Error al cargar la materia');
-      console.error('Error al cargar materia:', error);
-    } finally {
-      this.loading.set(false);
-    }
+    this.materiaService
+      .obtenerMateria(id)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (materia) => {
+          if (
+            !this.esAdmin() &&
+            materia.docente_id &&
+            materia.docente_id !== this.authService.profile()?.id
+          ) {
+            this.error.set('No tienes permiso para editar esta materia.');
+            void this.router.navigate(['/materias', id]);
+            return;
+          }
+
+          this.estadoMateria.set(materia.estado);
+          this.registrarDocenteDeMateria(materia.docente_id, materia.docente);
+          this.form.patchValue({
+            nombre: materia.nombre,
+            codigo: materia.codigo,
+            docente_id: materia.docente_id ?? '',
+            descripcion: materia.descripcion ?? '',
+            periodo_academico: materia.periodo_academico,
+            color: materia.color,
+          });
+          this.loading.set(false);
+        },
+        error: (error: unknown) => {
+          this.error.set(mensajeDeErrorHttp(error, 'No se pudo cargar la materia.'));
+          this.loading.set(false);
+        },
+      });
   }
 
-  /**
-   * Maneja el envío del formulario
-   */
-  async onSubmit(): Promise<void> {
-    if (this.form.invalid || this.guardando()) return;
-
-    // Marcar todos los campos como tocados para mostrar errores
-    this.markAllAsTouched();
-
-    if (this.form.invalid) {
-      this.error.set('Por favor, corrige los errores en el formulario');
+  onSubmit(): void {
+    if (this.form.invalid || this.guardando()) {
+      this.form.markAllAsTouched();
+      this.error.set('Revisa los campos marcados antes de continuar.');
       return;
     }
 
+    const valores = this.form.getRawValue();
+    const nombreDocente = this.nombreDocente();
+
+    if (!nombreDocente) {
+      this.error.set('Selecciona un docente válido.');
+      return;
+    }
+
+    const datos: CrearMateriaRequest = {
+      nombre: valores.nombre.trim(),
+      codigo: valores.codigo.trim().toUpperCase(),
+      docente: nombreDocente,
+      docente_id: valores.docente_id,
+      descripcion: valores.descripcion.trim() || null,
+      periodo_academico: valores.periodo_academico,
+      color: valores.color,
+    };
+
     this.guardando.set(true);
     this.error.set(null);
 
-    try {
-      const formValue = this.form.value;
-      
-      // Crear objeto tipado seguro
-      const formData = {
-        nombre: formValue.nombre || '',
-        codigo: formValue.codigo || '',
-        docente: formValue.docente || '',
-        descripcion: formValue.descripcion || null,
-        periodo_academico: formValue.periodo_academico || '',
-        color: formValue.color || this.coloresDisponibles()[0]
-      };
+    const solicitud = this.modoEdicion()
+      ? this.materiaService
+          .actualizarMateria(this.materiaId()!, datos as ActualizarMateriaRequest)
+          .pipe(map((materia) => ({ id: materia.id, creada: false })))
+      : this.materiaService
+          .crearMateria(datos)
+          .pipe(map((materia) => ({ id: materia.id, creada: true })));
 
-      if (this.modoEdicion()) {
-        await this.materiaService.actualizarMateria(this.materiaId()!, formData).toPromise();
-        alert('Materia actualizada exitosamente');
-        this.router.navigate(['/materias', this.materiaId()]);
-      } else {
-        const nuevaMateria = await this.materiaService.crearMateria(formData).toPromise();
-        alert('Materia creada exitosamente');
-        this.router.navigate(['/materias', nuevaMateria!.id]);
-      }
-    } catch (error) {
-      const mensajeError = error instanceof Error ? error.message : 'Error al guardar la materia';
-      this.error.set(mensajeError);
-      alert(`Error: ${mensajeError}`);
-    } finally {
-      this.guardando.set(false);
-    }
+    solicitud.pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: ({ id }) => {
+        this.guardando.set(false);
+        void this.router.navigate(['/materias', id]);
+      },
+      error: (error: unknown) => {
+        this.error.set(mensajeDeErrorHttp(error, 'No se pudo guardar la materia.'));
+        this.guardando.set(false);
+      },
+    });
   }
 
-  /**
-   * Archiva o activa la materia (no existe borrado definitivo en el backend)
-   */
-  async archivarMateria(): Promise<void> {
+  archivarMateria(): void {
     const id = this.materiaId();
     const estadoActual = this.estadoMateria();
-    if (!id || !estadoActual || this.guardando()) return;
+    if (!id || !estadoActual || this.guardando()) {
+      return;
+    }
 
     const nuevoEstado = estadoActual === 'activo' ? 'archivado' : 'activo';
-    const confirmacion = confirm(
-      `¿Estás seguro de ${nuevoEstado === 'archivado' ? 'archivar' : 'activar'} la materia?`,
-    );
-    if (!confirmacion) return;
-
     this.guardando.set(true);
     this.error.set(null);
 
-    try {
-      await this.materiaService.cambiarEstadoMateria(id, nuevoEstado).toPromise();
-      this.estadoMateria.set(nuevoEstado);
-    } catch (error) {
-      const mensaje = error instanceof Error ? error.message : 'Error al cambiar el estado de la materia';
-      this.error.set(mensaje);
-    } finally {
-      this.guardando.set(false);
-    }
+    this.materiaService
+      .cambiarEstadoMateria(id, nuevoEstado)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () => {
+          this.estadoMateria.set(nuevoEstado);
+          this.guardando.set(false);
+        },
+        error: (error: unknown) => {
+          this.error.set(mensajeDeErrorHttp(error, 'No se pudo cambiar el estado de la materia.'));
+          this.guardando.set(false);
+        },
+      });
   }
 
-  /**
-   * Cambia el color seleccionado
-   */
   seleccionarColor(color: string): void {
-    this.form.patchValue({ color });
+    this.form.controls.color.setValue(color);
   }
 
-  /**
-   * Genera automáticamente el siguiente periodo académico
-   */
   generarSiguientePeriodo(): void {
     const ultimoPeriodo = this.periodosAcademicos()[0];
-    if (ultimoPeriodo && this.materiaService.validarPeriodoAcademico(ultimoPeriodo)) {
-      try {
-        const siguientePeriodo = this.materiaService.generarPeriodoSiguiente(ultimoPeriodo);
-        this.form.patchValue({ periodo_academico: siguientePeriodo });
-      } catch (error) {
-        console.error('Error al generar siguiente periodo:', error);
-      }
+    if (!ultimoPeriodo || !this.materiaService.validarPeriodoAcademico(ultimoPeriodo)) {
+      return;
+    }
+
+    try {
+      this.form.controls.periodo_academico.setValue(
+        this.materiaService.generarPeriodoSiguiente(ultimoPeriodo),
+      );
+    } catch {
+      this.error.set('No se pudo calcular el siguiente periodo académico.');
     }
   }
 
-  /**
-   * Verifica si un campo tiene errores
-   */
-  tieneError(controlName: string, errorType: string): boolean {
-    const control = this.form.get(controlName);
-    return control ? control.hasError(errorType) && (control.touched || control.dirty) : false;
+  tieneError(campo: CampoFormulario, tipo: string): boolean {
+    const control = this.form.controls[campo];
+    return control.hasError(tipo) && (control.touched || control.dirty);
   }
 
-  /**
-   * Obtiene el mensaje de error para un campo
-   */
-  obtenerMensajeError(controlName: string): string {
-    const control = this.form.get(controlName);
-    if (!control || !control.errors) return '';
+  obtenerMensajeError(campo: CampoFormulario): string {
+    const control = this.form.controls[campo];
 
     if (control.hasError('required')) {
-      return 'Este campo es requerido';
+      return 'Este campo es obligatorio';
     }
     if (control.hasError('minlength')) {
-      const min = control.errors['minlength'].requiredLength;
-      return `Mínimo ${min} caracteres`;
+      return `Mínimo ${this.longitudRequerida(control, 'minlength')} caracteres`;
     }
     if (control.hasError('maxlength')) {
-      const max = control.errors['maxlength'].requiredLength;
-      return `Máximo ${max} caracteres`;
+      return `Máximo ${this.longitudRequerida(control, 'maxlength')} caracteres`;
     }
     if (control.hasError('pattern')) {
-      switch (controlName) {
-        case 'codigo':
-          return 'Solo letras mayúsculas, números y guiones';
-        case 'periodo_academico':
-          return 'Formato: AÑO-SEMESTRE (ej: 2024-1)';
-        case 'color':
-          return 'Formato hexadecimal (ej: #3B82F6)';
-        default:
-          return 'Formato inválido';
-      }
+      const mensajes: Partial<Record<CampoFormulario, string>> = {
+        codigo: 'Solo letras mayúsculas, números y guiones',
+        periodo_academico: 'Formato: AÑO-SEMESTRE (ej: 2024-1)',
+        color: 'Formato hexadecimal (ej: #3B82F6)',
+      };
+      return mensajes[campo] ?? 'Formato inválido';
     }
 
     return 'Campo inválido';
   }
 
-  /**
-   * Marca todos los campos como tocados
-   */
-  private markAllAsTouched(): void {
-    Object.keys(this.form.controls).forEach(key => {
-      const control = this.form.get(key);
-      control?.markAsTouched();
-    });
-  }
-
-  /**
-   * Cancela y regresa a la lista de materias
-   */
   cancelar(): void {
-    if (this.modoEdicion()) {
-      this.router.navigate(['/materias', this.materiaId()]);
-    } else {
-      this.router.navigate(['/materias']);
-    }
+    void this.router.navigate(this.modoEdicion() ? ['/materias', this.materiaId()] : ['/materias']);
   }
 
-  /**
-   * Obtiene el color de fondo para la tarjeta de color
-   */
   obtenerColorFondo(color: string): string {
     return color;
   }
 
-  /**
-   * Obtiene el color de texto para la tarjeta de color
-   */
   obtenerColorTexto(color: string): string {
-    // Simple contraste para colores claros/oscuros
-    const hex = color.replace('#', '');
-    const r = parseInt(hex.substr(0, 2), 16);
-    const g = parseInt(hex.substr(2, 2), 16);
-    const b = parseInt(hex.substr(4, 2), 16);
-    
-    // Fórmula de luminosidad
-    const luminosidad = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-    
+    const rojo = Number.parseInt(color.slice(1, 3), 16);
+    const verde = Number.parseInt(color.slice(3, 5), 16);
+    const azul = Number.parseInt(color.slice(5, 7), 16);
+    const luminosidad = (0.299 * rojo + 0.587 * verde + 0.114 * azul) / 255;
+
     return luminosidad > 0.5 ? '#000000' : '#FFFFFF';
   }
 
-  /**
-   * Verifica si un color está seleccionado
-   */
   estaColorSeleccionado(color: string): boolean {
-    return this.form.get('color')?.value === color;
+    return this.form.controls.color.value === color;
+  }
+
+  private registrarDocenteDeMateria(docenteId: string | null, nombre: string): void {
+    if (!docenteId) {
+      return;
+    }
+
+    this.docentes.update((docentes) =>
+      docentes.some((docente) => docente.id === docenteId)
+        ? docentes
+        : [...docentes, { id: docenteId, nombre }],
+    );
+  }
+
+  private docenteActualComoOpcion(): DocenteOpcion[] {
+    const perfil = this.authService.profile();
+    if (!perfil || perfil.role !== 'docente') {
+      return [];
+    }
+
+    return [
+      {
+        id: perfil.id,
+        nombre: `${perfil.nombre} ${perfil.apellido}`.trim(),
+      },
+    ];
+  }
+
+  private longitudRequerida(control: AbstractControl, tipo: string): number {
+    const error = control.errors?.[tipo] as { requiredLength?: number } | null;
+    return error?.requiredLength ?? 0;
   }
 }

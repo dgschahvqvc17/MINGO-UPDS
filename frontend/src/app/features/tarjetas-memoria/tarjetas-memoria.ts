@@ -21,6 +21,7 @@ import {
   type ConjuntoTarjetasResumen,
 } from '../../core/services/tarjeta.service';
 import { mensajeDeErrorHttp } from '../../core/utils/http-error';
+import { valorDeCampo } from '../../core/utils/form-event';
 import { EstudiadorTarjetasComponent } from './components/estudiador-tarjetas/estudiador-tarjetas';
 
 const LIMITE_MATERIAS = 100;
@@ -63,6 +64,7 @@ export class TarjetasMemoriaPage {
   readonly materiaId = signal('');
   readonly documentoId = signal('');
   readonly cantidadTarjetas = signal(CANTIDAD_TARJETAS_POR_DEFECTO);
+  readonly valorCampo = valorDeCampo;
 
   readonly materiasActivas = computed(() =>
     this.materias().filter((materia) => materia.estado === 'activo'),

@@ -1,8 +1,10 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { firstValueFrom } from 'rxjs';
 import { UsuarioAdminService, type UsuarioDetalle } from '../../../core/services/usuario-admin.service';
 import { AuthService } from '../../../core/services/auth.service';
+import { mensajeDeErrorHttp } from '../../../core/utils/http-error';
 import { CardComponent } from '../../../shared/components/card/card.component';
 
 @Component({
@@ -22,7 +24,13 @@ export class UsuarioDetallePage {
   readonly usuario = signal<UsuarioDetalle | null>(null);
   readonly loading = signal(true);
   readonly error = signal<string | null>(null);
-  
+  readonly mensajeEstado = signal<{
+    texto: string;
+    tipo: 'success' | 'warning' | 'danger';
+  } | null>(null);
+  readonly confirmandoCambio = signal(false);
+  readonly cambiandoEstado = signal(false);
+
   readonly usuarioActual = this.authService.profile;
   readonly usuarioActualId = computed(() => this.usuarioActual()?.id || '');
   readonly puedeModificar = computed(() => 
@@ -49,15 +57,14 @@ export class UsuarioDetallePage {
     this.error.set(null);
 
     try {
-      const usuario = await this.usuarioAdminService.obtenerUsuario(this.usuarioId).toPromise();
-      this.usuario.set(usuario || null);
-      
+      const usuario = await firstValueFrom(this.usuarioAdminService.obtenerUsuario(this.usuarioId));
+      this.usuario.set(usuario);
+
       if (!usuario) {
         this.error.set('Usuario no encontrado');
       }
     } catch (error) {
-      this.error.set(error instanceof Error ? error.message : 'Error al cargar el usuario');
-      console.error('Error al cargar usuario:', error);
+      this.error.set(mensajeDeErrorHttp(error, 'No se pudo cargar el usuario.'));
     } finally {
       this.loading.set(false);
     }
@@ -65,36 +72,71 @@ export class UsuarioDetallePage {
 
   editarRoles(): void {
     if (this.puedeModificar()) {
+      this.mensajeEstado.set(null);
       this.router.navigate(['roles'], { relativeTo: this.route });
-    } else {
-      alert('No puedes modificar tus propios privilegios');
-    }
-  }
-
-  async cambiarEstado(): Promise<void> {
-    if (!this.puedeModificar()) {
-      alert('No puedes modificar tu propio estado');
       return;
     }
 
+    this.mensajeEstado.set({
+      texto: 'No puedes modificar tus propios privilegios.',
+      tipo: 'warning',
+    });
+  }
+
+  pedirConfirmacion(): void {
+    if (!this.puedeModificar()) {
+      this.mensajeEstado.set({
+        texto: 'No puedes modificar tu propio estado.',
+        tipo: 'warning',
+      });
+      return;
+    }
+
+    this.mensajeEstado.set(null);
+    this.confirmandoCambio.set(!this.confirmandoCambio());
+  }
+
+  cancelarCambio(): void {
+    this.confirmandoCambio.set(false);
+  }
+
+  textoConfirmacion(): string {
     const usuario = this.usuario();
-    if (!usuario) return;
+    if (!usuario) {
+      return '';
+    }
+
+    const accion = usuario.estado === 'activo' ? 'desactivar' : 'activar';
+    return `¿Deseas ${accion} al usuario ${usuario.nombre} ${usuario.apellido}?`;
+  }
+
+  async cambiarEstado(): Promise<void> {
+    const usuario = this.usuario();
+    if (!usuario || !this.puedeModificar() || this.cambiandoEstado()) {
+      return;
+    }
 
     const nuevoEstado = usuario.estado === 'activo' ? 'inactivo' : 'activo';
-    const confirmacion = confirm(
-      `¿Estás seguro de ${nuevoEstado === 'activo' ? 'activar' : 'desactivar'} al usuario ${usuario.nombre} ${usuario.apellido}?`
-    );
-
-    if (!confirmacion) return;
+    this.cambiandoEstado.set(true);
+    this.mensajeEstado.set(null);
 
     try {
-      await this.usuarioAdminService.actualizarEstadoUsuario(usuario.id, nuevoEstado).toPromise();
-      alert(`Usuario ${nuevoEstado === 'activo' ? 'activado' : 'desactivado'} exitosamente`);
-      
-      // Recargar datos del usuario
-      this.cargarUsuario();
+      await firstValueFrom(
+        this.usuarioAdminService.actualizarEstadoUsuario(usuario.id, nuevoEstado),
+      );
+      this.mensajeEstado.set({
+        texto: `Usuario ${nuevoEstado === 'activo' ? 'activado' : 'desactivado'} correctamente.`,
+        tipo: 'success',
+      });
+      this.confirmandoCambio.set(false);
+      await this.cargarUsuario();
     } catch (error) {
-      alert(error instanceof Error ? error.message : 'Error al cambiar el estado del usuario');
+      this.mensajeEstado.set({
+        texto: mensajeDeErrorHttp(error, 'No se pudo cambiar el estado del usuario.'),
+        tipo: 'danger',
+      });
+    } finally {
+      this.cambiandoEstado.set(false);
     }
   }
 

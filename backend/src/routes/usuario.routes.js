@@ -10,6 +10,7 @@ const {
 
 const {
   usuarioBusquedaSchema,
+  usuarioCrearSchema,
   usuarioActualizarRolesSchema,
   usuarioActualizarEstadoSchema,
   usuarioIdParamSchema
@@ -47,6 +48,19 @@ router.get(
     // Usar el servicio inyectado en el middleware
     const controller = new (require('../controllers/usuario-admin.controller'))(req.usuarioAdminService);
     await controller.listarUsuarios(req, res, next);
+  })
+);
+
+/**
+ * POST /usuarios
+ * Alta administrativa con contraseña temporal y cambio obligatorio.
+ */
+router.post(
+  '/',
+  validationMiddleware({ body: usuarioCrearSchema }),
+  asyncHandler(async (req, res, next) => {
+    const controller = new (require('../controllers/usuario-admin.controller'))(req.usuarioAdminService);
+    await controller.crearUsuario(req, res, next);
   })
 );
 

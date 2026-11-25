@@ -37,6 +37,7 @@ Regla de integración:
 - `perfiles.id` = `auth.users.id` (UUID).
 - Todas las columnas `usuario_id` son `UUID` y referencian `perfiles.id`.
 - `materias.id`, `tareas.id` y `eventos_calendario.id` son `UUID` y todas sus claves foráneas son `UUID`.
+- `inscripciones.id`, `inscripciones.materia_id`, `inscripciones.estudiante_id`, `tarea_estados.id`, `tarea_estados.tarea_id`, `tarea_estados.estudiante_id`, `materias.docente_id` y `tareas.docente_id` también son `UUID`.
 - Las tablas de dominio que aún no tienen historia implementada conservarán `SERIAL` hasta su migración.
 - El cliente trata cualquier ID como cadena opaca, sin asumir formato numérico.
 
@@ -46,6 +47,11 @@ Regla de integración:
 
 > HU10 agregó `resumenes` y `consumo_ia` (secciones 3.16 y 3.17) fuera del
 > diagrama original, por lo que el total de tablas del diagrama se mantiene en 15.
+
+> La migración `0018_roles_docente_inscripciones.sql` agregó `inscripciones` y
+> `tarea_estados`, además de las columnas `docente_id` y
+> `perfiles.requiere_cambio_clave`. El diagrama anterior conserva las entidades
+> originales; las secciones 3 y 8 describen el esquema vigente.
 
 ## 2. Diagrama entidad-relación
 
@@ -271,6 +277,11 @@ erDiagram
     }
 ```
 
+> El diagrama no incluye aún las relaciones nuevas de la migración `0018`:
+> `perfiles` → `materias` como docente responsable (`docente_id`),
+> `perfiles` → `inscripciones` como estudiante, `materias` → `inscripciones` y
+> `tareas` → `tarea_estados`. Ver secciones 3 y 8.
+
 ## 3. Diccionario de tablas
 
 ### 3.1. `perfiles`
@@ -286,6 +297,7 @@ Extiende la información del usuario autenticado en Supabase.
 | `correo` | `VARCHAR` | No | | Correo de contacto. |
 | `carrera` | `VARCHAR` | Sí | | Carrera universitaria. |
 | `estado` | `VARCHAR` | No | | `activo` o `inactivo`. Una cuenta `inactivo` no puede iniciar sesión. |
+| `requiere_cambio_clave` | `BOOLEAN` | No | | Por defecto `false`. Cuando es `true`, la API solo permite `/auth/me` y `/auth/cambiar-clave` hasta completar el cambio. |
 | `fecha_creacion` | `TIMESTAMP` | No | | Fecha de creación del perfil. |
 
 Reglas:
@@ -303,7 +315,7 @@ Catálogo de roles del sistema.
 | Campo | Tipo | Nulo | Clave | Descripción |
 |---|---|---|:---:|---|
 | `id` | `SERIAL` | No | PK | Identificador del rol. |
-| `nombre` | `VARCHAR` | No | | `administrador` o `estudiante`. |
+| `nombre` | `VARCHAR` | No | | `administrador`, `docente` o `estudiante`. |
 | `descripcion` | `TEXT` | Sí | | Descripción del rol. |
 
 ### 3.3. `usuario_roles`
@@ -343,7 +355,8 @@ Asignaturas que cursa el estudiante.
 | `usuario_id` | `UUID` | No | FK → `perfiles.id` | Propietario de la materia. |
 | `nombre` | `VARCHAR(100)` | No | | Nombre de la asignatura. |
 | `codigo` | `VARCHAR(20)` | No | | Código académico, único por usuario. |
-| `docente` | `VARCHAR(100)` | No | | Nombre del docente. |
+| `docente` | `VARCHAR(100)` | No | | Nombre legible del docente. |
+| `docente_id` | `UUID` | Sí | FK → `perfiles.id` | Perfil con rol `docente` responsable de la materia. Puede ser `null` en materias heredadas. |
 | `descripcion` | `TEXT` | Sí | | Descripción de la materia. |
 | `periodo_academico` | `VARCHAR(10)` | No | | Formato `AAAA-S`, por ejemplo `2026-2`. |
 | `color` | `VARCHAR(7)` | No | | Color hexadecimal; por defecto `#3B82F6`. |
@@ -367,6 +380,7 @@ Actividades y evaluaciones del estudiante (HU04).
 | `id` | `UUID` | No | PK | Identificador de la tarea. |
 | `usuario_id` | `UUID` | No | FK → `perfiles.id` | Propietario de la tarea. |
 | `materia_id` | `UUID` | No | FK → `materias.id` | Materia relacionada. |
+| `docente_id` | `UUID` | Sí | FK → `perfiles.id` | Docente que creó la definición. Puede ser `null` en tareas heredadas. |
 | `titulo` | `VARCHAR(200)` | No | | Título de la actividad. |
 | `descripcion` | `TEXT` | Sí | | Detalle de la actividad. |
 | `tipo` | `VARCHAR(20)` | No | | `tarea`, `taller`, `parcial`, `examen`, `proyecto`, `exposicion`, `laboratorio`, `practica` u `otro`. Por defecto `tarea`. |
@@ -384,9 +398,49 @@ Reglas:
 - La materia debe pertenecer al mismo usuario; se valida en el servicio y con RLS.
 - Una tarea de otro usuario no es visible ni editable.
 - Una tarea con `fecha_entrega` anterior a ahora y estado distinto de `completada` cuenta como vencida.
-- DDL: `supabase/migrations/0002_hu04_tareas.sql` (idempotente).
+- Con la migración `0018`, `tareas` es una definición compartida y el estado por estudiante vive en `tarea_estados` (sección 3.7).
+- DDL: `supabase/migrations/0002_hu04_tareas.sql` (idempotente), ampliado por `0018_roles_docente_inscripciones.sql`.
 
-### 3.7. `eventos_calendario`
+### 3.7. `tarea_estados`
+
+Estado personal de cada estudiante para una definición de tarea.
+
+| Campo | Tipo | Nulo | Clave | Descripción |
+|---|---|---|:---:|---|
+| `id` | `UUID` | No | PK | Identificador del estado personal. |
+| `tarea_id` | `UUID` | No | FK → `tareas.id` | Tarea cuyo estado se registra. |
+| `estudiante_id` | `UUID` | No | FK → `perfiles.id` | Estudiante autenticado dueño del estado. |
+| `estado` | `VARCHAR(20)` | No | | `pendiente`, `en_progreso` o `completada`. |
+| `fecha_creacion` | `TIMESTAMPTZ` | No | | Fecha de registro. |
+| `fecha_actualizacion` | `TIMESTAMPTZ` | Sí | | La mantiene un trigger en cada actualización. |
+
+Reglas:
+
+- `UNIQUE (tarea_id, estudiante_id)`: un solo estado por estudiante y tarea; el servicio usa upsert con esa clave.
+- Si no existe fila, el estado efectivo es el de la definición en `tareas.estado`.
+- DDL: `supabase/migrations/0018_roles_docente_inscripciones.sql` (idempotente).
+
+### 3.8. `inscripciones`
+
+Inscripción de un estudiante a una materia, con baja lógica.
+
+| Campo | Tipo | Nulo | Clave | Descripción |
+|---|---|---|:---:|---|
+| `id` | `UUID` | No | PK | Identificador de la inscripción. |
+| `materia_id` | `UUID` | No | FK → `materias.id` | Materia a la que se inscribe el estudiante. |
+| `estudiante_id` | `UUID` | No | FK → `perfiles.id` | Estudiante inscrito. |
+| `estado` | `VARCHAR(20)` | No | | `activa` o `inactiva`. Por defecto `activa`. |
+| `fecha_inscripcion` | `TIMESTAMPTZ` | No | | Fecha de alta o reactivación. |
+| `fecha_actualizacion` | `TIMESTAMPTZ` | Sí | | La mantiene un trigger en cada actualización. |
+
+Reglas:
+
+- `UNIQUE (materia_id, estudiante_id)`: no se duplica la inscripción; una alta posterior reactiva la fila existente.
+- Una baja cambia `estado` a `inactiva`; no elimina la fila.
+- Una inscripción `activa` habilita acceso a materias, tareas, documentos y fragmentos según RLS.
+- DDL: `supabase/migrations/0018_roles_docente_inscripciones.sql` (idempotente).
+
+### 3.9. `eventos_calendario`
 
 Eventos del calendario académico (HU05).
 
@@ -1090,6 +1144,8 @@ alter table public.referencias_respuesta enable row level security;
 alter table public.cuestionarios enable row level security;
 alter table public.preguntas enable row level security;
 alter table public.opciones_pregunta enable row level security;
+alter table public.inscripciones enable row level security;
+alter table public.tarea_estados enable row level security;
 ```
 
 ### 8.1. Patrón para tablas con `usuario_id`
@@ -1104,6 +1160,8 @@ with check (auth.uid() = usuario_id);
 Aplicar el mismo patrón a:
 
 `periodos_academicos`, `materias`, `tareas`, `eventos_calendario`, `documentos`, `conversaciones`, `cuestionarios`.
+
+Con la migración `0018`, `materias` permite lectura al creador, al docente responsable (`docente_id`) y a estudiantes con inscripción `activa`. `tareas` permite lectura al creador, al docente creador (`docente_id`) y a estudiantes con inscripción `activa` cuando la tarea tiene docente asignado; la escritura exige rol `docente` u `administrador`. `documentos` y `fragmentos_documento` usan las funciones `usuario_puede_leer_documento` y `usuario_puede_gestionar_documento`, que consideran propiedad, docencia e inscripción `activa`. Los administradores se validan consultando `usuario_roles` en las políticas de inserción. `inscripciones` admite `SELECT` a `authenticated` solo cuando el usuario es el estudiante inscrito o el docente responsable de la materia (`materias.docente_id`); `INSERT`, `UPDATE` y `DELETE` se reservan a `service_role`. El backend usa `service_role` para este módulo y valida en el servicio que el solicitante sea administrador o docente responsable antes de consultar o escribir. `tarea_estados` admite lectura de materias accesibles y escritura solo del propio estudiante; `service_role` conserva `ALL`.
 
 Casos especiales:
 
@@ -1166,7 +1224,7 @@ Aplicar a:
 
 - El frontend usa la clave `anon`.
 - El backend usa `service_role` solo en operaciones administrativas y **siempre** filtra por propietario en el repository.
-- El administrador no obtiene acceso automático a documentos, conversaciones ni contenido privado.
+- El administrador obtiene acceso a documentos y fragmentos según `usuario_puede_leer_documento` y `usuario_puede_gestionar_documento`, pero no a conversaciones, resúmenes ni artefactos IA privados de otros usuarios.
 - Un recurso ajeno responde `404`.
 - Probar cada tabla con dos usuarios distintos.
 - Las funciones `security definer` requieren revisión y `search_path` fijo.
@@ -1184,7 +1242,7 @@ create index fragmentos_embedding_hnsw_idx
   using hnsw (embedding vector_cosine_ops);
 ```
 
-La función de búsqueda se crea en `supabase/migrations/0008_hu11_busqueda_semantica.sql` (HU11). Firma real, con UUID como en el esquema de `documentos` y `fragmentos_documento`:
+La función de búsqueda se creó en `supabase/migrations/0008_hu11_busqueda_semantica.sql` (HU11) y fue redefinida en `supabase/migrations/0018_roles_docente_inscripciones.sql`. Firma actual, con UUID como en el esquema de `documentos` y `fragmentos_documento`:
 
 ```sql
 create or replace function public.match_fragmentos(
@@ -1219,7 +1277,7 @@ as $$
     f.modelo_embedding
   from public.fragmentos_documento f
   join public.documentos d on d.id = f.documento_id
-  where d.usuario_id = auth.uid()
+  where public.usuario_puede_leer_documento(d.id)
     and f.embedding is not null
     and (p_documento_id is null or f.documento_id = p_documento_id)
     and (p_materia_id is null or d.materia_id = p_materia_id)
@@ -1238,7 +1296,7 @@ Reglas:
 
 - La dimensión debe coincidir con `AI_EMBEDDING_DIMENSIONS` (1536 por defecto).
 - `match_count` máximo: 20; similitud mínima por defecto de la RPC: `0.70`. El endpoint de HU11 envía explícitamente `0.55`, calibrado para `gemini-embedding-001`.
-- Nunca buscar sin filtrar por `auth.uid()`. Se invoca con el cliente JWT del usuario; con `service_role` no devolvería filas.
+- Nunca buscar sin aplicar `usuario_puede_leer_documento`, que usa `auth.uid()` para limitar a documentos propios, de materias impartidas, con inscripción `activa` o accesibles por RLS a administradores. Se invoca con el cliente JWT del usuario; con `service_role` no devolvería filas porque no hay usuario de petición.
 - `revoke ... from public, anon` es obligatorio: Postgres otorga `EXECUTE` a `PUBLIC` por defecto.
 - Guardar `documento_id` y `numero_pagina` para las citas.
 
@@ -1265,21 +1323,39 @@ Estos cambios no alteran el modelo del diagrama, pero evitan problemas reales:
 Trigger de perfil:
 
 ```sql
+-- Version vigente tras la migracion 0018: asigna siempre el rol minimo.
+-- Los roles privilegiados los asigna el backend con service_role.
 create or replace function public.handle_new_user()
 returns trigger
 language plpgsql
 security definer set search_path = public
 as $$
+declare
+  rol_estudiante_id integer;
 begin
-  insert into public.perfiles (id, auth_user_id, correo, nombre, apellido)
+  insert into public.perfiles (
+    id, auth_user_id, correo, nombre, apellido, requiere_cambio_clave
+  )
   values (
     new.id,
     new.id,
-    coalesce(new.email, ''),
+    coalesce(new.email, new.id::text || '@sin-correo.mingo'),
     coalesce(new.raw_user_meta_data->>'nombre', ''),
-    coalesce(new.raw_user_meta_data->>'apellido', '')
+    coalesce(new.raw_user_meta_data->>'apellido', ''),
+    false
   )
   on conflict (id) do nothing;
+
+  select id into rol_estudiante_id
+  from public.roles
+  where nombre = 'estudiante';
+
+  if rol_estudiante_id is not null then
+    insert into public.usuario_roles (usuario_id, rol_id)
+    values (new.id, rol_estudiante_id)
+    on conflict (usuario_id, rol_id) do nothing;
+  end if;
+
   return new;
 end;
 $$;
@@ -1393,12 +1469,14 @@ están implementadas en `supabase/migrations/0009_hu12_chat.sql`.
 | `supabase/migrations/0015_hu17_objetivos_progreso.sql` | Tabla `objetivos_estudio` con materia opcional, fecha límite, estado, índices, restricciones, trigger de actualización y RLS (HU17, idempotente). |
 | `supabase/migrations/0016_hu17_restringir_permisos_objetivos.sql` | Retira `TRUNCATE`, `TRIGGER` y `REFERENCES` a `authenticated` en `objetivos_estudio`; confirma `ALL` a `service_role` y ningún permiso a `anon` (HU17, idempotente). |
 | `supabase/migrations/0017_hu18_notificaciones.sql` | Tablas `preferencias_usuario` y `notificaciones` con idempotencia, índices, trigger, RLS y permisos (HU18, idempotente). |
+| `supabase/migrations/0018_roles_docente_inscripciones.sql` | Rol `docente`, columnas `docente_id` y `requiere_cambio_clave`, tablas `inscripciones` y `tarea_estados`, políticas RLS por docente/inscripción y redefinición de `match_fragmentos` y `obtener_estadisticas_tareas` (idempotente; conserva datos). |
 
 - El script `backend/scripts/run-migrations.js` (`npm run migrate`) aplica estas
   migraciones en orden: identidad, materias, tareas, calendario, documentos,
   fragmentos, reemplazo de fragmentos, resumenes, búsqueda semántica, chat,
   cuestionarios, idempotencia, tarjetas de memoria, planes de estudio,
-  evaluación, objetivos académicos, permisos de objetivos y notificaciones.
+  evaluación, objetivos académicos, permisos de objetivos, notificaciones y
+  roles docente, inscripciones y estados de tarea.
 
 - Flujo:
 
@@ -1419,6 +1497,7 @@ npx supabase db push
 insert into public.roles (nombre, descripcion)
 values
   ('administrador', 'Administra la plataforma'),
+  ('docente', 'Gestiona tareas y documentos de las materias que imparte'),
   ('estudiante', 'Usuario principal de MINGO')
 on conflict (nombre) do nothing;
 ```
@@ -1429,7 +1508,7 @@ on conflict (nombre) do nothing;
 
 | Documento | Ajuste realizado |
 |---|---|
-| `docs/api.md` | Los IDs de `materias`, `tareas` y `eventos_calendario` son UUID; el ID de usuario también es UUID. |
+| `docs/api.md` | Los IDs de `materias`, `tareas` y `eventos_calendario` son UUID; el ID de usuario también es UUID. Además refleja roles `docente`/`administrador`, inscripciones por materia, estados de tarea por estudiante y el contrato vigente de administración de usuarios. |
 | `docs/convenciones.md` | Se actualizó la convención de claves primarias y validación de IDs. |
 | `docs/seguridad.md` | Se aclaró que los UUID se validan en campos de usuario y en los IDs de `materias`, `tareas` y `eventos_calendario`. |
 | `tecnologias.md` | La sección 5.2 describe el diseño inicial con más campos y tablas; este documento refleja el diagrama actual del equipo y deja lo faltante en la sección 11. |

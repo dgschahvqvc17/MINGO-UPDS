@@ -1,0 +1,129 @@
+<main class="cambio-clave-page">
+  <div class="container py-5">
+    <div class="row justify-content-center">
+      <div class="col-12 col-md-8 col-lg-6">
+        <div class="card shadow-sm border-0">
+          <div class="card-body p-4 p-lg-5">
+            <div class="d-flex align-items-center gap-3 mb-4">
+              <div class="cambio-clave-mascota" aria-hidden="true">
+                <app-mascota-agente />
+              </div>
+              <div>
+                <span class="page-eyebrow">Acceso seguro</span>
+                <h1 class="h3 fw-bold mb-1">Cambiar clave</h1>
+                <p class="text-muted small mb-0">
+                  Hola, {{ nombreUsuario() }}. Debes reemplazar tu clave temporal antes de continuar.
+                </p>
+              </div>
+            </div>
+
+            <div class="alert alert-info" role="note">
+              <i class="bi bi-shield-lock me-2" aria-hidden="true"></i>
+              Usa al menos {{ longitudMinima }} caracteres y no compartas tu contraseña.
+            </div>
+
+            @if (error()) {
+              <div class="alert alert-danger" role="alert">
+                <i class="bi bi-exclamation-triangle-fill me-2" aria-hidden="true"></i>
+                {{ error() }}
+              </div>
+            }
+
+            <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
+              <div class="mb-3">
+                <label for="clave-actual" class="form-label">Clave temporal</label>
+                <input
+                  id="clave-actual"
+                  class="form-control"
+                  [type]="passwordType()"
+                  formControlName="claveActual"
+                  autocomplete="current-password"
+                  aria-describedby="clave-actual-error"
+                  [class.is-invalid]="tieneError('claveActual', 'required')"
+                />
+                @if (tieneError('claveActual', 'required')) {
+                  <div id="clave-actual-error" class="invalid-feedback" role="alert">
+                    Ingresa la clave temporal recibida.
+                  </div>
+                }
+              </div>
+
+              <div class="mb-3">
+                <label for="clave-nueva" class="form-label">Nueva clave</label>
+                <input
+                  id="clave-nueva"
+                  class="form-control"
+                  [type]="passwordType()"
+                  formControlName="claveNueva"
+                  autocomplete="new-password"
+                  aria-describedby="clave-nueva-error"
+                  [class.is-invalid]="
+                    tieneError('claveNueva', 'required') || tieneError('claveNueva', 'minlength')
+                  "
+                />
+                @if (tieneError('claveNueva', 'required')) {
+                  <div id="clave-nueva-error" class="invalid-feedback" role="alert">
+                    La nueva clave es obligatoria.
+                  </div>
+                } @else if (tieneError('claveNueva', 'minlength')) {
+                  <div id="clave-nueva-error" class="invalid-feedback" role="alert">
+                    La clave debe tener al menos {{ longitudMinima }} caracteres.
+                  </div>
+                }
+              </div>
+
+              <div class="mb-3">
+                <label for="confirmar-clave" class="form-label">Confirmar nueva clave</label>
+                <input
+                  id="confirmar-clave"
+                  class="form-control"
+                  [type]="passwordType()"
+                  formControlName="confirmarClave"
+                  autocomplete="new-password"
+                  aria-describedby="confirmar-clave-error"
+                  [class.is-invalid]="tieneError('confirmarClave', 'required') || lasClavesCoincidenMal()"
+                />
+                @if (tieneError('confirmarClave', 'required')) {
+                  <div id="confirmar-clave-error" class="invalid-feedback" role="alert">
+                    Confirma tu nueva clave.
+                  </div>
+                } @else if (lasClavesCoincidenMal()) {
+                  <div id="confirmar-clave-error" class="invalid-feedback" role="alert">
+                    Las claves no coinciden.
+                  </div>
+                }
+              </div>
+
+              <div class="form-check mb-4">
+                <input
+                  id="mostrar-claves"
+                  class="form-check-input"
+                  type="checkbox"
+                  [checked]="passwordType() === 'text'"
+                  (change)="togglePasswordVisibility()"
+                />
+                <label class="form-check-label" for="mostrar-claves">Mostrar claves</label>
+              </div>
+
+              <button type="submit" class="btn btn-primary w-100" [disabled]="loading()">
+                @if (loading()) {
+                  <span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
+                  Actualizando...
+                } @else {
+                  <i class="bi bi-check2-circle me-2" aria-hidden="true"></i>
+                  Guardar nueva clave
+                }
+              </button>
+            </form>
+
+            @if (loading()) {
+              <p class="text-muted text-center small mt-3 mb-0" role="status">
+                Validando la nueva clave...
+              </p>
+            }
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
