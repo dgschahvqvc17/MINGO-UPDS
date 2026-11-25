@@ -1,6 +1,6 @@
 # Permisos IAM complementarios para `mingo-agente`
 
-**Estado:** políticas 1, 2 y 3 aplicadas; política 4 propuesta.
+**Estado:** políticas 1, 2, 3 y 4 aplicadas.
 **Cuenta:** `591015654164`.
 **Región:** `us-east-1`.
 **Costo:** `$0`. No crean recursos nuevos.
@@ -115,13 +115,13 @@ aws cloudformation continue-update-rollback \
   --region us-east-1
 ```
 
-Después de la recuperación, CloudFormation conserva la plantilla anterior mientras el código de las Lambda es el nuevo. Esa deriva queda documentada: para eliminarla harían falta `iam:PassRole` y `s3:GetObject` sobre los artefactos, además de repetir el changeset.
+Después de la recuperación, CloudFormation conservó la plantilla anterior mientras el código de las Lambda era el nuevo. Esa deriva se eliminó con el changeset de la sección 4.
 
 ## 4. Sincronización de CloudFormation con el código desplegado
 
 Archivo: [`mingo-lambda-deploy-dev.json`](mingo-lambda-deploy-dev.json).
 
-El 25/11/2026 las Lambda quedaron con el código correcto, pero el stack terminó en `UPDATE_ROLLBACK_COMPLETE` con la plantilla anterior. Para que CloudFormation vuelva a coincidir con el código real hacen falta dos permisos que faltaban durante el changeset:
+El 25/11/2026 las Lambda quedaron con el código correcto, pero el stack terminó en `UPDATE_ROLLBACK_COMPLETE` con la plantilla anterior. Para que CloudFormation volviera a coincidir con el código real faltaban dos permisos durante el changeset:
 
 - `iam:PassRole` sobre los tres roles de Lambda:
   - `arn:aws:iam::591015654164:role/mingo-api-dev-lambda-role`
@@ -147,7 +147,7 @@ aws iam attach-user-policy \
 
 También puede crearse desde **IAM → Policies → Create policy → JSON** y adjuntarse a `mingo-agente` desde **Users → mingo-agente → Add permissions → Attach policies directly**.
 
-Tras aplicarla, el agente crea y ejecuta un nuevo changeset sobre la plantilla empaquetada con los zips ya validados. El código de las Lambda no cambia: solo se actualiza el registro de CloudFormation.
+La política fue aplicada por el administrador. El agente creó y ejecutó el changeset `roles-docente-sync-20261125` sobre la plantilla empaquetada con los zips ya validados; el stack terminó en `UPDATE_COMPLETE`. El código de las Lambda no cambió: solo se actualizó el registro de CloudFormation.
 
 ## Verificación posterior con `mingo-agente`
 
@@ -156,7 +156,7 @@ Tras aplicarla, el agente crea y ejecuta un nuevo changeset sobre la plantilla e
 - `s3:PutObject` en `tmp/artifacts/*` → ya comprobado.
 - `ce:GetCostAndUsage` → ya comprobado.
 - `cloudformation:ContinueUpdateRollback` → ya comprobado; la recuperación terminó en `UPDATE_ROLLBACK_COMPLETE`.
-- `iam:PassRole` y `s3:GetObject` → se comprueban al ejecutar el nuevo changeset.
+- `iam:PassRole` y `s3:GetObject` → comprobados; el changeset de sincronización terminó en `UPDATE_COMPLETE`.
 
 Consulta de gasto:
 
@@ -169,4 +169,4 @@ aws ce get-cost-and-usage \
   --region us-east-1
 ```
 
-Estado del despliegue: `aws cloudformation package` y el changeset de solo código ya se ejecutaron. El changeset falló por los permisos descritos en la sección 3; el código de las Lambda quedó correcto. La recuperación ya se ejecutó y el stack terminó en `UPDATE_ROLLBACK_COMPLETE` con las tres Lambda omitidas. Falta aplicar la política de la sección 4 y repetir el changeset para eliminar la deriva.
+Estado del despliegue: `aws cloudformation package` y el changeset de solo código se ejecutaron. El primer changeset falló por los permisos descritos en la sección 3; el código de las Lambda quedó correcto. La recuperación terminó en `UPDATE_ROLLBACK_COMPLETE` con las tres Lambda omitidas y, tras aplicar la política de la sección 4, el changeset `roles-docente-sync-20261125` dejó el stack en `UPDATE_COMPLETE` sin deriva. `/api/health` y el frontend responden `200`; el costo de noviembre es `-0.0000000025 USD` blended.
