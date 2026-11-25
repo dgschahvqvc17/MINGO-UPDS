@@ -14,6 +14,7 @@ import {
 } from '../../../../core/services/busqueda.service';
 import type { Materia } from '../../../../core/services/materia.service';
 import { mensajeDeErrorHttp } from '../../../../core/utils/http-error';
+import { valorDeCampo } from '../../../../core/utils/form-event';
 
 const LONGITUD_MINIMA_CONSULTA = 2;
 const LIMITE_RESULTADOS = 8;
@@ -34,6 +35,7 @@ export class BusquedaSemanticaComponent {
 
   readonly consulta = signal('');
   readonly materiaId = signal('');
+  readonly valorCampo = valorDeCampo;
   readonly resultados = signal<FragmentoBusqueda[]>([]);
   readonly mensajeVacio = signal<string | null>(null);
   readonly error = signal<string | null>(null);

@@ -84,6 +84,7 @@ export class CalendarioFormPage implements OnInit {
   readonly guardando = signal(false);
   readonly eliminando = signal(false);
   readonly error = signal<string | null>(null);
+  readonly confirmandoEliminar = signal(false);
 
   readonly form = this.formBuilder.nonNullable.group(
     {
@@ -165,18 +166,19 @@ export class CalendarioFormPage implements OnInit {
     });
   }
 
+  pedirEliminacion(): void {
+    this.error.set(null);
+    this.confirmandoEliminar.set(!this.confirmandoEliminar());
+  }
+
+  cancelarEliminacion(): void {
+    this.confirmandoEliminar.set(false);
+  }
+
   eliminar(): void {
     const eventoId = this.eventoId();
 
-    if (!eventoId || this.eliminando()) {
-      return;
-    }
-
-    const confirmado = window.confirm(
-      '¿Eliminar este evento? Esta acción no se puede deshacer.',
-    );
-
-    if (!confirmado) {
+    if (!eventoId || !this.confirmandoEliminar() || this.eliminando()) {
       return;
     }
 

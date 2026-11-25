@@ -1,8 +1,15 @@
 ﻿import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
-import { MateriaService, type Materia, type MateriaEstadisticas } from '../../core/services/materia.service';
+import { firstValueFrom } from 'rxjs';
+import {
+  MateriaService,
+  type Materia,
+  type MateriaEstadisticas,
+  type MateriaFiltros,
+} from '../../core/services/materia.service';
 import { AuthService } from '../../core/services/auth.service';
+import { mensajeDeErrorHttp } from '../../core/utils/http-error';
 
 @Component({
   selector: 'app-materias',
@@ -46,6 +53,12 @@ export class MateriasPage {
 
   readonly coloresDisponibles = signal<string[]>([]);
   readonly periodosAcademicos = signal<string[]>([]);
+  readonly mensajeEstado = signal<string | null>(null);
+  readonly errorMetadatos = signal<string | null>(null);
+  readonly confirmandoCambioId = signal<string | null>(null);
+  readonly cambiandoEstadoId = signal<string | null>(null);
+
+  readonly puedeAdministrar = computed(() => this.authService.role() === 'administrador');
 
   // Usuario actual
   readonly usuarioActual = this.authService.profile;
@@ -78,33 +91,30 @@ export class MateriasPage {
 
     try {
       const filtros = this.filtros();
-      const params: any = {};
+      const pagination = this.paginacion();
+      const params: MateriaFiltros = {
+        limit: pagination.limit,
+        offset: pagination.offset,
+      };
 
       if (filtros.query) params.query = filtros.query;
-      if (filtros.periodo_academico !== 'todos') params.periodo_academico = filtros.periodo_academico;
-      if (filtros.estado !== 'todos') params.estado = filtros.estado;
-      if (this.paginacion().limit) params.limit = this.paginacion().limit;
-      if (this.paginacion().offset) params.offset = this.paginacion().offset;
-
-      const respuesta = await this.materiaService.listarMaterias(params).toPromise();
-      
-      if (respuesta) {
-        this.materias.set(respuesta.data);
-        this.paginacion.set(respuesta.meta.paginacion);
-        
-        // Crear objeto de estadísticas completo
-        const estadisticasCompletas = {
-          ...respuesta.meta.estadisticas,
-          periodos_academicos: respuesta.meta.periodos_academicos
-        };
-        
-        this.estadisticas.set(estadisticasCompletas);
-        this.coloresDisponibles.set(respuesta.meta.colores_disponibles);
-        this.periodosAcademicos.set(respuesta.meta.periodos_academicos);
+      if (filtros.periodo_academico !== 'todos') {
+        params.periodo_academico = filtros.periodo_academico;
       }
+      if (filtros.estado !== 'todos') params.estado = filtros.estado;
+
+      const respuesta = await firstValueFrom(this.materiaService.listarMaterias(params));
+
+      this.materias.set(respuesta.data);
+      this.paginacion.set(respuesta.meta.paginacion);
+      this.estadisticas.set({
+        ...respuesta.meta.estadisticas,
+        periodos_academicos: respuesta.meta.periodos_academicos,
+      });
+      this.coloresDisponibles.set(respuesta.meta.colores_disponibles);
+      this.periodosAcademicos.set(respuesta.meta.periodos_academicos);
     } catch (error) {
-      this.error.set(error instanceof Error ? error.message : 'Error al cargar materias');
-      console.error('Error al cargar materias:', error);
+      this.error.set(mensajeDeErrorHttp(error, 'No se pudieron cargar las materias.'));
     } finally {
       this.loading.set(false);
     }
@@ -116,16 +126,16 @@ export class MateriasPage {
   async cargarMetadatos(): Promise<void> {
     try {
       const [estadisticas, colores, periodos] = await Promise.all([
-        this.materiaService.obtenerEstadisticas().toPromise(),
-        this.materiaService.obtenerColoresDisponibles().toPromise(),
-        this.materiaService.obtenerPeriodosAcademicos().toPromise()
+        firstValueFrom(this.materiaService.obtenerEstadisticas()),
+        firstValueFrom(this.materiaService.obtenerColoresDisponibles()),
+        firstValueFrom(this.materiaService.obtenerPeriodosAcademicos()),
       ]);
 
-      if (estadisticas) this.estadisticas.set(estadisticas);
-      if (colores) this.coloresDisponibles.set(colores);
-      if (periodos) this.periodosAcademicos.set(periodos);
-    } catch (error) {
-      console.error('Error al cargar metadatos:', error);
+      this.estadisticas.set(estadisticas);
+      this.coloresDisponibles.set(colores);
+      this.periodosAcademicos.set(periodos);
+    } catch {
+      this.errorMetadatos.set('No se pudieron actualizar los filtros de materias.');
     }
   }
 
@@ -161,28 +171,59 @@ export class MateriasPage {
    * Navega a la edición de una materia
    */
   editarMateria(materiaId: string): void {
+    if (!this.puedeAdministrar()) {
+      return;
+    }
+
     this.router.navigate(['/materias', materiaId, 'editar']);
   }
 
+  pedirCambioEstado(materia: Materia): void {
+    if (!this.puedeAdministrar()) {
+      return;
+    }
+
+    this.mensajeEstado.set(null);
+    this.confirmandoCambioId.set(
+      this.confirmandoCambioId() === materia.id ? null : materia.id,
+    );
+  }
+
+  cancelarCambioEstado(): void {
+    this.confirmandoCambioId.set(null);
+  }
+
+  textoConfirmacion(materia: Materia): string {
+    return materia.estado === 'activo'
+      ? `¿Archivar la materia ${materia.nombre}?`
+      : `¿Activar la materia ${materia.nombre}?`;
+  }
+
   /**
-   * Cambia el estado de una materia (activar/archivar)
+   * Cambia el estado de una materia (activar/archivar) tras confirmación explícita.
    */
   async cambiarEstado(materia: Materia): Promise<void> {
-    const nuevoEstado = materia.estado === 'activo' ? 'archivado' : 'activo';
-    const confirmacion = confirm(
-      `¿Estás seguro de ${nuevoEstado === 'archivado' ? 'archivar' : 'activar'} la materia ${materia.nombre}?`
-    );
+    if (!this.puedeAdministrar() || this.cambiandoEstadoId()) {
+      return;
+    }
 
-    if (!confirmacion) return;
+    const nuevoEstado = materia.estado === 'activo' ? 'archivado' : 'activo';
+    this.cambiandoEstadoId.set(materia.id);
+    this.mensajeEstado.set(null);
 
     try {
-      await this.materiaService.cambiarEstadoMateria(materia.id, nuevoEstado).toPromise();
-      alert(`Materia ${nuevoEstado === 'archivado' ? 'archivada' : 'activada'} exitosamente`);
-      
-      // Recargar la lista
-      this.cargarMaterias();
+      await firstValueFrom(this.materiaService.cambiarEstadoMateria(materia.id, nuevoEstado));
+      this.mensajeEstado.set(
+        `Materia ${nuevoEstado === 'archivado' ? 'archivada' : 'activada'} correctamente.`,
+      );
+      this.confirmandoCambioId.set(null);
+      await this.cargarMaterias();
     } catch (error) {
-      alert(error instanceof Error ? error.message : 'Error al cambiar el estado de la materia');
+      this.mensajeEstado.set(
+        mensajeDeErrorHttp(error, 'No se pudo cambiar el estado de la materia.'),
+      );
+    } finally {
+      this.cambiandoEstadoId.set(null);
     }
   }
 

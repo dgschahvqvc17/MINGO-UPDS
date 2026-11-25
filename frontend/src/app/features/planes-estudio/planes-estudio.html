@@ -69,7 +69,7 @@
                 id="materia"
                 class="form-select"
                 [value]="materiaId()"
-                (change)="materiaId.set($any($event.target).value)"
+                (change)="materiaId.set(valorCampo($event))"
               >
                 <option value="">Selecciona una materia</option>
                 @for (materia of materiasActivas(); track materia.id) {
@@ -87,7 +87,7 @@
                 maxlength="300"
                 placeholder="Ej. Aprobar el parcial de sistemas operativos"
                 [value]="objetivo()"
-                (input)="objetivo.set($any($event.target).value)"
+                (input)="objetivo.set(valorCampo($event))"
               ></textarea>
               <div class="form-text">Entre 5 y 300 caracteres.</div>
             </div>
@@ -100,7 +100,7 @@
                   type="date"
                   class="form-control"
                   [value]="fechaExamen()"
-                  (input)="fechaExamen.set($any($event.target).value)"
+                  (input)="fechaExamen.set(valorCampo($event))"
                 />
               </div>
               <div class="col-12 col-sm-6 col-xl-12 col-xxl-6">
@@ -113,7 +113,7 @@
                   max="480"
                   step="15"
                   [value]="minutosPorDia()"
-                  (input)="cambiarMinutos($any($event.target).value)"
+                  (input)="cambiarMinutos(valorCampo($event))"
                 />
                 <div class="form-text">De 15 a 480 minutos.</div>
               </div>
@@ -247,7 +247,7 @@
                               class="form-control form-control-sm"
                               aria-label="Tema de la sesión {{ $index + 1 }}"
                               [value]="sesion.tema"
-                              (input)="actualizarSesion($index, 'tema', $any($event.target).value)"
+                              (input)="actualizarSesion($index, 'tema', valorCampo($event))"
                             />
                           </td>
                           <td>
@@ -256,7 +256,7 @@
                               class="form-control form-control-sm"
                               aria-label="Actividades de la sesión {{ $index + 1 }}"
                               [value]="sesion.actividades"
-                              (input)="actualizarSesion($index, 'actividades', $any($event.target).value)"
+                              (input)="actualizarSesion($index, 'actividades', valorCampo($event))"
                             />
                           </td>
                           <td>
@@ -265,7 +265,7 @@
                               class="form-control form-control-sm"
                               aria-label="Fecha de la sesión {{ $index + 1 }}"
                               [value]="sesion.fecha_inicio"
-                              (input)="actualizarSesion($index, 'fecha_inicio', $any($event.target).value)"
+                              (input)="actualizarSesion($index, 'fecha_inicio', valorCampo($event))"
                             />
                           </td>
                           <td>
@@ -276,7 +276,7 @@
                               max="480"
                               aria-label="Duración de la sesión {{ $index + 1 }}"
                               [value]="sesion.duracion_minutos"
-                              (input)="actualizarSesion($index, 'duracion_minutos', +$any($event.target).value)"
+                              (input)="actualizarSesion($index, 'duracion_minutos', +valorCampo($event))"
                             />
                           </td>
                           <td>
@@ -284,7 +284,7 @@
                               class="form-select form-select-sm"
                               aria-label="Tipo de la sesión {{ $index + 1 }}"
                               [value]="sesion.tipo ?? ''"
-                              (change)="actualizarSesion($index, 'tipo', $any($event.target).value)"
+                              (change)="actualizarSesion($index, 'tipo', valorCampo($event))"
                             >
                               <option value="">—</option>
                               @for (tipo of tiposSesion; track tipo) {
@@ -396,13 +396,39 @@
                     <button
                       type="button"
                       class="btn btn-sm btn-outline-danger"
-                      (click)="descartarPlan(plan)"
+                      (click)="pedirDescarte(plan)"
                     >
                       Descartar
                     </button>
                   }
                 </div>
               </div>
+
+              @if (confirmandoDescarteId() === plan.id) {
+                <div
+                  class="alert alert-light border d-flex flex-wrap align-items-center gap-2 mt-2 py-2"
+                  role="group"
+                  [attr.aria-label]="textoDescarte(plan)"
+                >
+                  <span class="small flex-grow-1">{{ textoDescarte(plan) }}</span>
+                  <button
+                    type="button"
+                    class="btn btn-sm btn-outline-secondary"
+                    (click)="cancelarDescarte()"
+                    [disabled]="descartandoId() === plan.id"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="button"
+                    class="btn btn-sm btn-outline-danger"
+                    (click)="descartarPlan(plan)"
+                    [disabled]="descartandoId() === plan.id"
+                  >
+                    {{ descartandoId() === plan.id ? 'Descartando...' : 'Confirmar' }}
+                  </button>
+                </div>
+              }
 
               <div class="meta-chips mt-3">
                 <span class="meta-chip">
@@ -439,7 +465,7 @@
                           rows="2"
                           maxlength="300"
                           [value]="edicionPlan().objetivo"
-                          (input)="cambiarEdicionPlan('objetivo', $any($event.target).value)"
+                          (input)="cambiarEdicionPlan('objetivo', valorCampo($event))"
                         ></textarea>
                       </div>
                       <div class="row g-3 mb-3">
@@ -450,7 +476,7 @@
                             type="date"
                             class="form-control"
                             [value]="edicionPlan().fecha_examen"
-                            (input)="cambiarEdicionPlan('fecha_examen', $any($event.target).value)"
+                            (input)="cambiarEdicionPlan('fecha_examen', valorCampo($event))"
                           />
                         </div>
                         <div class="col-12 col-md-6">
@@ -463,7 +489,7 @@
                             max="480"
                             step="15"
                             [value]="edicionPlan().minutos_por_dia"
-                            (input)="cambiarMinutosEdicion($any($event.target).value)"
+                            (input)="cambiarMinutosEdicion(valorCampo($event))"
                           />
                         </div>
                       </div>
@@ -566,7 +592,7 @@
                                       type="text"
                                       class="form-control"
                                       [value]="edicionSesion()!.tema"
-                                      (input)="cambiarEdicionSesion('tema', $any($event.target).value)"
+                                      (input)="cambiarEdicionSesion('tema', valorCampo($event))"
                                     />
                                   </div>
                                   <div class="col-12 col-md-6">
@@ -576,7 +602,7 @@
                                       type="text"
                                       class="form-control"
                                       [value]="edicionSesion()!.actividades"
-                                      (input)="cambiarEdicionSesion('actividades', $any($event.target).value)"
+                                      (input)="cambiarEdicionSesion('actividades', valorCampo($event))"
                                     />
                                   </div>
                                   <div class="col-12 col-md-4">
@@ -586,7 +612,7 @@
                                       type="datetime-local"
                                       class="form-control"
                                       [value]="edicionSesion()!.fecha_inicio"
-                                      (input)="cambiarEdicionSesion('fecha_inicio', $any($event.target).value)"
+                                      (input)="cambiarEdicionSesion('fecha_inicio', valorCampo($event))"
                                     />
                                   </div>
                                   <div class="col-6 col-md-4">
@@ -598,7 +624,7 @@
                                       min="5"
                                       max="480"
                                       [value]="edicionSesion()!.duracion_minutos"
-                                      (input)="cambiarEdicionSesion('duracion_minutos', +$any($event.target).value)"
+                                      (input)="cambiarEdicionSesion('duracion_minutos', +valorCampo($event))"
                                     />
                                   </div>
                                   <div class="col-6 col-md-4">
@@ -607,7 +633,7 @@
                                       [id]="'editar-tipo-' + sesion.id"
                                       class="form-select"
                                       [value]="edicionSesion()!.tipo"
-                                      (change)="cambiarEdicionSesion('tipo', $any($event.target).value)"
+                                      (change)="cambiarEdicionSesion('tipo', valorCampo($event))"
                                     >
                                       <option value="">—</option>
                                       @for (tipo of tiposSesion; track tipo) {

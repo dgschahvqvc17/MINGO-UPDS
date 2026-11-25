@@ -10,12 +10,26 @@ const MINUTOS_ESTANCADO = 15;
 /** Estados que indican que hay un trabajo pendiente o en ejecucion. */
 const ESTADOS_EN_PROCESO = Object.freeze(['en_cola', 'procesando']);
 
+/** Estados que indican que el worker ya esta ejecutando el trabajo. */
+const ESTADOS_PROCESANDO = Object.freeze(['procesando']);
+
 /**
  * @param {string | null | undefined} estado
  * @returns {boolean}
  */
 function estaEnProceso(estado) {
   return ESTADOS_EN_PROCESO.includes(estado);
+}
+
+/**
+ * `en_cola` es trabajo pendiente, no ejecucion: el worker debe poder iniciarlo
+ * en la primera entrega del mensaje.
+ *
+ * @param {string | null | undefined} estado
+ * @returns {boolean}
+ */
+function estaProcesando(estado) {
+  return ESTADOS_PROCESANDO.includes(estado);
 }
 
 /**
@@ -56,8 +70,10 @@ function estaEstancado(documento, { ahora = new Date(), minutos = MINUTOS_ESTANC
 
 module.exports = {
   ESTADOS_EN_PROCESO,
+  ESTADOS_PROCESANDO,
   MINUTOS_ESTANCADO,
   calcularCorte,
   estaEnProceso,
+  estaProcesando,
   estaEstancado,
 };

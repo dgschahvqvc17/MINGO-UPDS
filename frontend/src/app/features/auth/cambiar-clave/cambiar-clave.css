@@ -1,0 +1,9 @@
+.cambio-clave-page {
+  min-height: 100vh;
+  background: var(--app-bg, #f5f7fb);
+}
+
+.cambio-clave-mascota {
+  width: 5rem;
+  flex: 0 0 5rem;
+}

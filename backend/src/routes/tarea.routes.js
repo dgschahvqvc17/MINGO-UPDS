@@ -1,8 +1,10 @@
 const { Router } = require('express');
 const authMiddleware = require('../middlewares/auth.middleware');
+const { requireRole } = require('../middlewares/roles.middleware');
 const validationMiddleware = require('../middlewares/validation.middleware');
 const asyncHandler = require('../utils/asyncHandler');
 const { createTareaService, createTareaController } = require('../container');
+const { ROLE_ADMINISTRADOR, ROLE_DOCENTE } = require('../models/roles.model');
 
 const {
   tareaCrearSchema,
@@ -26,7 +28,7 @@ router.use(authMiddleware);
  */
 router.use((req, _res, next) => {
   try {
-    req.tareaService = createTareaService(req.user.id, req.accessToken);
+    req.tareaService = createTareaService(req.user.id, req.accessToken, req.user.role);
     next();
   } catch (error) {
     next(error);
@@ -72,7 +74,12 @@ router.get('/', validationMiddleware({ query: tareaBusquedaSchema }), atender('l
  * POST /tareas
  * Crea una tarea académica.
  */
-router.post('/', validationMiddleware({ body: tareaCrearSchema }), atender('crearTarea'));
+router.post(
+  '/',
+  requireRole(ROLE_DOCENTE, ROLE_ADMINISTRADOR),
+  validationMiddleware({ body: tareaCrearSchema }),
+  atender('crearTarea'),
+);
 
 /**
  * GET /tareas/:id
@@ -89,6 +96,7 @@ router.get(
  */
 router.put(
   '/:id',
+  requireRole(ROLE_DOCENTE, ROLE_ADMINISTRADOR),
   validationMiddleware({ params: tareaIdParamSchema }),
   validationMiddleware({ body: tareaActualizarSchema }),
   atender('actualizarTarea'),
@@ -110,6 +118,7 @@ router.patch(
  */
 router.delete(
   '/:id',
+  requireRole(ROLE_DOCENTE, ROLE_ADMINISTRADOR),
   validationMiddleware({ params: tareaIdParamSchema }),
   atender('eliminarTarea'),
 );

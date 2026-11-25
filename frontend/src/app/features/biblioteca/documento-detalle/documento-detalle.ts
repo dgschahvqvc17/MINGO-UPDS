@@ -16,6 +16,8 @@ import {
   type DocumentoMateriaResumen,
   type EstadoProcesamiento,
 } from '../../../core/services/documento.service';
+import { AuthService } from '../../../core/services/auth.service';
+import { ROLES_GESTION_ACADEMICA } from '../../../core/models/dominio.models';
 import { mensajeDeErrorHttp } from '../../../core/utils/http-error';
 import { CardComponent } from '../../../shared/components/card/card.component';
 
@@ -31,6 +33,7 @@ const MAXIMO_INTENTOS_SEGUIMIENTO = 20;
 })
 export class DocumentoDetallePage {
   private readonly documentoService = inject(DocumentoService);
+  private readonly authService = inject(AuthService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
@@ -45,6 +48,10 @@ export class DocumentoDetallePage {
   readonly procesando = signal(false);
 
   private seguimiento: Subscription | null = null;
+
+  readonly puedeGestionar = computed(() =>
+    ROLES_GESTION_ACADEMICA.includes(this.authService.role() as (typeof ROLES_GESTION_ACADEMICA)[number]),
+  );
 
   readonly materia = computed<DocumentoMateriaResumen | null>(() => {
     const materias = this.documento()?.materias;
@@ -126,7 +133,7 @@ export class DocumentoDetallePage {
 
   procesar(): void {
     const documento = this.documento();
-    if (!documento || this.procesando() || !this.puedeProcesar()) {
+    if (!documento || !this.puedeGestionar() || this.procesando() || !this.puedeProcesar()) {
       return;
     }
 
@@ -181,7 +188,9 @@ export class DocumentoDetallePage {
   }
 
   pedirConfirmacion(): void {
-    this.confirmandoEliminar.set(true);
+    if (this.puedeGestionar()) {
+      this.confirmandoEliminar.set(true);
+    }
   }
 
   cancelarEliminar(): void {
@@ -190,7 +199,7 @@ export class DocumentoDetallePage {
 
   eliminar(): void {
     const documento = this.documento();
-    if (!documento || this.eliminando()) {
+    if (!documento || !this.puedeGestionar() || this.eliminando()) {
       return;
     }
 

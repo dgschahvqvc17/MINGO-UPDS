@@ -5,7 +5,8 @@
  * escribir perfiles de otros usuarios, algo que RLS no permite al cliente
  * autenticado. No conoce HTTP ni reglas de negocio.
  */
-const PERFIL_COLUMNS = 'id, nombre, apellido, correo, carrera, estado, fecha_creacion';
+const PERFIL_COLUMNS =
+  'id, nombre, apellido, correo, carrera, estado, requiere_cambio_clave, fecha_creacion';
 
 const ROL_EMBED = 'id, nombre, descripcion';
 
@@ -179,6 +180,46 @@ class UsuarioAdminRepository {
   }
 
   /**
+   * Actualiza los datos del perfil creado por el administrador.
+   *
+   * @param {string} usuarioId UUID del usuario.
+   * @param {{ nombre: string, apellido: string, carrera?: string | null }} datos
+   * @returns {Promise<void>}
+   */
+  async actualizarPerfil(usuarioId, datos) {
+    const { error } = await this.requireClient()
+      .from('perfiles')
+      .update({
+        nombre: datos.nombre,
+        apellido: datos.apellido,
+        carrera: datos.carrera ?? null,
+        requiere_cambio_clave: true,
+      })
+      .eq('id', usuarioId);
+
+    if (error) {
+      throw new Error(`Error al actualizar el perfil: ${error.message}`, { cause: error });
+    }
+  }
+
+  /**
+   * Marca la contraseña temporal como ya cambiada.
+   *
+   * @param {string} usuarioId UUID del usuario.
+   * @returns {Promise<void>}
+   */
+  async marcarClaveCambiada(usuarioId) {
+    const { error } = await this.requireClient()
+      .from('perfiles')
+      .update({ requiere_cambio_clave: false })
+      .eq('id', usuarioId);
+
+    if (error) {
+      throw new Error(`Error al registrar el cambio de clave: ${error.message}`, { cause: error });
+    }
+  }
+
+  /**
    * Verifica si un usuario existe.
    *
    * @param {string} usuarioId UUID del usuario.
@@ -200,7 +241,7 @@ class UsuarioAdminRepository {
   /**
    * Obtiene las estadísticas del panel administrativo.
    *
-   * @returns {Promise<{ total_usuarios: number, usuarios_activos: number, usuarios_inactivos: number, total_administradores: number, total_estudiantes: number }>}
+   * @returns {Promise<{ total_usuarios: number, usuarios_activos: number, usuarios_inactivos: number, total_administradores: number, total_docentes: number, total_estudiantes: number }>}
    */
   async obtenerEstadisticas() {
     const client = this.requireClient();
@@ -216,15 +257,16 @@ class UsuarioAdminRepository {
         .select('usuario_id, roles!inner ( nombre )', { count: 'exact', head: true })
         .eq('roles.nombre', rol);
 
-    const [total, activos, inactivos, administradores, estudiantes] = await Promise.all([
+    const [total, activos, inactivos, administradores, docentes, estudiantes] = await Promise.all([
       contarPerfiles(),
       contarPerfiles((builder) => builder.eq('estado', 'activo')),
       contarPerfiles((builder) => builder.eq('estado', 'inactivo')),
       contarPorRol('administrador'),
+      contarPorRol('docente'),
       contarPorRol('estudiante'),
     ]);
 
-    const resultados = [total, activos, inactivos, administradores, estudiantes];
+    const resultados = [total, activos, inactivos, administradores, docentes, estudiantes];
     const fallo = resultados.find((resultado) => resultado.error);
 
     if (fallo) {
@@ -238,6 +280,7 @@ class UsuarioAdminRepository {
       usuarios_activos: activos.count ?? 0,
       usuarios_inactivos: inactivos.count ?? 0,
       total_administradores: administradores.count ?? 0,
+      total_docentes: docentes.count ?? 0,
       total_estudiantes: estudiantes.count ?? 0,
     };
   }

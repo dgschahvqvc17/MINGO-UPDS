@@ -1,4 +1,5 @@
 const { z } = require('zod');
+const { ROLES } = require('./roles.model');
 
 /**
  * Esquemas Zod para validación de usuarios en el módulo de administración.
@@ -14,7 +15,8 @@ const usuarioListadoSchema = z.object({
   carrera: z.string().nullable(),
   estado: z.enum(['activo', 'inactivo']),
   fecha_creacion: z.string().datetime(),
-  roles: z.array(z.string()).min(1).max(5), // ['administrador', 'estudiante']
+  requiere_cambio_clave: z.boolean().optional(),
+  roles: z.array(z.string()).min(1).max(5),
 });
 
 // Esquema para la respuesta detallada de un usuario
@@ -30,20 +32,30 @@ const usuarioDetalleSchema = usuarioListadoSchema.extend({
 const usuarioBusquedaSchema = z.object({
   query: z.string().min(1).max(100).optional(),
   estado: z.enum(['activo', 'inactivo']).optional(),
-  rol: z.enum(['administrador', 'estudiante']).optional(),
+  rol: z.enum(ROLES).optional(),
   limit: z.coerce.number().int().positive().max(100).default(50),
   offset: z.coerce.number().int().nonnegative().default(0),
 });
 
 // Esquema para actualización de roles
 const usuarioActualizarRolesSchema = z.object({
-  roles: z.array(z.enum(['administrador', 'estudiante']))
+  roles: z.array(z.enum(ROLES))
     .min(1)
     .max(5)
     .refine(
       (roles) => !roles.includes('administrador') || roles.length === 1,
       { message: 'Un usuario no puede tener múltiples roles de administrador simultáneamente' }
     ),
+});
+
+// Alta administrativa de usuarios (HU02/HU-roles)
+const usuarioCrearSchema = z.object({
+  nombre: z.string().trim().min(1).max(100),
+  apellido: z.string().trim().min(1).max(100),
+  correo: z.string().trim().email().max(255),
+  carrera: z.string().trim().max(100).optional().nullable(),
+  rol: z.enum(ROLES),
+  claveTemporal: z.string().min(8).max(72),
 });
 
 // Esquema para actualización de estado
@@ -60,6 +72,7 @@ module.exports = {
   usuarioListadoSchema,
   usuarioDetalleSchema,
   usuarioBusquedaSchema,
+  usuarioCrearSchema,
   usuarioActualizarRolesSchema,
   usuarioActualizarEstadoSchema,
   usuarioIdParamSchema,

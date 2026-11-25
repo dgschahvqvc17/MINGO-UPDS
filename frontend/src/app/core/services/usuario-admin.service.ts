@@ -1,6 +1,7 @@
 import { Injectable, inject } from '@angular/core';
-import { ApiService } from './api.service';
 import { map, Observable } from 'rxjs';
+import { RolUsuario } from '../models/dominio.models';
+import { ApiService } from './api.service';
 
 export interface UsuarioListado {
   id: string;
@@ -10,7 +11,7 @@ export interface UsuarioListado {
   carrera: string | null;
   estado: 'activo' | 'inactivo';
   fecha_creacion: string;
-  roles: string[];
+  roles: RolUsuario[];
 }
 
 export interface UsuarioDetalle extends UsuarioListado {
@@ -30,7 +31,7 @@ export interface RolDisponible {
 export interface UsuarioBusquedaParams {
   query?: string;
   estado?: 'activo' | 'inactivo';
-  rol?: 'administrador' | 'estudiante';
+  rol?: RolUsuario;
   limit?: number;
   offset?: number;
 }
@@ -47,14 +48,28 @@ export interface UsuarioListadoResponse {
     activos: number;
     inactivos: number;
     administradores: number;
+    docentes?: number;
     estudiantes: number;
   };
 }
 
 type UsuarioListadoMeta = Omit<UsuarioListadoResponse, 'usuarios'>;
 
+export interface CrearUsuarioRequest {
+  nombre: string;
+  apellido: string;
+  correo: string;
+  carrera?: string;
+  rol: RolUsuario;
+  claveTemporal: string;
+}
+
+export interface UsuarioCreado extends UsuarioListado {
+  claveTemporal: string;
+}
+
 export interface ActualizarRolesRequest {
-  roles: Array<'administrador' | 'estudiante'>;
+  roles: RolUsuario[];
 }
 
 export interface ActualizarEstadoRequest {
@@ -85,6 +100,25 @@ export class UsuarioAdminService {
       );
   }
 
+  /** Da de alta un usuario con clave temporal; la respuesta la devuelve una sola vez. */
+  crearUsuario(solicitud: CrearUsuarioRequest): Observable<UsuarioCreado> {
+    return this.api.post<UsuarioCreado>('usuarios', solicitud);
+  }
+
+  /** Lista docentes para el selector de materias. */
+  listarDocentes(): Observable<UsuarioListado[]> {
+    return this.listarUsuarios({ rol: 'docente', limit: 100 }).pipe(
+      map((respuesta) => respuesta.usuarios),
+    );
+  }
+
+  /** Lista estudiantes para el selector de inscripciones. */
+  listarEstudiantes(): Observable<UsuarioListado[]> {
+    return this.listarUsuarios({ rol: 'estudiante', limit: 100 }).pipe(
+      map((respuesta) => respuesta.usuarios),
+    );
+  }
+
   /**
    * Obtiene un usuario específico por ID
    */
@@ -109,8 +143,8 @@ export class UsuarioAdminService {
   /**
    * Actualiza los roles de un usuario
    */
-  actualizarRolesUsuario(id: string, roles: Array<'administrador' | 'estudiante'>): Observable<{ mensaje: string; usuarioId: string; roles: string[] }> {
-    return this.api.patch<{ mensaje: string; usuarioId: string; roles: string[] }>(
+  actualizarRolesUsuario(id: string, roles: RolUsuario[]): Observable<{ mensaje: string; usuarioId: string; roles: RolUsuario[] }> {
+    return this.api.patch<{ mensaje: string; usuarioId: string; roles: RolUsuario[] }>(
       `usuarios/${id}/roles`,
       { roles }
     );
@@ -135,9 +169,13 @@ export class UsuarioAdminService {
   }
 
   obtenerRolesTexto(usuario: UsuarioListado): string {
-    return usuario.roles
-      .map(role => role === 'administrador' ? 'Administrador' : 'Estudiante')
-      .join(', ');
+    const etiquetas: Record<RolUsuario, string> = {
+      administrador: 'Administrador',
+      docente: 'Docente',
+      estudiante: 'Estudiante',
+    };
+
+    return usuario.roles.map((role) => etiquetas[role] ?? role).join(', ');
   }
 
   obtenerEstadoTexto(estado: 'activo' | 'inactivo'): string {
@@ -148,8 +186,16 @@ export class UsuarioAdminService {
     return estado === 'activo' ? 'badge bg-success' : 'badge bg-danger';
   }
 
-  obtenerRolBadgeClase(rol: string): string {
-    return rol === 'administrador' ? 'badge bg-warning text-dark' : 'badge bg-info';
+  obtenerRolBadgeClase(rol: RolUsuario | string): string {
+    if (rol === 'administrador') {
+      return 'badge bg-warning text-dark';
+    }
+
+    if (rol === 'docente') {
+      return 'badge bg-primary';
+    }
+
+    return 'badge bg-info';
   }
 
   /**

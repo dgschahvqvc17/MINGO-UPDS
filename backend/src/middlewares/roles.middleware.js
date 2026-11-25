@@ -7,16 +7,25 @@
 const ApiError = require('../utils/ApiError');
 
 /**
+ * Verifica que el usuario autenticado tenga al menos uno de los roles dados.
+ * Debe usarse después de authMiddleware.
+ *
  * @param {...string} allowedRoles Roles autorizados.
  */
 function requireRole(...allowedRoles) {
+  const rolesPermitidos = new Set(allowedRoles);
+
   return (req, _res, next) => {
     if (!req.user) {
-      return next(ApiError.unauthorized());
+      return next(ApiError.unauthorized('Usuario no autenticado.'));
     }
 
-    if (!allowedRoles.includes(req.user.role)) {
-      return next(ApiError.forbidden('No tiene permisos para realizar esta operacion.'));
+    const rolesUsuario = Array.isArray(req.user.roles)
+      ? req.user.roles
+      : [req.user.role].filter(Boolean);
+
+    if (!rolesUsuario.some((rol) => rolesPermitidos.has(rol))) {
+      return next(ApiError.forbidden('No tienes permiso para realizar esta acción.'));
     }
 
     return next();

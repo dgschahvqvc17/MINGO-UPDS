@@ -3,6 +3,8 @@ import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { mensajeDeErrorHttp } from '../../core/utils/http-error';
+import { AuthService } from '../../core/services/auth.service';
+import { ROLES_GESTION_ACADEMICA } from '../../core/models/dominio.models';
 import { MateriaService, type Materia } from '../../core/services/materia.service';
 import {
   ESTADOS_TAREA,
@@ -39,6 +41,7 @@ const ESTADISTICAS_INICIALES: TareaEstadisticas = {
 export class TareasPage {
   private readonly tareaService = inject(TareaService);
   private readonly materiaService = inject(MateriaService);
+  private readonly authService = inject(AuthService);
   private readonly route = inject(ActivatedRoute);
   private readonly destroyRef = inject(DestroyRef);
 
@@ -51,6 +54,11 @@ export class TareasPage {
   readonly loadingProximas = signal(false);
   readonly error = signal<string | null>(null);
   readonly mensajeExito = signal<string | null>(null);
+  readonly tareaAEliminar = signal<Tarea | null>(null);
+
+  readonly puedeGestionar = computed(() =>
+    ROLES_GESTION_ACADEMICA.includes(this.authService.role() as (typeof ROLES_GESTION_ACADEMICA)[number]),
+  );
 
   readonly filtros = signal<TareaFiltros>({ sort: 'fecha_entrega', order: 'asc' });
   readonly paginacion = signal({ limit: LIMITE_POR_PAGINA, offset: 0, total: 0 });
@@ -240,11 +248,16 @@ export class TareasPage {
   }
 
   eliminarTarea(tarea: Tarea): void {
-    const confirmado = confirm(`�Eliminar la tarea "${tarea.titulo}"?`);
-
-    if (!confirmado) {
+    if (!this.puedeGestionar()) {
       return;
     }
+
+    if (this.tareaAEliminar()?.id !== tarea.id) {
+      this.tareaAEliminar.set(tarea);
+      return;
+    }
+
+    this.cancelarEliminacion();
 
     this.tareaService
       .eliminarTarea(tarea.id)
@@ -259,6 +272,10 @@ export class TareasPage {
         error: (error: unknown) =>
           this.error.set(mensajeDeErrorHttp(error, 'No se pudo eliminar la tarea.')),
       });
+  }
+
+  cancelarEliminacion(): void {
+    this.tareaAEliminar.set(null);
   }
 
   paginaAnterior(): void {

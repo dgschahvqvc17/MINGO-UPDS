@@ -2,11 +2,14 @@
  * Reglas de autenticacion y control de acceso.
  */
 const ApiError = require('../utils/ApiError');
+const {
+  ROLE_ESTUDIANTE,
+  ROLE_PRIORITY,
+} = require('../models/roles.model');
 
-const ROLE_ADMINISTRADOR = 'administrador';
-const ROLE_ESTUDIANTE = 'estudiante';
-const VALID_ROLES = new Set([ROLE_ADMINISTRADOR, ROLE_ESTUDIANTE]);
+const VALID_ROLES = new Set(ROLE_PRIORITY);
 const ACTIVE_STATE = 'activo';
+const MAX_ROLES = 5;
 
 class AuthService {
   /**
@@ -49,7 +52,9 @@ class AuthService {
       apellido: profile.apellido,
       correo: profile.correo,
       estado: profile.estado,
-      role: roles.includes(ROLE_ADMINISTRADOR) ? ROLE_ADMINISTRADOR : roles[0],
+      requiereCambioClave: Boolean(profile.requiere_cambio_clave),
+      role: ROLE_PRIORITY.find((rol) => roles.includes(rol)) ?? ROLE_ESTUDIANTE,
+      rol: ROLE_PRIORITY.find((rol) => roles.includes(rol)) ?? ROLE_ESTUDIANTE,
       roles,
     };
   }
@@ -64,7 +69,9 @@ class AuthService {
     const roleNames = await this.usuarioRepository.findRoleNames(userId);
     const validRoles = [...new Set(roleNames.filter((name) => VALID_ROLES.has(name)))];
 
-    return validRoles.length > 0 ? validRoles : [ROLE_ESTUDIANTE];
+    const rolesOrdenados = ROLE_PRIORITY.filter((rol) => validRoles.includes(rol)).slice(0, MAX_ROLES);
+
+    return rolesOrdenados.length > 0 ? rolesOrdenados : [ROLE_ESTUDIANTE];
   }
 }
 

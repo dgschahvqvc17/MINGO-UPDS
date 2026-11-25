@@ -3,6 +3,8 @@
  * Usa el cliente de Supabase del usuario para que RLS se aplique en cada consulta.
  * No conoce HTTP ni reglas de negocio.
  */
+const { randomUUID } = require('crypto');
+
 const DOCUMENTO_COLUMNS = `
   id,
   usuario_id,
@@ -70,9 +72,12 @@ class DocumentoRepository {
    * @returns {Promise<object>}
    */
   async crearDocumento(usuarioId, documento) {
-    const { data, error } = await this.requireClient()
+    const documentoId = randomUUID();
+
+    const { error } = await this.requireClient()
       .from('documentos')
       .insert({
+        id: documentoId,
         usuario_id: usuarioId,
         materia_id: documento.materia_id,
         unidad_id: documento.unidad_id ?? null,
@@ -82,15 +87,17 @@ class DocumentoRepository {
         tipo_archivo: documento.tipo_archivo,
         tamano: documento.tamano,
         estado_procesamiento: 'pendiente',
-      })
-      .select(DOCUMENTO_COLUMNS)
-      .single();
+      });
 
     if (error) {
       throw error;
     }
 
-    return data;
+    const registrado = await this.obtenerDocumentoPorId(usuarioId, documentoId);
+    if (!registrado) {
+      throw new Error('No se pudo leer el documento recién registrado.');
+    }
+    return registrado;
   }
 
   /**
@@ -124,11 +131,10 @@ class DocumentoRepository {
    * @param {string} documentoId UUID del documento.
    * @returns {Promise<object | null>}
    */
-  async obtenerDocumentoPorId(usuarioId, documentoId) {
+  async obtenerDocumentoPorId(_usuarioId, documentoId) {
     const { data, error } = await this.requireClient()
       .from('documentos')
       .select(DOCUMENTO_COLUMNS)
-      .eq('usuario_id', usuarioId)
       .eq('id', documentoId)
       .maybeSingle();
 
@@ -146,14 +152,15 @@ class DocumentoRepository {
    * @param {{ materia_id?: string, q?: string, estado?: string, limit: number, offset: number }} filtros
    * @returns {Promise<{ items: object[], total: number }>}
    */
-  async listarDocumentos(usuarioId, { materia_id: materiaId, q, estado, limit, offset }) {
+  async listarDocumentos(_usuarioId, { materia_id: materiaId, q, estado, limit, offset }) {
     const desde = offset;
     const hasta = offset + limit - 1;
 
+    // RLS (migración 0018) permite al propietario, al administrador y a los
+    // estudiantes inscritos en la materia del documento.
     let consulta = this.requireClient()
       .from('documentos')
-      .select(DOCUMENTO_COLUMNS, { count: 'exact' })
-      .eq('usuario_id', usuarioId);
+      .select(DOCUMENTO_COLUMNS, { count: 'exact' });
 
     if (materiaId) {
       consulta = consulta.eq('materia_id', materiaId);

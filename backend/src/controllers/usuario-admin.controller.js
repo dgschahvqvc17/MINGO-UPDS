@@ -4,6 +4,7 @@
  */
 const {
   usuarioBusquedaSchema,
+  usuarioCrearSchema,
   usuarioActualizarRolesSchema,
   usuarioActualizarEstadoSchema,
   usuarioIdParamSchema
@@ -34,6 +35,20 @@ class UsuarioAdminController {
       });
     } catch (error) {
       next(error);
+    }
+  };
+
+  /**
+   * Crea un usuario con contraseña temporal.
+   */
+  crearUsuario = async (req, res, next) => {
+    try {
+      const datos = usuarioCrearSchema.parse(req.body);
+      const usuario = await this.service.crearUsuario(datos);
+
+      return res.status(201).json({ success: true, data: usuario });
+    } catch (error) {
+      return next(error);
     }
   };
 

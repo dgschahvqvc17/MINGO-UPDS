@@ -3,7 +3,16 @@
  * Los nombres de campos coinciden con las columnas de PostgreSQL/Supabase.
  */
 
-export type RolUsuario = 'administrador' | 'estudiante';
+export type RolUsuario = 'administrador' | 'docente' | 'estudiante';
+
+/** Precedencia de roles devuelta por GET /api/auth/me. */
+export const ROLES_POR_PRIORIDAD: readonly RolUsuario[] = [
+  'administrador',
+  'docente',
+  'estudiante',
+];
+
+export const ROLES_GESTION_ACADEMICA: readonly RolUsuario[] = ['administrador', 'docente'];
 
 export type EstadoGeneral = 'activo' | 'inactivo' | 'archivado';
 

@@ -1,8 +1,11 @@
 const { Router } = require('express');
 const authMiddleware = require('../middlewares/auth.middleware');
+const { requireRole } = require('../middlewares/roles.middleware');
 const validationMiddleware = require('../middlewares/validation.middleware');
 const asyncHandler = require('../utils/asyncHandler');
 const { createMateriaService } = require('../container');
+const inscripcionRoutes = require('./inscripcion.routes');
+const { ROLE_ADMINISTRADOR } = require('../models/roles.model');
 
 const {
   materiaBusquedaSchema,
@@ -26,12 +29,15 @@ router.use(authMiddleware);
 router.use((req, _res, next) => {
   try {
     // Crear servicio con el cliente del usuario para que RLS se aplique.
-    req.materiaService = createMateriaService(req.user.id, req.accessToken);
+    req.materiaService = createMateriaService(req.user.id, req.accessToken, req.user.role);
     next();
   } catch (error) {
     next(error);
   }
 });
+
+/** Gestión de inscripciones: admins y docente responsable. */
+router.use('/:materiaId/inscripciones', inscripcionRoutes);
 
 /**
  * GET /materias
@@ -40,9 +46,9 @@ router.use((req, _res, next) => {
 router.get(
   '/',
   validationMiddleware({ query: materiaBusquedaSchema }),
-  asyncHandler(async (req, res) => {
+  asyncHandler(async (req, res, next) => {
     const controller = new (require('../controllers/materia.controller'))(req.materiaService);
-    await controller.listarMaterias(req, res);
+    await controller.listarMaterias(req, res, next);
   })
 );
 
@@ -52,9 +58,9 @@ router.get(
  */
 router.get(
   '/estadisticas',
-  asyncHandler(async (req, res) => {
+  asyncHandler(async (req, res, next) => {
     const controller = new (require('../controllers/materia.controller'))(req.materiaService);
-    await controller.obtenerEstadisticas(req, res);
+    await controller.obtenerEstadisticas(req, res, next);
   })
 );
 
@@ -64,9 +70,9 @@ router.get(
  */
 router.get(
   '/colores',
-  asyncHandler(async (req, res) => {
+  asyncHandler(async (req, res, next) => {
     const controller = new (require('../controllers/materia.controller'))(req.materiaService);
-    await controller.obtenerColoresDisponibles(req, res);
+    await controller.obtenerColoresDisponibles(req, res, next);
   })
 );
 
@@ -76,9 +82,9 @@ router.get(
  */
 router.get(
   '/periodos',
-  asyncHandler(async (req, res) => {
+  asyncHandler(async (req, res, next) => {
     const controller = new (require('../controllers/materia.controller'))(req.materiaService);
-    await controller.obtenerPeriodosAcademicos(req, res);
+    await controller.obtenerPeriodosAcademicos(req, res, next);
   })
 );
 
@@ -88,9 +94,9 @@ router.get(
  */
 router.get(
   '/buscar',
-  asyncHandler(async (req, res) => {
+  asyncHandler(async (req, res, next) => {
     const controller = new (require('../controllers/materia.controller'))(req.materiaService);
-    await controller.buscarMaterias(req, res);
+    await controller.buscarMaterias(req, res, next);
   })
 );
 
@@ -101,9 +107,9 @@ router.get(
 router.get(
   '/:id',
   validationMiddleware({ params: materiaIdParamSchema }),
-  asyncHandler(async (req, res) => {
+  asyncHandler(async (req, res, next) => {
     const controller = new (require('../controllers/materia.controller'))(req.materiaService);
-    await controller.obtenerMateria(req, res);
+    await controller.obtenerMateria(req, res, next);
   })
 );
 
@@ -113,10 +119,11 @@ router.get(
  */
 router.post(
   '/',
+  requireRole(ROLE_ADMINISTRADOR),
   validationMiddleware({ body: materiaCrearSchema }),
-  asyncHandler(async (req, res) => {
+  asyncHandler(async (req, res, next) => {
     const controller = new (require('../controllers/materia.controller'))(req.materiaService);
-    await controller.crearMateria(req, res);
+    await controller.crearMateria(req, res, next);
   })
 );
 
@@ -126,11 +133,12 @@ router.post(
  */
 router.patch(
   '/:id',
+  requireRole(ROLE_ADMINISTRADOR),
   validationMiddleware({ params: materiaIdParamSchema }),
   validationMiddleware({ body: materiaActualizarSchema }),
-  asyncHandler(async (req, res) => {
+  asyncHandler(async (req, res, next) => {
     const controller = new (require('../controllers/materia.controller'))(req.materiaService);
-    await controller.actualizarMateria(req, res);
+    await controller.actualizarMateria(req, res, next);
   })
 );
 
@@ -140,11 +148,12 @@ router.patch(
  */
 router.patch(
   '/:id/estado',
+  requireRole(ROLE_ADMINISTRADOR),
   validationMiddleware({ params: materiaIdParamSchema }),
   validationMiddleware({ body: materiaCambiarEstadoSchema }),
-  asyncHandler(async (req, res) => {
+  asyncHandler(async (req, res, next) => {
     const controller = new (require('../controllers/materia.controller'))(req.materiaService);
-    await controller.cambiarEstadoMateria(req, res);
+    await controller.cambiarEstadoMateria(req, res, next);
   })
 );
 
@@ -155,9 +164,9 @@ router.patch(
 router.get(
   '/:id/acceso',
   validationMiddleware({ params: materiaIdParamSchema }),
-  asyncHandler(async (req, res) => {
+  asyncHandler(async (req, res, next) => {
     const controller = new (require('../controllers/materia.controller'))(req.materiaService);
-    await controller.validarAccesoMateria(req, res);
+    await controller.validarAccesoMateria(req, res, next);
   })
 );
 

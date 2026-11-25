@@ -8,7 +8,7 @@ const { ErrorProcesamiento } = require('./procesamiento/procesamiento.error');
 const ExtractorContenidoService = require('./procesamiento/extractor-contenido.service');
 const FragmentadorService = require('./procesamiento/fragmentador.service');
 const { DIMENSION_VECTOR } = require('./ia/embeddings.service');
-const { calcularCorte, estaEnProceso, estaEstancado } = require('../utils/procesamiento-estado');
+const { calcularCorte, estaEstancado, estaProcesando } = require('../utils/procesamiento-estado');
 
 class ProcesamientoService {
   /**
@@ -110,7 +110,7 @@ class ProcesamientoService {
       return { documentoId: documento.id, omitido: true, motivo: 'ya_procesado' };
     }
 
-    const enProcesoAhora = estaEnProceso(documento.estado_procesamiento);
+    const enProcesoAhora = estaProcesando(documento.estado_procesamiento);
     const recuperarEnProceso = enProcesoAhora && (esReintento || estaEstancado(documento));
 
     if (enProcesoAhora && !recuperarEnProceso) {

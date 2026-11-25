@@ -43,6 +43,7 @@ describe('UsuarioAdminService', () => {
         usuarios_activos: '8',
         usuarios_inactivos: '2',
         total_administradores: '2',
+        total_docentes: '3',
         total_estudiantes: '8'
       };
 
@@ -62,6 +63,7 @@ describe('UsuarioAdminService', () => {
         activos: 8,
         inactivos: 2,
         administradores: 2,
+        docentes: 3,
         estudiantes: 8
       });
     });

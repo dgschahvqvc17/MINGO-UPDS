@@ -13,9 +13,16 @@ const {
 } = require('../models/materia.model');
 
 class MateriaService {
-  constructor(repository, usuarioActualId) {
+  constructor(repository, usuarioActualId, rol = null) {
     this.repository = repository;
     this.usuarioActualId = usuarioActualId; // ID del usuario que realiza la operación
+    this.rol = rol;
+  }
+
+  verificarAdministrador() {
+    if (this.rol === 'estudiante' || this.rol === 'docente') {
+      throw ApiError.forbidden('Solo un administrador puede gestionar materias.');
+    }
   }
 
   /**
@@ -78,6 +85,7 @@ class MateriaService {
    */
   async crearMateria(materiaData) {
     try {
+      this.verificarAdministrador();
       // Validar datos de entrada
       const datosValidados = materiaCrearSchema.parse(materiaData);
 
@@ -127,6 +135,7 @@ class MateriaService {
    */
   async actualizarMateria(materiaId, materiaData) {
     try {
+      this.verificarAdministrador();
       // Validar datos de entrada
       const datosValidados = materiaActualizarSchema.parse(materiaData);
 
@@ -195,6 +204,7 @@ class MateriaService {
    */
   async cambiarEstadoMateria(materiaId, estado) {
     try {
+      this.verificarAdministrador();
       // Validar estado
       const { estado: estadoValidado } = materiaCambiarEstadoSchema.parse({ estado });
 

@@ -84,6 +84,7 @@ async function runAllMigrations() {
       path.join('supabase', 'migrations', '0015_hu17_objetivos_progreso.sql'),
       path.join('supabase', 'migrations', '0016_hu17_restringir_permisos_objetivos.sql'),
       path.join('supabase', 'migrations', '0017_hu18_notificaciones.sql'),
+      path.join('supabase', 'migrations', '0018_roles_docente_inscripciones.sql'),
     ];
     
     for (const migrationFile of migrations) {

@@ -61,6 +61,7 @@ export class ChatComponent {
   readonly errorMensajes = signal<string | null>(null);
   readonly enviando = signal(false);
   readonly errorEnvio = signal<string | null>(null);
+  readonly confirmandoEliminarId = signal<string | null>(null);
 
   /** La mascota refleja el ciclo real de la petición, no una animación decorativa. */
   private readonly controlMascota = crearEstadoMascota(this.enviando, this.destroyRef);
@@ -159,10 +160,27 @@ export class ChatComponent {
     this.mensajeControl.reset();
   }
 
+  pedirEliminacion(conversacion: Conversacion, evento: Event): void {
+    evento.stopPropagation();
+    this.errorConversaciones.set(null);
+    this.confirmandoEliminarId.set(
+      this.confirmandoEliminarId() === conversacion.id ? null : conversacion.id,
+    );
+  }
+
+  cancelarEliminacion(evento: Event): void {
+    evento.stopPropagation();
+    this.confirmandoEliminarId.set(null);
+  }
+
+  textoEliminacion(conversacion: Conversacion): string {
+    return `¿Eliminar la conversación «${conversacion.titulo}»?`;
+  }
+
   eliminarConversacion(conversacion: Conversacion, evento: Event): void {
     evento.stopPropagation();
 
-    if (!window.confirm(`¿Eliminar la conversación «${conversacion.titulo}»?`)) {
+    if (this.confirmandoEliminarId() !== conversacion.id) {
       return;
     }
 
@@ -175,6 +193,7 @@ export class ChatComponent {
             this.nuevaConversacion();
           }
 
+          this.confirmandoEliminarId.set(null);
           this.cargarConversaciones();
         },
         error: () => this.errorConversaciones.set('No se pudo eliminar la conversación.'),

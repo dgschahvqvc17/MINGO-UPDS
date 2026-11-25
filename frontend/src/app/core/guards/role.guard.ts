@@ -20,6 +20,10 @@ export const roleGuard: CanActivateFn = async (route) => {
     return router.createUrlTree(['/auth/login']);
   }
 
+  if (profile.requiereCambioClave) {
+    return router.createUrlTree(['/cambiar-clave']);
+  }
+
   if (allowedRoles.length === 0 || allowedRoles.includes(profile.role)) {
     return true;
   }

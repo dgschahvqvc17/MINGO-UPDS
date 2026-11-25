@@ -59,7 +59,7 @@
           {{ descargando() ? 'Generando descarga...' : 'Descargar' }}
         </button>
 
-        @if (puedeProcesar()) {
+        @if (puedeGestionar() && puedeProcesar()) {
           <button
             type="button"
             class="btn btn-outline-info"
@@ -71,7 +71,7 @@
           </button>
         }
 
-        @if (confirmandoEliminar()) {
+        @if (puedeGestionar() && confirmandoEliminar()) {
           <span class="detalle-confirm" role="group" aria-label="Confirmar eliminación del documento">
             <span class="detalle-confirm-text">¿Eliminar este documento?</span>
             <button
@@ -91,7 +91,7 @@
               Cancelar
             </button>
           </span>
-        } @else {
+        } @else if (puedeGestionar()) {
           <button
             type="button"
             class="btn btn-outline-danger"

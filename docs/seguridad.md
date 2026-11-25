@@ -57,6 +57,9 @@ Supabase PostgreSQL (RLS activo como segunda barrera)
 - Recuperación por correo con enlace de un solo uso.
 - Bloqueo temporal tras intentos fallidos repetidos (configuración de Supabase + rate limit).
 - No se registran contraseñas, ni siquiera hasheadas, en logs.
+- `POST /api/usuarios` crea cuentas con `claveTemporal` de 8 a 72 caracteres, confirma el correo y marca `requiere_cambio_clave = true`. La clave se devuelve una sola vez en la respuesta; si falla la actualización del perfil, se elimina la cuenta creada.
+- `POST /api/auth/cambiar-clave` verifica la clave actual, la actualiza con `service_role` y pone `requiere_cambio_clave = false`.
+- Mientras `requiereCambioClave = true`, `auth.middleware.js` solo permite `/auth/me` y `/auth/cambiar-clave`; cualquier otra ruta responde `403` con un mensaje que no revela la clave.
 
 ## 3. Autorización y roles
 
@@ -64,10 +67,13 @@ Supabase PostgreSQL (RLS activo como segunda barrera)
 
 | Rol | Acceso |
 |---|---|
-| `estudiante` | Solo sus propios datos académicos, documentos, conversaciones y estadísticas. |
-| `administrador` | Panel administrativo, usuarios, roles, estadísticas agregadas, auditoría y configuración de IA. |
+| `estudiante` | Datos académicos propios o de materias con inscripción `activa`; puede actualizar su propio estado en `tarea_estados`. No gestiona inscripciones. |
+| `docente` | Materias cuyo `docente_id` sea suyo: gestiona inscripciones, tareas y documentos según las reglas de propiedad y RLS. |
+| `administrador` | Panel de usuarios (`/api/usuarios`), roles y estadísticas agregadas. Gestiona materias, inscripciones, tareas y documentos conforme a las reglas de propiedad y RLS; no obtiene acceso automático a conversaciones ni artefactos IA privados. |
 
-El rol se guarda en `roles` + `usuario_roles`. La fuente de verdad es la base de datos; `app_metadata.role` puede usarse como caché de autorización, nunca como única validación.
+El rol se guarda en `roles` + `usuario_roles`. La fuente de verdad es la base de datos; `app_metadata.role` puede usarse como caché de autorización, nunca como única validación. La precedencia efectiva es `administrador > docente > estudiante`. `/api/auth/me` devuelve `role` (efectivo), `rol` (alias de compatibilidad) y `roles` (todos los asignados, ordenados por precedencia).
+
+El trigger `handle_new_user` asigna siempre `estudiante`, sin importar los metadatos del registro público. Un `rol` enviado en `user_metadata` no otorga privilegios: el alta de `docente` o `administrador` la realiza el backend con `service_role` desde `POST /api/usuarios`, que también marca `requiere_cambio_clave`.
 
 ### 3.2. Middlewares
 
@@ -88,8 +94,10 @@ router.post('/', requireRole('administrador'), controller.crear);
 - Toda consulta de datos de usuario incluye `usuario_id = req.user.id`.
 - Toda actualización verifica primero que el recurso pertenece al usuario.
 - Un recurso de otro usuario responde `404`, no `403`.
-- El administrador **no** hereda permisos sobre contenido privado.
-- Los cambios de rol no pueden aplicarse a sí mismo.
+- El administrador **no** hereda permisos sobre conversaciones ni artefactos IA privados; el acceso a documentos y fragmentos se rige por las funciones RLS de la migración `0018`.
+- Los cambios de rol o estado no pueden aplicarse a uno mismo: `noSelfModificationMiddleware` y el servicio lo rechazan con `403`.
+- No se puede desactivar ni quitar el rol a un administrador si sería el único del sistema.
+- Las inscripciones por materia (`GET`, `POST` y `DELETE` en `/api/materias/:id/inscripciones`) requieren `administrador` o `docente`. El docente solo opera sobre materias cuyo `docente_id` sea suyo; un estudiante no puede consultarlas.
 
 ## 4. Row Level Security (RLS)
 

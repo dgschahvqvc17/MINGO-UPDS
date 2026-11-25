@@ -3,8 +3,10 @@
  * Usa el cliente de Supabase del usuario para que RLS se aplique en cada consulta.
  * No conoce HTTP ni reglas de negocio.
  */
+const { randomUUID } = require('crypto');
+
 const MATERIA_COLUMNS =
-  'id, usuario_id, nombre, codigo, docente, descripcion, periodo_academico, color, estado, fecha_creacion, fecha_actualizacion';
+  'id, usuario_id, docente_id, nombre, codigo, docente, descripcion, periodo_academico, color, estado, fecha_creacion, fecha_actualizacion';
 
 // HU07 es la historia que agrega documentos. Hasta entonces el contador es cero.
 const TOTAL_DOCUMENTOS_PENDIENTE = 0;
@@ -24,13 +26,13 @@ class MateriaRepository {
    * @param {object} filtros Filtros validados.
    * @returns {Promise<{ items: object[], total: number }>}
    */
-  async listarMaterias(usuarioId, filtros = {}) {
+  async listarMaterias(_usuarioId, filtros = {}) {
     const { query, periodo_academico, estado, limit = 20, offset = 0 } = filtros;
 
+    // La visibilidad (propia, impartida o inscrita) la resuelve RLS en 0018.
     let builder = this.requireClient()
       .from('materias')
-      .select(MATERIA_COLUMNS, { count: 'exact' })
-      .eq('usuario_id', usuarioId);
+      .select(MATERIA_COLUMNS, { count: 'exact' });
 
     if (query) {
       // PostgREST usa comas y parentesis como sintaxis: se eliminan del termino.
@@ -73,12 +75,11 @@ class MateriaRepository {
    * @param {string} materiaId UUID de la materia.
    * @returns {Promise<object | null>}
    */
-  async obtenerMateriaPorId(usuarioId, materiaId) {
+  async obtenerMateriaPorId(_usuarioId, materiaId) {
     const { data, error } = await this.requireClient()
       .from('materias')
       .select(MATERIA_COLUMNS)
       .eq('id', materiaId)
-      .eq('usuario_id', usuarioId)
       .maybeSingle();
 
     if (error) {
@@ -101,12 +102,15 @@ class MateriaRepository {
    * @returns {Promise<object>}
    */
   async crearMateria(usuarioId, materiaData) {
-    const { nombre, codigo, docente, descripcion, periodo_academico, color } = materiaData;
+    const { nombre, codigo, docente, docente_id, descripcion, periodo_academico, color } = materiaData;
+    const materiaId = randomUUID();
 
-    const { data, error } = await this.requireClient()
+    const { error } = await this.requireClient()
       .from('materias')
       .insert({
+        id: materiaId,
         usuario_id: usuarioId,
+        docente_id: docente_id ?? usuarioId,
         nombre,
         codigo,
         docente,
@@ -114,9 +118,7 @@ class MateriaRepository {
         periodo_academico,
         color: color ?? '#3B82F6',
         estado: 'activo',
-      })
-      .select(MATERIA_COLUMNS)
-      .single();
+      });
 
     if (error) {
       if (error.code === '23505') {
@@ -125,7 +127,10 @@ class MateriaRepository {
       throw error;
     }
 
-    const [materia] = await this.agregarContadores([data]);
+    const materia = await this.obtenerMateriaPorId(usuarioId, materiaId);
+    if (!materia) {
+      throw new Error('No se pudo leer la materia recién creada.');
+    }
     return materia;
   }
 
@@ -215,13 +220,12 @@ class MateriaRepository {
    * @param {string} usuarioId UUID del usuario.
    * @returns {Promise<{ total: number, activas: number, archivadas: number, por_periodo: Record<string, number> }>}
    */
-  async obtenerEstadisticas(usuarioId) {
+  async obtenerEstadisticas(_usuarioId) {
     const client = this.requireClient();
     const contar = (estado) => {
       let builder = client
         .from('materias')
-        .select('id', { count: 'exact', head: true })
-        .eq('usuario_id', usuarioId);
+        .select('id', { count: 'exact', head: true });
 
       if (estado) {
         builder = builder.eq('estado', estado);
@@ -234,7 +238,7 @@ class MateriaRepository {
       contar(),
       contar('activo'),
       contar('archivado'),
-      client.from('materias').select('periodo_academico').eq('usuario_id', usuarioId),
+      client.from('materias').select('periodo_academico'),
     ]);
 
     if (totalResult.error) throw totalResult.error;
@@ -262,11 +266,10 @@ class MateriaRepository {
    * @param {string} usuarioId UUID del usuario.
    * @returns {Promise<string[]>}
    */
-  async obtenerPeriodosAcademicos(usuarioId) {
+  async obtenerPeriodosAcademicos(_usuarioId) {
     const { data, error } = await this.requireClient()
       .from('materias')
       .select('periodo_academico')
-      .eq('usuario_id', usuarioId)
       .not('periodo_academico', 'is', null);
 
     if (error) {

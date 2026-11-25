@@ -30,6 +30,7 @@ import {
 } from '../../core/services/plan-estudio.service';
 import { MateriaService, type Materia } from '../../core/services/materia.service';
 import { mensajeDeErrorHttp } from '../../core/utils/http-error';
+import { valorDeCampo } from '../../core/utils/form-event';
 import { CalendarioSesionesComponent } from './components/calendario-sesiones/calendario-sesiones';
 
 const LIMITE_MATERIAS = 100;
@@ -85,6 +86,7 @@ export class PlanesEstudioPage {
   readonly fechaExamen = signal('');
   readonly minutosPorDia = signal(60);
   readonly diasSeleccionados = signal<DiaSemana[]>([]);
+  readonly valorCampo = valorDeCampo;
 
   readonly cargandoMaterias = signal(false);
   readonly cargandoPlanes = signal(true);
@@ -93,6 +95,8 @@ export class PlanesEstudioPage {
   readonly error = signal<string | null>(null);
   readonly errorFormulario = signal<string | null>(null);
   readonly mensajeExito = signal<string | null>(null);
+  readonly confirmandoDescarteId = signal<string | null>(null);
+  readonly descartandoId = signal<string | null>(null);
 
   readonly materiasActivas = computed(() =>
     this.materias().filter((materia) => materia.estado === 'activo'),
@@ -560,14 +564,26 @@ export class PlanesEstudioPage {
       });
   }
 
+  pedirDescarte(plan: PlanEstudio): void {
+    this.mensajeExito.set(null);
+    this.confirmandoDescarteId.set(this.confirmandoDescarteId() === plan.id ? null : plan.id);
+  }
+
+  cancelarDescarte(): void {
+    this.confirmandoDescarteId.set(null);
+  }
+
+  textoDescarte(plan: PlanEstudio): string {
+    return `¿Descartar el plan "${plan.objetivo}"? Se eliminarán sus eventos del calendario.`;
+  }
+
   descartarPlan(plan: PlanEstudio): void {
-    if (
-      !window.confirm(
-        `¿Descartar el plan "${plan.objetivo}"? Se eliminarán sus eventos del calendario.`,
-      )
-    ) {
+    if (this.confirmandoDescarteId() !== plan.id || this.descartandoId()) {
       return;
     }
+
+    this.descartandoId.set(plan.id);
+    this.error.set(null);
 
     this.planService
       .descartar(plan.id)
@@ -579,10 +595,13 @@ export class PlanesEstudioPage {
           if (this.planExpandido() === plan.id) {
             this.cerrarDetalle();
           }
+          this.confirmandoDescarteId.set(null);
+          this.descartandoId.set(null);
           this.mensajeExito.set('El plan se descartó correctamente.');
         },
         error: (error: unknown) => {
           this.error.set(mensajeDeErrorHttp(error, 'No se pudo descartar el plan.'));
+          this.descartandoId.set(null);
         },
       });
   }

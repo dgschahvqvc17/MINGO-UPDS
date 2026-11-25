@@ -167,13 +167,40 @@
                       type="button"
                       class="btn btn-outline-danger"
                       [disabled]="eliminando() || guardando()"
-                      (click)="eliminar()"
+                      (click)="pedirEliminacion()"
                     >
                       @if (eliminando()) {
                         <span class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span>
                       }
                       Eliminar evento
                     </button>
+                    @if (confirmandoEliminar()) {
+                      <div
+                        class="alert alert-light border d-flex flex-wrap align-items-center gap-2 mt-2"
+                        role="group"
+                        aria-label="Confirmar eliminación del evento"
+                      >
+                        <span class="small flex-grow-1">
+                          ¿Eliminar este evento? Esta acción no se puede deshacer.
+                        </span>
+                        <button
+                          type="button"
+                          class="btn btn-sm btn-outline-secondary"
+                          (click)="cancelarEliminacion()"
+                          [disabled]="eliminando()"
+                        >
+                          Cancelar
+                        </button>
+                        <button
+                          type="button"
+                          class="btn btn-sm btn-outline-danger"
+                          (click)="eliminar()"
+                          [disabled]="eliminando()"
+                        >
+                          {{ eliminando() ? 'Eliminando...' : 'Confirmar' }}
+                        </button>
+                      </div>
+                    }
                   }
                 </div>
               </form>

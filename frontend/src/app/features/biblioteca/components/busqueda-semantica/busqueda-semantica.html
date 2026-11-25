@@ -17,7 +17,7 @@
         id="busqueda-semantica-materia"
         class="form-select"
         [value]="materiaId()"
-        (change)="materiaId.set($any($event.target).value)"
+        (change)="materiaId.set(valorCampo($event))"
       >
         <option value="">Todas las materias</option>
         @for (materia of materias(); track materia.id) {
@@ -39,7 +39,7 @@
         autocomplete="off"
         [value]="consulta()"
         [disabled]="cargando()"
-        (input)="consulta.set($any($event.target).value)"
+        (input)="consulta.set(valorCampo($event))"
       />
     </div>
 

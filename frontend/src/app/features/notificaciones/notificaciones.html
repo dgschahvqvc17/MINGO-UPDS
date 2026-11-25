@@ -34,7 +34,7 @@
                 id="filtro-lectura"
                 class="form-select form-select-sm"
                 [value]="filtroLectura()"
-                (change)="cambiarFiltroLectura($any($event.target).value)"
+                (change)="cambiarFiltroLectura(valorCampo($event))"
               >
                 <option value="todas">Todas</option>
                 <option value="no-leidas">No leídas</option>
@@ -47,7 +47,7 @@
                 id="filtro-tipo"
                 class="form-select form-select-sm"
                 [value]="filtroTipo()"
-                (change)="cambiarFiltroTipo($any($event.target).value)"
+                (change)="cambiarFiltroTipo(valorCampo($event))"
               >
                 <option value="">Todos los tipos</option>
                 @for (tipo of tipos; track tipo) {
@@ -164,7 +164,7 @@
               type="checkbox"
               role="switch"
               [checked]="notificacionesActivas()"
-              (change)="notificacionesActivas.set($any($event.target).checked)"
+              (change)="notificacionesActivas.set(estaMarcado($event))"
             />
             <label class="form-check-label" for="notificaciones-activas">
               Activar notificaciones
@@ -178,7 +178,7 @@
               type="checkbox"
               role="switch"
               [checked]="canalEmail()"
-              (change)="canalEmail.set($any($event.target).checked)"
+              (change)="canalEmail.set(estaMarcado($event))"
             />
             <label class="form-check-label" for="canal-email">
               Enviar también por correo
@@ -196,7 +196,7 @@
               min="5"
               max="10080"
               [value]="anticipacionMinutos()"
-              (input)="cambiarAnticipacion($any($event.target).value)"
+              (input)="cambiarAnticipacion(valorCampo($event))"
               aria-describedby="anticipacion-ayuda"
             />
             @if (errorAnticipacion()) {
@@ -216,7 +216,7 @@
               id="zona-horaria"
               class="form-select form-select-sm"
               [value]="zonaHoraria()"
-              (change)="zonaHoraria.set($any($event.target).value)"
+              (change)="zonaHoraria.set(valorCampo($event))"
             >
               @for (zona of zonasHorarias; track zona) {
                 <option [value]="zona">{{ zona }}</option>

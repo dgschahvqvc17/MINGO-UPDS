@@ -38,6 +38,12 @@
       </div>
     }
 
+    @if (mensajeEstado(); as mensaje) {
+      <div [class]="'alert alert-' + mensaje.tipo" role="status">
+        {{ mensaje.texto }}
+      </div>
+    }
+
     <!-- Detalles del usuario -->
     @if (usuario() && !loading() && !error()) {
       <header class="mb-4">
@@ -180,8 +186,8 @@
                 <button 
                   class="btn"
                   [class]="usuario()!.estado === 'activo' ? 'btn-outline-danger' : 'btn-outline-success'"
-                  (click)="cambiarEstado()"
-                  [disabled]="!puedeModificar()"
+                  (click)="pedirConfirmacion()"
+                  [disabled]="!puedeModificar() || cambiandoEstado()"
                   [title]="puedeModificar() 
                     ? (usuario()!.estado === 'activo' ? 'Desactivar usuario' : 'Activar usuario')
                     : 'No puedes modificar tu propio estado'
@@ -195,6 +201,28 @@
                     Activar usuario
                   }
                 </button>
+
+                @if (confirmandoCambio()) {
+                  <div class="alert alert-light border d-flex flex-wrap align-items-center gap-2" role="group" [attr.aria-label]="textoConfirmacion()">
+                    <span class="small flex-grow-1">{{ textoConfirmacion() }}</span>
+                    <button
+                      type="button"
+                      class="btn btn-sm btn-outline-secondary"
+                      (click)="cancelarCambio()"
+                      [disabled]="cambiandoEstado()"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      type="button"
+                      class="btn btn-sm btn-outline-primary"
+                      (click)="cambiarEstado()"
+                      [disabled]="cambiandoEstado()"
+                    >
+                      {{ cambiandoEstado() ? 'Guardando...' : 'Confirmar' }}
+                    </button>
+                  </div>
+                }
 
                 @if (esAdministrador()) {
                   <div class="alert alert-warning small mt-2" role="alert">

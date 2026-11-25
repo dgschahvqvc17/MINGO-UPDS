@@ -305,10 +305,14 @@ describe('UsuarioAdminRepository', () => {
   });
 
   describe('obtenerEstadisticas', () => {
-    it('normaliza los cinco contadores', async () => {
+    it('normaliza los seis contadores', async () => {
       const supabase = crearSupabaseFalso({
         perfiles: [{ count: 10, error: null }, { count: 8, error: null }, { count: 2, error: null }],
-        usuario_roles: [{ count: 2, error: null }, { count: 8, error: null }],
+        usuario_roles: [
+          { count: 2, error: null },
+          { count: 3, error: null },
+          { count: 8, error: null },
+        ],
       });
 
       const repositorio = new UsuarioAdminRepository(supabase);
@@ -319,6 +323,7 @@ describe('UsuarioAdminRepository', () => {
         usuarios_activos: 8,
         usuarios_inactivos: 2,
         total_administradores: 2,
+        total_docentes: 3,
         total_estudiantes: 8,
       });
     });

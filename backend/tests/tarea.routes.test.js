@@ -14,7 +14,7 @@ const mockTareaService = {
 };
 
 jest.mock('../src/middlewares/auth.middleware', () => (req, _res, next) => {
-  req.user = { id: USUARIO_ID, email: 'estudiante@mingo.test', role: 'estudiante' };
+  req.user = { id: USUARIO_ID, email: 'docente@mingo.test', role: 'docente' };
   req.accessToken = 'token-de-prueba';
   next();
 });

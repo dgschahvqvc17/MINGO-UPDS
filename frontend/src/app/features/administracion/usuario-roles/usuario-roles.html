@@ -86,7 +86,7 @@
                   
                   @for (rol of usuario()!.roles; track rol) {
                     <span [class]="obtenerRolBadgeClase(rol)">
-                      {{ rol === 'administrador' ? 'Admin' : 'Estudiante' }}
+                      {{ etiquetaRol(rol) }}
                     </span>
                   }
                 </div>
@@ -150,11 +150,9 @@
                         
                         <div class="flex-fill">
                           <div class="d-flex align-items-center gap-2 mb-1">
-                            <h3 class="h6 fw-semibold mb-0">
-                              {{ rol.nombre === 'administrador' ? 'Administrador' : 'Estudiante' }}
-                            </h3>
+                            <h3 class="h6 fw-semibold mb-0">{{ etiquetaRol(rol.nombre) }}</h3>
                             <span [class]="obtenerRolBadgeClase(rol.nombre)" class="small">
-                              {{ rol.nombre === 'administrador' ? 'Admin' : 'Estudiante' }}
+                              {{ etiquetaRol(rol.nombre) }}
                             </span>
                           </div>
                           
@@ -163,16 +161,25 @@
                           }
                           
                           <!-- Información adicional por rol -->
-                          @if (rol.nombre === 'administrador') {
-                            <div class="small text-danger mt-1">
-                              <i class="bi bi-exclamation-triangle me-1"></i>
-                              <strong>Acceso completo:</strong> Puede gestionar usuarios, roles y toda la plataforma.
-                            </div>
-                          } @else {
-                            <div class="small text-info mt-1">
-                              <i class="bi bi-info-circle me-1"></i>
-                              <strong>Acceso limitado:</strong> Solo puede usar funcionalidades de estudiante.
-                            </div>
+                          @switch (rol.nombre) {
+                            @case ('administrador') {
+                              <div class="small text-danger mt-1">
+                                <i class="bi bi-exclamation-triangle me-1"></i>
+                                <strong>Acceso completo:</strong> Gestiona usuarios, roles y toda la plataforma.
+                              </div>
+                            }
+                            @case ('docente') {
+                              <div class="small text-primary mt-1">
+                                <i class="bi bi-person-badge me-1"></i>
+                                <strong>Docente:</strong> Gestiona materias, tareas, documentos e inscripciones.
+                              </div>
+                            }
+                            @default {
+                              <div class="small text-info mt-1">
+                                <i class="bi bi-info-circle me-1"></i>
+                                <strong>Estudiante:</strong> Consulta y actualiza su progreso académico.
+                              </div>
+                            }
                           }
                         </div>
                       </div>

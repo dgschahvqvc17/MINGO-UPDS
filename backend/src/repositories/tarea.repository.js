@@ -6,6 +6,7 @@
 const TAREA_COLUMNS = `
   id,
   usuario_id,
+  docente_id,
   materia_id,
   titulo,
   descripcion,
@@ -43,10 +44,10 @@ class TareaRepository {
   async listarTareas(usuarioId, filtros = {}) {
     const { limit = 20, offset = 0, sort = 'fecha_entrega', order = 'asc' } = filtros;
 
+    // La visibilidad la resuelve RLS: propietario, docente o estudiante inscrito.
     let builder = this.requireClient()
       .from('tareas')
-      .select(TAREA_COLUMNS, { count: 'exact' })
-      .eq('usuario_id', usuarioId);
+      .select(TAREA_COLUMNS, { count: 'exact' });
 
     if (filtros.materia_id) {
       builder = builder.eq('materia_id', filtros.materia_id);
@@ -97,7 +98,10 @@ class TareaRepository {
       throw error;
     }
 
-    return { items: data ?? [], total: count ?? (data ?? []).length };
+    return {
+      items: await this.aplicarEstadosEstudiante(data ?? [], usuarioId),
+      total: count ?? (data ?? []).length,
+    };
   }
 
   /**
@@ -112,8 +116,64 @@ class TareaRepository {
       .from('tareas')
       .select(TAREA_COLUMNS)
       .eq('id', tareaId)
-      .eq('usuario_id', usuarioId)
       .maybeSingle();
+
+    if (error) {
+      throw error;
+    }
+
+    const [tarea] = await this.aplicarEstadosEstudiante(data ? [data] : [], usuarioId);
+    return tarea ?? null;
+  }
+
+  /**
+   * Reemplaza el estado de la definicion por el estado personal del estudiante
+   * cuando existe. Los estados se consultan en una sola llamada para evitar N+1.
+   *
+   * @param {object[]} tareas Tareas visibles.
+   * @param {string} estudianteId UUID del usuario que consulta.
+   * @returns {Promise<object[]>}
+   */
+  async aplicarEstadosEstudiante(tareas, estudianteId) {
+    if (tareas.length === 0) {
+      return tareas;
+    }
+
+    const ids = tareas.map((tarea) => tarea.id);
+    const { data, error } = await this.requireClient()
+      .from('tarea_estados')
+      .select('tarea_id, estado')
+      .eq('estudiante_id', estudianteId)
+      .in('tarea_id', ids);
+
+    if (error) {
+      return tareas;
+    }
+
+    const estados = new Map((data ?? []).map((fila) => [fila.tarea_id, fila.estado]));
+
+    return tareas.map((tarea) => ({
+      ...tarea,
+      estado_definicion: tarea.estado,
+      estado: estados.get(tarea.id) ?? tarea.estado,
+    }));
+  }
+
+  /**
+   * Guarda el estado personal de un estudiante para una tarea compartida.
+   *
+   * @param {{ tareaId: string, estudianteId: string, estado: string }} datos
+   * @returns {Promise<object>}
+   */
+  async guardarEstadoEstudiante({ tareaId, estudianteId, estado }) {
+    const { data, error } = await this.requireClient()
+      .from('tarea_estados')
+      .upsert(
+        { tarea_id: tareaId, estudiante_id: estudianteId, estado },
+        { onConflict: 'tarea_id,estudiante_id' },
+      )
+      .select('tarea_id, estudiante_id, estado')
+      .single();
 
     if (error) {
       throw error;
@@ -134,6 +194,7 @@ class TareaRepository {
       .from('tareas')
       .insert({
         usuario_id: usuarioId,
+        docente_id: tareaData.docente_id ?? usuarioId,
         materia_id: tareaData.materia_id,
         titulo: tareaData.titulo,
         descripcion: tareaData.descripcion ?? null,
@@ -245,7 +306,6 @@ class TareaRepository {
     const { data, error } = await this.requireClient()
       .from('tareas')
       .select(TAREA_COLUMNS)
-      .eq('usuario_id', usuarioId)
       .neq('estado', 'completada')
       .gte('fecha_entrega', desde.toISOString())
       .lte('fecha_entrega', hasta.toISOString())
@@ -256,7 +316,7 @@ class TareaRepository {
       throw error;
     }
 
-    return data ?? [];
+    return this.aplicarEstadosEstudiante(data ?? [], usuarioId);
   }
 
   /**
@@ -271,7 +331,6 @@ class TareaRepository {
     const { data, error } = await this.requireClient()
       .from('tareas')
       .select(TAREA_COLUMNS)
-      .eq('usuario_id', usuarioId)
       .in('tipo', ['examen', 'parcial'])
       .neq('estado', 'completada')
       .gte('fecha_entrega', desde.toISOString())
@@ -283,7 +342,7 @@ class TareaRepository {
       throw error;
     }
 
-    return data ?? [];
+    return this.aplicarEstadosEstudiante(data ?? [], usuarioId);
   }
 
   /**

@@ -13,6 +13,7 @@ const materia: Materia = {
   usuario_id: 'usuario-1',
   nombre: 'Cálculo Diferencial',
   codigo: 'MAT-101',
+  docente_id: null,
   docente: 'Ana Pérez',
   descripcion: null,
   periodo_academico: '2026-1',
@@ -191,6 +192,14 @@ describe('ProgresoPage (HU17)', () => {
       limit: 20,
       offset: 0,
     });
+  });
+
+  it('acepta solo estados válidos al cambiar el estado del formulario', () => {
+    componente.alCambiarEstado('en_progreso');
+    expect(componente.estado()).toBe('en_progreso');
+
+    componente.alCambiarEstado('estado-invalido');
+    expect(componente.estado()).toBe('en_progreso');
   });
 
   it('registra un objetivo con los datos del formulario', () => {

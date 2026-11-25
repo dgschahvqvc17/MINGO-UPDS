@@ -5,6 +5,7 @@
  */
 const ApiError = require('../utils/ApiError');
 const config = require('../config/environment');
+const { ROLE_ADMINISTRADOR, ROLE_DOCENTE, ROLE_ESTUDIANTE } = require('../models/roles.model');
 const {
   tareaCrearSchema,
   tareaActualizarSchema,
@@ -22,14 +23,26 @@ class TareaService {
    *   tareaRepository: import('../repositories/tarea.repository'),
    *   materiaRepository: import('../repositories/materia.repository'),
    *   calendarioService: import('../services/calendario.service') | null,
-   *   usuarioActualId: string
+   *   usuarioActualId: string,
+   *   rol: string | null
    * }} dependencies
    */
-  constructor({ tareaRepository, materiaRepository, calendarioService = null, usuarioActualId }) {
+  constructor({
+    tareaRepository,
+    materiaRepository,
+    calendarioService = null,
+    usuarioActualId,
+    rol = null,
+  }) {
     this.tareaRepository = tareaRepository;
     this.materiaRepository = materiaRepository;
     this.calendarioService = calendarioService;
     this.usuarioActualId = usuarioActualId;
+    this.rol = rol;
+  }
+
+  get puedeGestionar() {
+    return this.rol === null || this.rol === ROLE_ADMINISTRADOR || this.rol === ROLE_DOCENTE;
   }
 
   /**
@@ -106,6 +119,7 @@ class TareaService {
    */
   async crearTarea(datos) {
     const datosValidados = tareaCrearSchema.parse(datos);
+    this.verificarGestion();
 
     await this.verificarMateria(datosValidados.materia_id);
 
@@ -138,6 +152,7 @@ class TareaService {
    */
   async actualizarTarea(tareaId, datos) {
     const datosValidados = tareaActualizarSchema.parse(datos);
+    this.verificarGestion();
     const tareaActual = await this.obtenerTarea(tareaId);
 
     if (datosValidados.materia_id && datosValidados.materia_id !== tareaActual.materia_id) {
@@ -179,18 +194,23 @@ class TareaService {
    */
   async cambiarEstadoTarea(tareaId, estado) {
     const { estado: estadoValidado } = tareaEstadoSchema.parse({ estado });
+    const tarea = await this.obtenerTarea(tareaId);
 
-    const tarea = await this.tareaRepository.cambiarEstadoTarea(
-      this.usuarioActualId,
+    await this.tareaRepository.guardarEstadoEstudiante({
       tareaId,
-      estadoValidado,
-    );
+      estudianteId: this.usuarioActualId,
+      estado: estadoValidado,
+    });
 
-    if (!tarea) {
-      throw ApiError.notFound('Tarea no encontrada.');
+    if (this.puedeGestionar && (tarea.usuario_id === this.usuarioActualId || tarea.docente_id === this.usuarioActualId)) {
+      await this.tareaRepository.cambiarEstadoTarea(
+        this.usuarioActualId,
+        tareaId,
+        estadoValidado,
+      );
     }
 
-    return tarea;
+    return { ...tarea, estado: estadoValidado };
   }
 
   /**
@@ -200,6 +220,7 @@ class TareaService {
    * @returns {Promise<void>}
    */
   async eliminarTarea(tareaId) {
+    this.verificarGestion();
     const eliminada = await this.tareaRepository.eliminarTarea(this.usuarioActualId, tareaId);
 
     if (!eliminada) {
@@ -223,10 +244,26 @@ class TareaService {
    * @returns {Promise<void>}
    */
   async verificarMateria(materiaId) {
-    const existe = await this.materiaRepository.existeMateria(this.usuarioActualId, materiaId);
+    const materia = await this.materiaRepository.obtenerMateriaPorId(
+      this.usuarioActualId,
+      materiaId,
+    );
 
-    if (!existe) {
+    if (!materia) {
       throw ApiError.notFound('Materia no encontrada.');
+    }
+
+    if (
+      this.rol === ROLE_DOCENTE
+      && materia.docente_id !== this.usuarioActualId
+    ) {
+      throw ApiError.notFound('Materia no encontrada.');
+    }
+  }
+
+  verificarGestion() {
+    if (this.rol === ROLE_ESTUDIANTE) {
+      throw ApiError.forbidden('Solo un docente o administrador puede gestionar tareas.');
     }
   }
 

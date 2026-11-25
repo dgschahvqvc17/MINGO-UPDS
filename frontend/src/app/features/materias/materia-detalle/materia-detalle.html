@@ -73,8 +73,8 @@
                   <button
                     class="dropdown-item"
                     (click)="editarMateria()"
-                    [disabled]="!puedeModificar()"
-                    [title]="puedeModificar() ? '' : 'No puedes editar esta materia'"
+                    [disabled]="!puedeModificarMateria()"
+                    [title]="puedeModificarMateria() ? '' : 'No puedes editar esta materia'"
                   >
                     <i class="bi bi-pencil me-2" aria-hidden="true"></i>
                     Editar
@@ -84,7 +84,7 @@
                   <button
                     class="dropdown-item mat-archive-item"
                     (click)="cambiarEstado()"
-                    [disabled]="!puedeModificar()"
+                    [disabled]="!puedeModificarMateria()"
                   >
                     <i class="bi bi-archive me-2" aria-hidden="true"></i>
                     {{ materia()!.estado === 'activo' ? 'Archivar' : 'Activar' }}
@@ -200,26 +200,134 @@
                   }
                 </button>
               </div>
-              <div class="col-md-6 col-xl-3">
-                <button type="button" class="btn btn-outline-info w-100" (click)="subirDocumento()">
-                  <i class="bi bi-cloud-arrow-up me-2" aria-hidden="true"></i>
-                  Subir documento
-                </button>
-              </div>
-              <div class="col-md-6 col-xl-3">
-                <button
-                  type="button"
-                  class="btn btn-outline-warning w-100"
-                  (click)="cambiarEstado()"
-                  [disabled]="!puedeModificar()"
-                >
+              @if (puedeGestionar()) {
+                <div class="col-md-6 col-xl-3">
+                  <button type="button" class="btn btn-outline-info w-100" (click)="subirDocumento()">
+                    <i class="bi bi-cloud-arrow-up me-2" aria-hidden="true"></i>
+                    Subir documento
+                  </button>
+                </div>
+                <div class="col-md-6 col-xl-3">
+                  <button
+                    type="button"
+                    class="btn btn-outline-warning w-100"
+                    (click)="cambiarEstado()"
+                  >
                   <i class="bi bi-archive me-2" aria-hidden="true"></i>
                   {{ materia()!.estado === 'activo' ? 'Archivar' : 'Activar' }}
                 </button>
-              </div>
+                </div>
+              }
             </div>
           </div>
         </app-card>
+
+        @if (puedeGestionar()) {
+          <app-card class="mt-4">
+            <div class="card-body">
+              <div class="d-flex justify-content-between align-items-center mb-3">
+                <h2 class="h5 fw-bold mb-0">Estudiantes inscritos</h2>
+                <span class="badge mat-badge mat-badge--primary">{{ totalInscripciones() }}</span>
+              </div>
+
+              @if (mensajeInscripcion()) {
+                <div class="alert alert-success small" role="status">{{ mensajeInscripcion() }}</div>
+              }
+
+              @if (errorInscripciones()) {
+                <div class="alert alert-danger d-flex flex-wrap align-items-center gap-2" role="alert">
+                  <span class="flex-grow-1">{{ errorInscripciones() }}</span>
+                  <button type="button" class="btn btn-sm btn-outline-danger" (click)="cargarInscripciones()">
+                    Reintentar
+                  </button>
+                </div>
+              }
+
+              <form class="row g-2 mb-3" [formGroup]="inscripcionForm" (ngSubmit)="inscribir()">
+                <div class="col-md-8">
+                  <label for="estudiante-id" class="form-label small">Inscribir estudiante</label>
+                  @if (esAdmin()) {
+                    <select
+                      id="estudiante-id"
+                      class="form-select"
+                      formControlName="estudianteId"
+                      [class.is-invalid]="tieneErrorEstudiante()"
+                    >
+                      <option value="" disabled>Selecciona un estudiante</option>
+                      @for (estudiante of estudiantes(); track estudiante.id) {
+                        <option [value]="estudiante.id">
+                          {{ estudiante.nombre }} {{ estudiante.apellido }}
+                        </option>
+                      }
+                    </select>
+                  } @else {
+                    <input
+                      id="estudiante-id"
+                      type="text"
+                      class="form-control"
+                      formControlName="estudianteId"
+                      placeholder="Identificador del estudiante"
+                      [class.is-invalid]="tieneErrorEstudiante()"
+                    />
+                  }
+                  @if (tieneErrorEstudiante()) {
+                    <div class="invalid-feedback">Selecciona un estudiante válido.</div>
+                  }
+                </div>
+                <div class="col-md-4 d-flex align-items-end">
+                  <button type="submit" class="btn btn-primary w-100" [disabled]="inscribiendo() || estudiantes().length === 0 && esAdmin()">
+                    <i class="bi bi-person-plus me-2" aria-hidden="true"></i>
+                    {{ inscribiendo() ? 'Inscribiendo...' : 'Inscribir' }}
+                  </button>
+                </div>
+              </form>
+
+              @if (cargandoInscripciones()) {
+                <div class="mat-state" role="status" aria-live="polite">
+                  <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
+                  <span>Cargando inscripciones...</span>
+                </div>
+              } @else if (inscripciones().length === 0) {
+                <div class="alert alert-info small" role="status">
+                  Esta materia aún no tiene estudiantes inscritos.
+                </div>
+              } @else {
+                <ul class="list-group list-group-flush">
+                  @for (inscripcion of inscripciones(); track inscripcion.id) {
+                    <li class="list-group-item d-flex justify-content-between align-items-center gap-2 px-0">
+                      <div class="min-width-0">
+                        <div class="fw-semibold">{{ nombreEstudiante(inscripcion) }}</div>
+                        <small class="text-muted">
+                          {{ inscripcion.estudiante?.correo || inscripcion.usuario_id }}
+                        </small>
+                      </div>
+                      <div class="d-flex align-items-center gap-2">
+                        <span
+                          class="badge"
+                          [class.bg-success]="inscripcion.estado === 'activa'"
+                          [class.bg-secondary]="inscripcion.estado !== 'activa'"
+                        >
+                          {{ inscripcion.estado === 'activa' ? 'Activa' : 'Inactiva' }}
+                        </span>
+                        @if (inscripcion.estado === 'activa') {
+                          <button
+                            type="button"
+                            class="btn btn-sm btn-outline-danger"
+                            (click)="desinscribir(inscripcion)"
+                            [disabled]="inscribiendo()"
+                            [attr.aria-label]="'Dar de baja a ' + nombreEstudiante(inscripcion)"
+                          >
+                            <i class="bi bi-person-dash" aria-hidden="true"></i>
+                          </button>
+                        }
+                      </div>
+                    </li>
+                  }
+                </ul>
+              }
+            </div>
+          </app-card>
+        }
       </div>
 
       <!-- Sidebar -->
@@ -277,8 +385,8 @@
               </span>
             </div>
             <div class="detail-field mb-0">
-              <span class="detail-label">Propietario</span>
-              <span class="detail-value">Tú</span>
+              <span class="detail-label">Docente responsable</span>
+              <span class="detail-value">{{ materia()!.docente }}</span>
             </div>
           </div>
         </app-card>
@@ -332,19 +440,18 @@
       </button>
 
       <div class="d-flex gap-2">
-        <button
-          type="button"
-          class="btn btn-outline-primary"
-          (click)="editarMateria()"
-          [disabled]="!puedeModificar()"
-        >
-          <i class="bi bi-pencil me-1" aria-hidden="true"></i>
-          Editar materia
-        </button>
-        <button type="button" class="btn btn-primary" routerLink="/materias/nueva">
-          <i class="bi bi-plus-lg me-1" aria-hidden="true"></i>
-          Nueva materia
-        </button>
+        @if (puedeModificarMateria()) {
+          <button type="button" class="btn btn-outline-primary" (click)="editarMateria()">
+            <i class="bi bi-pencil me-1" aria-hidden="true"></i>
+            Editar materia
+          </button>
+        }
+        @if (puedeCrearMateria()) {
+          <button type="button" class="btn btn-primary" routerLink="/materias/nueva">
+            <i class="bi bi-plus-lg me-1" aria-hidden="true"></i>
+            Nueva materia
+          </button>
+        }
       </div>
     </footer>
   }

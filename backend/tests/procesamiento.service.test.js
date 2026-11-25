@@ -200,6 +200,28 @@ describe('ProcesamientoService', () => {
       expect(documentoRepository.marcarProcesando).not.toHaveBeenCalled();
     });
 
+    it('procesa en la primera entrega un documento que ya estaba en_cola', async () => {
+      documentoRepository.obtenerPorIdSinUsuario.mockResolvedValue(
+        crearDocumento({
+          estado_procesamiento: 'en_cola',
+          fecha_actualizacion: new Date().toISOString(),
+        }),
+      );
+      documentoRepository.marcarProcesando.mockResolvedValue(crearDocumento());
+
+      await service.procesarDocumento({
+        documentoId: DOCUMENTO_ID,
+        usuarioId: USUARIO_ID,
+      });
+
+      expect(documentoRepository.marcarProcesando).toHaveBeenCalledTimes(1);
+      expect(almacenamientoRepository.obtenerObjeto).toHaveBeenCalledWith(RUTA);
+      expect(documentoRepository.actualizarResultadoProcesamiento).toHaveBeenCalledWith(
+        DOCUMENTO_ID,
+        expect.objectContaining({ estado: 'procesado' }),
+      );
+    });
+
     it('recupera un documento atascado aunque no sea un reintento de SQS', async () => {
       documentoRepository.obtenerPorIdSinUsuario.mockResolvedValue(
         crearDocumento({

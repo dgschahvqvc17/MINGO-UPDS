@@ -35,6 +35,10 @@ const materiaCrearSchema = z.object({
     .min(1, 'El nombre del docente es requerido')
     .max(100, 'El nombre del docente no puede exceder 100 caracteres')
     .trim(),
+  docente_id: z.string()
+    .uuid('El docente seleccionado no es válido')
+    .optional()
+    .nullable(),
   descripcion: z.string()
     .max(500, 'La descripción no puede exceder 500 caracteres')
     .trim()

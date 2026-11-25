@@ -22,8 +22,13 @@ import {
   type Progreso,
 } from '../../core/models/progreso.model';
 import { mensajeDeErrorHttp } from '../../core/utils/http-error';
+import { valorDeCampo } from '../../core/utils/form-event';
 
 type FiltroObjetivos = 'todos' | EstadoObjetivo;
+
+function esEstadoObjetivo(valor: string): valor is EstadoObjetivo {
+  return (ESTADOS_OBJETIVO as readonly string[]).includes(valor);
+}
 
 const LIMITE_MATERIAS = 100;
 const LIMITE_OBJETIVOS = 20;
@@ -55,6 +60,7 @@ export class ProgresoPage {
   readonly materiaId = signal('');
   readonly fechaLimite = signal('');
   readonly estado = signal<EstadoObjetivo>('pendiente');
+  readonly valorCampo = valorDeCampo;
   readonly editandoId = signal<string | null>(null);
 
   readonly cargandoProgreso = signal(true);
@@ -290,6 +296,12 @@ export class ProgresoPage {
         );
       },
     });
+  }
+
+  alCambiarEstado(valor: string): void {
+    if (esEstadoObjetivo(valor)) {
+      this.estado.set(valor);
+    }
   }
 
   cambiarEstado(objetivo: Objetivo, estado: EstadoObjetivo): void {

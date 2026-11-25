@@ -90,8 +90,8 @@ Angular
   -> interceptor agrega Authorization: Bearer <token>
   -> API Gateway
   -> Lambda (Express)
-  -> auth.middleware (verifica JWT con Supabase)
-  -> roles.middleware (si aplica)
+  -> auth.middleware (verifica JWT, perfil, roles desde BD y clave temporal)
+  -> roles.middleware (si aplica; admin/docente en gestión)
   -> validation.middleware (Zod)
   -> controller
   -> service (reglas de negocio, IA, AWS)
@@ -120,10 +120,10 @@ Errores:
 
 | Módulo | Sprint | Historias |
 |---|---|---|
-| Autenticación y perfiles | 1 | HU01, HU02 |
+| Autenticación y perfiles | 1 | HU01, HU02 (roles `estudiante`, `docente`, `administrador` y clave temporal). |
 | Dashboard académico | 1 | HU06 |
-| Materias y unidades | 1 | HU03 |
-| Tareas y evaluaciones | 1 | HU04 |
+| Materias, docente responsable e inscripciones | 1 | HU03; migración `0018`. |
+| Tareas compartidas y estado por estudiante | 1 | HU04; migración `0018`. |
 | Calendario académico | 1 | HU05 |
 | Biblioteca documental | 2 | HU07, HU08 |
 | Procesamiento de documentos | 2 | HU09 |
@@ -151,6 +151,12 @@ Errores:
 
 **No se usa:** EC2, ECS, EKS, RDS, ElastiCache, NAT Gateway, balanceadores, contenedores permanentes ni ningún recurso con costo por hora. Ver [reglas-aws.md](reglas-aws.md).
 
+> Los cambios de roles docente, inscripciones y estados de tarea de la rama `feature/roles-docente-inscripciones` están validados en local (`530/530` pruebas backend, `213/213` frontend y build de producción) y desplegados solo en `dev` el 25/11/2026. Se usó el perfil AWS local `mingo-agente` en `us-east-1` sobre los stacks `mingo-hu09-dev` y `mingo-frontend-dev`, con costo estimado `$0` y presupuesto compartido `ConcesionariaBMW-1USD`. No se crearon recursos de infraestructura nuevos; las políticas IAM las aplicó el administrador: la migración `0018` se aplicó manualmente, el código Lambda se actualizó directamente y el frontend se sincronizó a S3 con invalidación de CloudFront. `prod` queda fuera de alcance sin autorización separada.
+
+> Incidente resuelto el 25/11/2026: `cloudformation package` y el changeset `roles-docente-pruned-20261125` se crearon correctamente, pero su ejecución falló por falta de `iam:PassRole` y `s3:GetObject`. Las tres Lambda conservaron el código correcto y activo. El stack se recuperó con `continue-update-rollback` omitiendo esas tres Lambda y terminó en `UPDATE_ROLLBACK_COMPLETE`. Tras aplicar la política mínima de `infra/iam/mingo-lambda-deploy-dev.json`, el changeset `roles-docente-sync-20261125` se ejecutó y el stack terminó en `UPDATE_COMPLETE`: la plantilla registrada apunta a los mismos artefactos que ejecutan las Lambda, sin deriva. `/api/health` y el frontend responden `200`; Cost Explorer reporta `-0.0000000025 USD` blended en noviembre. `prod` sigue fuera de alcance.
+
+> E2E completo ejecutado el 25/11/2026 contra la API real de `dev`: login de administrador temporal, rol resuelto desde `usuario_roles`, alta de docente y estudiante con clave temporal, bloqueo y cambio obligatorio de clave, creación de materia asignada al docente, inscripción, visibilidad por inscripción, carga prefirmada a S3, registro y descarga de documento, procesamiento RAG y chat con respuesta `200`. Se usaron correos `@example.test` y un objeto temporal; todo fue eliminado y la cola SQS quedó en `0` mensajes. Durante la validación se corrigieron: secretos enmascarados en Lambda, recursión de RLS en `materias` (`42P17`), `42501` en `INSERT ... RETURNING`, paso incorrecto de `next` en `materia.routes.js`, documentos `en_cola` que el worker omitía, y ausencia de `AI_CHAT_MODEL` en la plantilla (el SDK enviaba el modelo por defecto de OpenAI a Gemini). Los changesets `restore-secrets-20261125`, `materia-rls-fix-20261125`, `e2e-repo-fix-20261125-safe`, `e2e-worker-fix-20261125` y `e2e-chat-model-fix-20261125` terminaron en `UPDATE_COMPLETE`; los secretos se verificaron por hash sin imprimir valores. Costo de noviembre: `-0.0000000002 USD` unblended; presupuesto compartido `ConcesionariaBMW-1USD` activo. `prod` sigue sin cambios.
+
 ## 8. Decisiones clave
 
 | Decisión | Motivo |
@@ -167,7 +173,7 @@ Errores:
 ## 9. Fuera de alcance del MVP
 
 - Integración directa con Moodle mediante servicios web institucionales.
-- Rol docente y espacios compartidos.
+- Espacios compartidos distintos de los habilitados por `docente_id` e inscripciones por materia.
 - Notificaciones push nativas.
 - Aplicación móvil.
 - Multi-región o alta disponibilidad empresarial.

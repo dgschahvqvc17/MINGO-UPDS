@@ -208,8 +208,9 @@ class FragmentoRepository {
 
   /**
    * Recupera los fragmentos mas similares a un vector de consulta (HU11).
-   * La funcion RPC filtra por propietario con `auth.uid()`, ademas de aplicar
-   * RLS. Nunca se busca sin ese filtro.
+   * La funcion RPC filtra por propietario, docente responsable, administrador
+   * o inscripcion activa con `auth.uid()`, ademas de aplicar RLS. Nunca se
+   * busca sin ese filtro.
    *
    * @param {number[]} embedding Vector de la consulta.
    * @param {{ limite: number, umbral: number, documentoId?: string | null, materiaId?: string | null }} opciones

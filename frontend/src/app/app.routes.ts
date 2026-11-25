@@ -1,12 +1,24 @@
 import { Routes } from '@angular/router';
 import { authGuard } from './core/guards/auth.guard';
+import { cambiarClaveGuard, homeGuard } from './core/guards/cambiar-clave.guard';
 import { roleGuard } from './core/guards/role.guard';
+
+const ROLES_GESTION = ['administrador', 'docente'];
 
 export const routes: Routes = [
   // Ruta pública para login
   {
     path: 'auth/login',
     loadComponent: () => import('./features/auth/login/login').then((m) => m.LoginPage),
+  },
+
+  // Cambio obligatorio de clave temporal (fuera del shell para evitar distracciones)
+  {
+    path: 'cambiar-clave',
+    title: 'Cambiar clave | MINGO',
+    canActivate: [cambiarClaveGuard],
+    loadComponent: () =>
+      import('./features/auth/cambiar-clave/cambiar-clave').then((m) => m.CambiarClavePage),
   },
 
   // Ruta pública para showcase (solo para desarrollo/demo)
@@ -25,7 +37,8 @@ export const routes: Routes = [
       {
         path: '',
         pathMatch: 'full',
-        redirectTo: 'dashboard',
+        canActivate: [homeGuard],
+        children: [],
       },
 
       // Dashboard para estudiantes
@@ -66,6 +79,8 @@ export const routes: Routes = [
       },
       {
         path: 'materias/nueva',
+        canActivate: [roleGuard],
+        data: { roles: ['administrador'] },
         loadComponent: () => import('./features/materias/materia-form/materia-form').then((m) => m.MateriaFormPage),
       },
       {
@@ -74,6 +89,8 @@ export const routes: Routes = [
       },
       {
         path: 'materias/:id/editar',
+        canActivate: [roleGuard],
+        data: { roles: ['administrador'] },
         loadComponent: () => import('./features/materias/materia-form/materia-form').then((m) => m.MateriaFormPage),
       },
 
@@ -84,12 +101,16 @@ export const routes: Routes = [
       {
         path: 'tareas/nueva',
         title: 'Nueva tarea | MINGO',
+        canActivate: [roleGuard],
+        data: { roles: ROLES_GESTION },
         loadComponent: () =>
           import('./features/tareas/tarea-form/tarea-form').then((m) => m.TareaFormPage),
       },
       {
         path: 'tareas/:id/editar',
         title: 'Editar tarea | MINGO',
+        canActivate: [roleGuard],
+        data: { roles: ROLES_GESTION },
         loadComponent: () =>
           import('./features/tareas/tarea-form/tarea-form').then((m) => m.TareaFormPage),
       },

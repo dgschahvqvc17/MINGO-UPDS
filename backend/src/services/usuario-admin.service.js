@@ -6,9 +6,21 @@
 const ApiError = require('../utils/ApiError');
 
 class UsuarioAdminService {
-  constructor(repository, usuarioActualId) {
-    this.repository = repository;
-    this.usuarioActualId = usuarioActualId; // ID del administrador que realiza la operación
+  /**
+   * @param {object | import('../repositories/usuario-admin.repository')} repositoryOrDeps
+   * @param {string} [usuarioActualId]
+   */
+  constructor(repositoryOrDeps, usuarioActualId) {
+    if (repositoryOrDeps && typeof repositoryOrDeps.listarUsuarios === 'function') {
+      this.repository = repositoryOrDeps;
+      this.authAdminRepository = null;
+      this.usuarioActualId = usuarioActualId;
+      return;
+    }
+
+    this.repository = repositoryOrDeps.repository;
+    this.authAdminRepository = repositoryOrDeps.authAdminRepository ?? null;
+    this.usuarioActualId = repositoryOrDeps.usuarioActualId;
   }
 
   /**
@@ -33,6 +45,7 @@ class UsuarioAdminService {
           activos: parseInt(estadisticas.usuarios_activos || 0),
           inactivos: parseInt(estadisticas.usuarios_inactivos || 0),
           administradores: parseInt(estadisticas.total_administradores || 0),
+          docentes: parseInt(estadisticas.total_docentes || 0),
           estudiantes: parseInt(estadisticas.total_estudiantes || 0)
         }
       };
@@ -54,6 +67,48 @@ class UsuarioAdminService {
     }
 
     return usuario;
+  }
+
+  /**
+   * Crea una cuenta con contraseña temporal y cambio obligatorio.
+   * El trigger crea el perfil con el rol minimo "estudiante"; aqui se completa
+   * el perfil y se asigna el rol solicitado con service_role. Los metadatos
+   * enviados por el cliente nunca otorgan roles privilegiados.
+   *
+   * @param {{ nombre: string, apellido: string, correo: string, carrera?: string|null, rol: string, claveTemporal: string }} datos
+   * @returns {Promise<object>}
+   */
+  async crearUsuario(datos) {
+    if (!this.authAdminRepository) {
+      throw ApiError.serviceUnavailable('La administración de cuentas no está configurada.');
+    }
+
+    const usuarioCreado = await this.authAdminRepository.crearUsuario({
+      correo: datos.correo,
+      claveTemporal: datos.claveTemporal,
+      metadata: {
+        nombre: datos.nombre,
+        apellido: datos.apellido,
+      },
+    });
+
+    try {
+      await this.repository.actualizarPerfil(usuarioCreado.id, datos);
+      await this.repository.actualizarRolesUsuario(usuarioCreado.id, [datos.rol]);
+    } catch (error) {
+      await this.authAdminRepository.eliminarUsuario(usuarioCreado.id).catch(() => {});
+      throw new ApiError(500, `Error al crear el usuario: ${error.message}`);
+    }
+
+    return {
+      id: usuarioCreado.id,
+      correo: usuarioCreado.correo,
+      nombre: datos.nombre,
+      apellido: datos.apellido,
+      rol: datos.rol,
+      claveTemporal: datos.claveTemporal,
+      requiereCambioClave: true,
+    };
   }
 
   /**

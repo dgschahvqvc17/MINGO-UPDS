@@ -1,5 +1,6 @@
 const { Router } = require('express');
 const authMiddleware = require('../middlewares/auth.middleware');
+const { requireRole } = require('../middlewares/roles.middleware');
 const validationMiddleware = require('../middlewares/validation.middleware');
 const asyncHandler = require('../utils/asyncHandler');
 const {
@@ -15,6 +16,7 @@ const {
   documentoBuscarSchema,
   documentoIdParamSchema,
 } = require('../models/documento.model');
+const { ROLE_ADMINISTRADOR, ROLE_DOCENTE } = require('../models/roles.model');
 
 const router = Router();
 
@@ -90,6 +92,7 @@ router.get(
  */
 router.post(
   '/url-carga',
+  requireRole(ROLE_DOCENTE, ROLE_ADMINISTRADOR),
   validationMiddleware({ body: documentoUrlCargaSchema }),
   atender('solicitarUrlCarga'),
 );
@@ -98,7 +101,12 @@ router.post(
  * POST /documentos
  * Registra los metadatos despues de subir el archivo.
  */
-router.post('/', validationMiddleware({ body: documentoRegistroSchema }), atender('registrarDocumento'));
+router.post(
+  '/',
+  requireRole(ROLE_DOCENTE, ROLE_ADMINISTRADOR),
+  validationMiddleware({ body: documentoRegistroSchema }),
+  atender('registrarDocumento'),
+);
 
 /**
  * GET /documentos/:id/descarga
@@ -116,6 +124,7 @@ router.get(
  */
 router.post(
   '/:id/procesar',
+  requireRole(ROLE_DOCENTE, ROLE_ADMINISTRADOR),
   validationMiddleware({ params: documentoIdParamSchema }),
   atender('procesarDocumento'),
 );
@@ -146,6 +155,7 @@ router.get(
  */
 router.delete(
   '/:id',
+  requireRole(ROLE_DOCENTE, ROLE_ADMINISTRADOR),
   validationMiddleware({ params: documentoIdParamSchema }),
   atender('eliminarDocumento'),
 );
