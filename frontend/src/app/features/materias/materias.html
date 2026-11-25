@@ -10,7 +10,7 @@
         </p>
       </div>
 
-      @if (puedeGestionar()) {
+      @if (puedeAdministrar()) {
         <button type="button" class="btn-cta" routerLink="/materias/nueva">
           <span class="btn-cta-icon" aria-hidden="true"><i class="bi bi-plus-lg"></i></span>
           <span class="btn-cta-copy">
@@ -167,7 +167,7 @@
           Comienza registrando tu primera materia académica.
         }
       </p>
-      @if (puedeGestionar()) {
+      @if (puedeAdministrar()) {
         <button type="button" class="btn btn-primary" routerLink="/materias/nueva">
           <i class="bi bi-plus-lg me-1" aria-hidden="true"></i>
           Registrar primera materia
@@ -224,7 +224,7 @@
                         <i class="bi bi-eye me-2" aria-hidden="true"></i>Ver detalles
                       </a>
                     </li>
-                    @if (puedeGestionar()) {
+                    @if (puedeAdministrar()) {
                       <li>
                         <a class="dropdown-item" [routerLink]="['/materias', materia.id, 'editar']">
                           <i class="bi bi-pencil me-2" aria-hidden="true"></i>Editar

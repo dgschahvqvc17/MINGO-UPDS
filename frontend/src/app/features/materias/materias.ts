@@ -9,7 +9,6 @@ import {
   type MateriaFiltros,
 } from '../../core/services/materia.service';
 import { AuthService } from '../../core/services/auth.service';
-import { ROLES_GESTION_ACADEMICA } from '../../core/models/dominio.models';
 import { mensajeDeErrorHttp } from '../../core/utils/http-error';
 
 @Component({
@@ -59,11 +58,7 @@ export class MateriasPage {
   readonly confirmandoCambioId = signal<string | null>(null);
   readonly cambiandoEstadoId = signal<string | null>(null);
 
-  readonly puedeGestionar = computed(() =>
-    ROLES_GESTION_ACADEMICA.includes(
-      this.authService.role() as (typeof ROLES_GESTION_ACADEMICA)[number],
-    ),
-  );
+  readonly puedeAdministrar = computed(() => this.authService.role() === 'administrador');
 
   // Usuario actual
   readonly usuarioActual = this.authService.profile;
@@ -176,7 +171,7 @@ export class MateriasPage {
    * Navega a la edición de una materia
    */
   editarMateria(materiaId: string): void {
-    if (!this.puedeGestionar()) {
+    if (!this.puedeAdministrar()) {
       return;
     }
 
@@ -184,7 +179,7 @@ export class MateriasPage {
   }
 
   pedirCambioEstado(materia: Materia): void {
-    if (!this.puedeGestionar()) {
+    if (!this.puedeAdministrar()) {
       return;
     }
 
@@ -208,7 +203,7 @@ export class MateriasPage {
    * Cambia el estado de una materia (activar/archivar) tras confirmación explícita.
    */
   async cambiarEstado(materia: Materia): Promise<void> {
-    if (!this.puedeGestionar() || this.cambiandoEstadoId()) {
+    if (!this.puedeAdministrar() || this.cambiandoEstadoId()) {
       return;
     }
 

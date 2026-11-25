@@ -80,7 +80,7 @@ export const routes: Routes = [
       {
         path: 'materias/nueva',
         canActivate: [roleGuard],
-        data: { roles: ROLES_GESTION },
+        data: { roles: ['administrador'] },
         loadComponent: () => import('./features/materias/materia-form/materia-form').then((m) => m.MateriaFormPage),
       },
       {
@@ -90,7 +90,7 @@ export const routes: Routes = [
       {
         path: 'materias/:id/editar',
         canActivate: [roleGuard],
-        data: { roles: ROLES_GESTION },
+        data: { roles: ['administrador'] },
         loadComponent: () => import('./features/materias/materia-form/materia-form').then((m) => m.MateriaFormPage),
       },
 

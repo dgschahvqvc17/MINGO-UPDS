@@ -75,8 +75,8 @@ export class MateriaDetallePage implements OnInit {
     return this.esDocente() && Boolean(materia && materia.docente_id === this.usuarioActualId());
   });
 
-  readonly puedeCrearMateria = computed(() => this.esAdmin() || this.esDocente());
-  readonly puedeModificarMateria = this.puedeGestionar;
+  readonly puedeCrearMateria = computed(() => this.esAdmin());
+  readonly puedeModificarMateria = computed(() => this.esAdmin());
 
   readonly progresoTareas = computed(() => {
     const materia = this.materia();

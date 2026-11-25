@@ -1,4 +1,5 @@
 import { TestBed } from '@angular/core/testing';
+import { routes } from '../../app.routes';
 import {
   ActivatedRouteSnapshot,
   Router,
@@ -132,6 +133,20 @@ describe('guards de roles', () => {
     );
 
     expect(redireccion).toHaveBeenCalledWith(['/dashboard']);
+  });
+
+  it('reserva alta y edicion de materias para administradores', () => {
+    const rutasHijas = routes.find((ruta) => ruta.path === '')?.children ?? [];
+    const rutasMateria = rutasHijas.filter((ruta) =>
+      ['materias/nueva', 'materias/:id/editar'].includes(ruta.path ?? ''),
+    );
+
+    expect(rutasMateria).toHaveLength(2);
+    expect(
+      rutasMateria.every(
+        (ruta) => JSON.stringify(ruta.data?.['roles']) === JSON.stringify(['administrador']),
+      ),
+    ).toBe(true);
   });
 
   it('homeGuard dirige la raiz al panel segun el rol', async () => {
