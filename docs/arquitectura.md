@@ -153,6 +153,8 @@ Errores:
 
 > Los cambios de roles docente, inscripciones y estados de tarea de la rama `feature/roles-docente-inscripciones` están validados en local (`528/528` pruebas backend, `213/213` frontend y build de producción) y desplegados solo en `dev` el 25/11/2026. Se usó el perfil AWS local `mingo-agente` en `us-east-1` sobre los stacks `mingo-hu09-dev` y `mingo-frontend-dev`, con costo estimado `$0` y presupuesto compartido `ConcesionariaBMW-1USD`. No se crearon recursos nuevos: la migración `0018` se aplicó manualmente, el código Lambda se actualizó directamente y el frontend se sincronizó a S3 con invalidación de CloudFront. `prod` queda fuera de alcance sin autorización separada.
 
+> Incidente del 25/11/2026: `cloudformation package` y el changeset `roles-docente-pruned-20261125` se crearon correctamente, pero su ejecución falló por falta de `iam:PassRole` y `s3:GetObject`. Las tres Lambda conservaron el código correcto y activo. El stack se recuperó con `continue-update-rollback` omitiendo esas tres Lambda y terminó en `UPDATE_ROLLBACK_COMPLETE`. `/api/health` y el frontend responden `200`; Cost Explorer reporta `-0.0000000025 USD` blended en noviembre. Queda documentada la deriva entre la plantilla del stack (artefactos anteriores) y el código real de Lambda. Para sincronizarla harían falta `iam:PassRole` y `s3:GetObject` sobre los artefactos, y repetir el changeset.
+
 ## 8. Decisiones clave
 
 | Decisión | Motivo |

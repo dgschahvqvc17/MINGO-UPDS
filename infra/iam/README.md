@@ -135,4 +135,4 @@ aws ce get-cost-and-usage \
   --region us-east-1
 ```
 
-Estado del despliegue: `aws cloudformation package` y el changeset de solo código ya se ejecutaron. El changeset falló por los permisos descritos en la sección 3; el código de las Lambda quedó correcto. Falta aplicar la política de recuperación para devolver el stack a `UPDATE_COMPLETE`.
+Estado del despliegue: `aws cloudformation package` y el changeset de solo código ya se ejecutaron. El changeset falló por los permisos descritos en la sección 3; el código de las Lambda quedó correcto. La recuperación ya se ejecutó y el stack terminó en `UPDATE_ROLLBACK_COMPLETE` con las tres Lambda omitidas. Para sincronizar Cloud Formation con el código real harían falta `iam:PassRole` y `s3:GetObject` sobre los artefactos, y repetir el changeset.
