@@ -151,7 +151,7 @@ Errores:
 
 **No se usa:** EC2, ECS, EKS, RDS, ElastiCache, NAT Gateway, balanceadores, contenedores permanentes ni ningún recurso con costo por hora. Ver [reglas-aws.md](reglas-aws.md).
 
-> Los cambios de roles docente, inscripciones y estados de tarea de la rama `feature/roles-docente-inscripciones` están validados en local (`528/528` pruebas backend, `213/213` frontend y build de producción). El despliegue previsto con esos cambios es solo en `dev`, con el perfil AWS local `mingo-agente`, región `us-east-1`, stacks `mingo-hu09-dev` y `mingo-frontend-dev`, costo estimado `$0` y presupuesto compartido `ConcesionariaBMW-1USD`. `prod` queda fuera de alcance sin autorización separada.
+> Los cambios de roles docente, inscripciones y estados de tarea de la rama `feature/roles-docente-inscripciones` están validados en local (`528/528` pruebas backend, `213/213` frontend y build de producción) y desplegados solo en `dev` el 25/11/2026. Se usó el perfil AWS local `mingo-agente` en `us-east-1` sobre los stacks `mingo-hu09-dev` y `mingo-frontend-dev`, con costo estimado `$0` y presupuesto compartido `ConcesionariaBMW-1USD`. No se crearon recursos nuevos: la migración `0018` se aplicó manualmente, el código Lambda se actualizó directamente y el frontend se sincronizó a S3 con invalidación de CloudFront. `prod` queda fuera de alcance sin autorización separada.
 
 ## 8. Decisiones clave
 
