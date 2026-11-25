@@ -3,7 +3,7 @@
 **Estado:** políticas 1, 2, 3, 4 y 5 aplicadas.
 **Cuenta:** `591015654164`.
 **Región:** `us-east-1`.
-**Costo:** `$0`. No crean recursos nuevos.
+**Costo:** `$0`. No crean recursos con costo.
 
 Estas políticas corrigen cinco limitaciones detectadas durante el despliegue y las pruebas E2E de `dev`:
 
@@ -162,7 +162,7 @@ arn:aws:s3:::mingo-documentos-dev-591015654164/usuarios/*
 
 Se aplicó desde **IAM → Policies → Create policy → JSON** y se adjuntó a `mingo-agente` desde **Users → mingo-agente → Add permissions → Attach policies directly** con el nombre `MingoS3CleanupDev`. No permite `s3:GetObject`, por lo que la verificación del contenido se hizo por metadatos y el objeto temporal se identificó por prefijo y tamaño. El agente no creó ni adjuntó la política.
 
-Comando equivalente para un administrador:
+Alternativa como política inline con los mismos permisos (no customer managed):
 
 ```bash
 aws iam put-user-policy \
