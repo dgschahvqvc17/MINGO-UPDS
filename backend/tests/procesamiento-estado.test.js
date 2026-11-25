@@ -1,9 +1,11 @@
 const { describe, it, expect } = require('@jest/globals');
 const {
   ESTADOS_EN_PROCESO,
+  ESTADOS_PROCESANDO,
   MINUTOS_ESTANCADO,
   calcularCorte,
   estaEnProceso,
+  estaProcesando,
   estaEstancado,
 } = require('../src/utils/procesamiento-estado');
 
@@ -23,6 +25,16 @@ describe('procesamiento-estado', () => {
       expect(estaEnProceso('error')).toBe(false);
       expect(estaEnProceso(null)).toBe(false);
       expect(estaEnProceso(undefined)).toBe(false);
+    });
+  });
+
+  describe('estaProcesando', () => {
+    it('solo reconoce el estado de ejecucion real', () => {
+      expect(ESTADOS_PROCESANDO).toEqual(['procesando']);
+      expect(estaProcesando('procesando')).toBe(true);
+      expect(estaProcesando('en_cola')).toBe(false);
+      expect(estaProcesando('pendiente')).toBe(false);
+      expect(estaProcesando(null)).toBe(false);
     });
   });
 

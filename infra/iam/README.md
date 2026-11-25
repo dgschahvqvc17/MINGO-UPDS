@@ -1,16 +1,17 @@
 # Permisos IAM complementarios para `mingo-agente`
 
-**Estado:** políticas 1, 2, 3 y 4 aplicadas.
+**Estado:** políticas 1, 2, 3, 4 y 5 aplicadas.
 **Cuenta:** `591015654164`.
 **Región:** `us-east-1`.
 **Costo:** `$0`. No crean recursos nuevos.
 
-Estas políticas corrigen cuatro limitaciones detectadas durante el despliegue de `dev`:
+Estas políticas corrigen cinco limitaciones detectadas durante el despliegue y las pruebas E2E de `dev`:
 
 1. `mingo-agente` no puede subir artefactos de Lambda con `aws cloudformation package`.
 2. `mingo-agente` no puede consultar Cost Explorer.
 3. `mingo-agente` no puede recuperar un stack con `cloudformation:ContinueUpdateRollback`.
 4. `mingo-agente` no puede pasar roles a Lambda ni leer artefactos desde S3, necesario para sincronizar CloudFormation con el código desplegado.
+5. `mingo-agente` no puede borrar los objetos S3 temporales creados por las pruebas E2E.
 
 El agente de OpenCode **no crea ni modifica IAM**. Un administrador debe aplicar las políticas con credenciales locales propias. No se usan credenciales root para operar.
 
@@ -149,6 +150,31 @@ También puede crearse desde **IAM → Policies → Create policy → JSON** y a
 
 La política fue aplicada por el administrador. El agente creó y ejecutó el changeset `roles-docente-sync-20261125` sobre la plantilla empaquetada con los zips ya validados; el stack terminó en `UPDATE_COMPLETE`. El código de las Lambda no cambió: solo se actualizó el registro de CloudFormation.
 
+## 5. Limpieza de objetos S3 temporales
+
+Archivo: [`mingo-s3-cleanup-dev.json`](mingo-s3-cleanup-dev.json).
+
+Permite únicamente `s3:DeleteObject` sobre:
+
+```text
+arn:aws:s3:::mingo-documentos-dev-591015654164/usuarios/*
+```
+
+Se aplicó desde **IAM → Policies → Create policy → JSON** y se adjuntó a `mingo-agente` desde **Users → mingo-agente → Add permissions → Attach policies directly** con el nombre `MingoS3CleanupDev`. No permite `s3:GetObject`, por lo que la verificación del contenido se hizo por metadatos y el objeto temporal se identificó por prefijo y tamaño. El agente no creó ni adjuntó la política.
+
+Comando equivalente para un administrador:
+
+```bash
+aws iam put-user-policy \
+  --user-name mingo-agente \
+  --policy-name MingoS3CleanupDev \
+  --policy-document file://infra/iam/mingo-s3-cleanup-dev.json \
+  --profile <administrador> \
+  --region us-east-1
+```
+
+La política fue aplicada por el administrador. Tras ella, la limpieza E2E borró el objeto temporal pendiente; las ejecuciones posteriores terminaron con `CLEANUP_S3_OK` y sin objetos `usuarios/*` recientes.
+
 ## Verificación posterior con `mingo-agente`
 
 `mingo-agente` no puede listar ni leer políticas IAM, así que la verificación es funcional:
@@ -157,6 +183,7 @@ La política fue aplicada por el administrador. El agente creó y ejecutó el ch
 - `ce:GetCostAndUsage` → ya comprobado.
 - `cloudformation:ContinueUpdateRollback` → ya comprobado; la recuperación terminó en `UPDATE_ROLLBACK_COMPLETE`.
 - `iam:PassRole` y `s3:GetObject` → comprobados; el changeset de sincronización terminó en `UPDATE_COMPLETE`.
+- `s3:DeleteObject` en `usuarios/*` → comprobado; la limpieza E2E terminó sin objetos temporales.
 
 Consulta de gasto:
 
@@ -169,4 +196,4 @@ aws ce get-cost-and-usage \
   --region us-east-1
 ```
 
-Estado del despliegue: `aws cloudformation package` y el changeset de solo código se ejecutaron. El primer changeset falló por los permisos descritos en la sección 3; el código de las Lambda quedó correcto. La recuperación terminó en `UPDATE_ROLLBACK_COMPLETE` con las tres Lambda omitidas y, tras aplicar la política de la sección 4, el changeset `roles-docente-sync-20261125` dejó el stack en `UPDATE_COMPLETE` sin deriva. `/api/health` y el frontend responden `200`; el costo de noviembre es `-0.0000000025 USD` blended.
+Estado del despliegue: `aws cloudformation package` y los changesets de código y configuración se ejecutaron. El primer changeset falló por los permisos descritos en la sección 3; el código de las Lambda quedó correcto. La recuperación terminó en `UPDATE_ROLLBACK_COMPLETE` con las tres Lambda omitidas y, tras aplicar la política de la sección 4, el changeset `roles-docente-sync-20261125` dejó el stack en `UPDATE_COMPLETE` sin deriva. Los changesets posteriores (`restore-secrets-20261125`, `materia-rls-fix-20261125`, `e2e-repo-fix-20261125-safe`, `e2e-worker-fix-20261125` y `e2e-chat-model-fix-20261125`) también terminaron en `UPDATE_COMPLETE`. `/api/health` y el frontend responden `200`; el E2E completo pasó y el costo de noviembre es `-0.0000000002 USD` unblended.

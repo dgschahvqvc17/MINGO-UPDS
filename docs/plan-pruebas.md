@@ -1,6 +1,6 @@
 # Plan de pruebas de MINGO
 
-**Versión:** 1.0  
+**Versión:** 1.1  
 **Objetivo:** verificar que cada historia de usuario funciona, que los datos están aislados por usuario y que la IA no rompe costos ni seguridad.
 
 ## 1. Estrategia
@@ -495,6 +495,18 @@ Responsable:
 | 2026-11-20 | E2E de HU17 contra la API real: crear, listar, consultar, cambiar estado y eliminar objetivos; consultar progreso con datos. Incluye validación de título corto (`400`) y `404` tras el borrado. | Supabase real con un usuario temporal aislado, eliminado al final. | PASS |
 | 2026-11-20 | HU18: lint y pruebas de backend (49 suites / 506 pruebas), build y pruebas de frontend (27 archivos / 191 pruebas, sin cambios en este ajuste). Cubre endpoints, preferencias, idempotencia, ventana horaria con rescate, cupo diario de 30 correos, Lambda, historial, filtros y contador. | Local con mocks de Supabase y SNS; sin despliegue AWS. | PASS |
 | 2026-11-20 | Ajuste de cobertura horaria y cupo SNS: mismo alcance automatizado, sin cambios de esquema (la migración `0017` ya aplicada sigue siendo válida). | Local; plantilla SAM validada por parser YAML. | PASS |
+| 2026-11-25 | E2E completo de roles docente, inscripciones, documentos y RAG: 20 comprobaciones sobre la API real de `dev` (login, roles desde BD, claves temporales, materia, inscripción, S3, descarga, procesamiento y chat). Datos temporales eliminados; S3 y SQS sin residuos. | `dev` real con usuarios `@example.test`; perfil AWS local `mingo-agente` en `us-east-1`. | PASS |
+
+### 12.2. Incidentes detectados durante el E2E
+
+| Fecha | Síntoma | Causa | Corrección |
+|---|---|---|---|
+| 2026-11-25 | `Token invalido o expirado.` en la API | Tres parámetros `NoEcho` quedaron enmascarados (`****`) en un changeset anterior. | Changeset `restore-secrets-20261125`; verificación por hash sin imprimir secretos. |
+| 2026-11-25 | `42P17 infinite recursion detected in policy for relation "materias"` | Política SELECT de `materias` que consultaba `inscripciones`, cuya política vuelve a evaluar `materias`. | Migración `0019_fix_recursion_materias.sql` con función `SECURITY DEFINER`. |
+| 2026-11-25 | `42501 new row violates row-level security policy for table "materias"` solo con `INSERT ... RETURNING` | La política SELECT de la fila recién insertada se evaluaba antes de que el insertedor fuera visible para la función. | Insert con UUID generado en servidor y lectura posterior; sin `.select()`/`RETURNING`. |
+| 2026-11-25 | `next is not a function` al crear materias | Se pasaba `next` como argumento de negocio en 10 llamadas de `materia.routes.js`. | Uso correcto del middleware de errores de Express 5. |
+| 2026-11-25 | El documento quedaba `en_cola` y el chat respondía `422` | El worker trataba `en_cola` como ejecución en curso y omitía la primera entrega del mensaje. | Nueva distinción `estaProcesando` frente a `estaEnProceso`; prueba unitaria añadida. |
+| 2026-11-25 | Chat con documento respondía `503` | La plantilla no definía `AI_CHAT_MODEL`; el SDK enviaba `gpt-4o-mini` al endpoint de Gemini. | Parámetro `AiChatModel` añadido a la plantilla y fijado en `dev` a `gemini-3.5-flash-lite`. |
 
 ## 13. Pruebas antes de desplegar
 

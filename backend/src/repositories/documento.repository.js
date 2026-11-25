@@ -3,6 +3,8 @@
  * Usa el cliente de Supabase del usuario para que RLS se aplique en cada consulta.
  * No conoce HTTP ni reglas de negocio.
  */
+const { randomUUID } = require('crypto');
+
 const DOCUMENTO_COLUMNS = `
   id,
   usuario_id,
@@ -70,9 +72,12 @@ class DocumentoRepository {
    * @returns {Promise<object>}
    */
   async crearDocumento(usuarioId, documento) {
-    const { data, error } = await this.requireClient()
+    const documentoId = randomUUID();
+
+    const { error } = await this.requireClient()
       .from('documentos')
       .insert({
+        id: documentoId,
         usuario_id: usuarioId,
         materia_id: documento.materia_id,
         unidad_id: documento.unidad_id ?? null,
@@ -82,15 +87,17 @@ class DocumentoRepository {
         tipo_archivo: documento.tipo_archivo,
         tamano: documento.tamano,
         estado_procesamiento: 'pendiente',
-      })
-      .select(DOCUMENTO_COLUMNS)
-      .single();
+      });
 
     if (error) {
       throw error;
     }
 
-    return data;
+    const registrado = await this.obtenerDocumentoPorId(usuarioId, documentoId);
+    if (!registrado) {
+      throw new Error('No se pudo leer el documento recién registrado.');
+    }
+    return registrado;
   }
 
   /**

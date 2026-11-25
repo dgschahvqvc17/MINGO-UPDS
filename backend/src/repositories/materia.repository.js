@@ -3,6 +3,8 @@
  * Usa el cliente de Supabase del usuario para que RLS se aplique en cada consulta.
  * No conoce HTTP ni reglas de negocio.
  */
+const { randomUUID } = require('crypto');
+
 const MATERIA_COLUMNS =
   'id, usuario_id, docente_id, nombre, codigo, docente, descripcion, periodo_academico, color, estado, fecha_creacion, fecha_actualizacion';
 
@@ -101,10 +103,12 @@ class MateriaRepository {
    */
   async crearMateria(usuarioId, materiaData) {
     const { nombre, codigo, docente, docente_id, descripcion, periodo_academico, color } = materiaData;
+    const materiaId = randomUUID();
 
-    const { data, error } = await this.requireClient()
+    const { error } = await this.requireClient()
       .from('materias')
       .insert({
+        id: materiaId,
         usuario_id: usuarioId,
         docente_id: docente_id ?? usuarioId,
         nombre,
@@ -114,9 +118,7 @@ class MateriaRepository {
         periodo_academico,
         color: color ?? '#3B82F6',
         estado: 'activo',
-      })
-      .select(MATERIA_COLUMNS)
-      .single();
+      });
 
     if (error) {
       if (error.code === '23505') {
@@ -125,7 +127,10 @@ class MateriaRepository {
       throw error;
     }
 
-    const [materia] = await this.agregarContadores([data]);
+    const materia = await this.obtenerMateriaPorId(usuarioId, materiaId);
+    if (!materia) {
+      throw new Error('No se pudo leer la materia recién creada.');
+    }
     return materia;
   }
 

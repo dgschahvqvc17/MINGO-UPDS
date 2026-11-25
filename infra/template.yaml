@@ -102,6 +102,13 @@ Parameters:
       URL base opcional del proveedor compatible con OpenAI. En desarrollo con
       Gemini: https://generativelanguage.googleapis.com/v1beta/openai/
 
+  AiChatModel:
+    Type: String
+    Default: gpt-4o-mini
+    Description: >
+      Modelo de chat compatible con el endpoint configurado. En desarrollo con
+      Gemini se usa gemini-3.5-flash-lite; produccion mantiene gpt-4o-mini.
+
   AiEmbeddingModel:
     Type: String
     Default: text-embedding-3-small
@@ -364,6 +371,7 @@ Resources:
           AI_PROVIDER: !Ref AiProvider
           AI_API_KEY: !Ref AiApiKey
           AI_BASE_URL: !Ref AiBaseUrl
+          AI_CHAT_MODEL: !Ref AiChatModel
           AI_EMBEDDING_MODEL: !Ref AiEmbeddingModel
           AI_EMBEDDING_DIMENSIONS: !Ref AiEmbeddingDimensions
       Tags:
@@ -536,6 +544,7 @@ Resources:
           AI_PROVIDER: !Ref AiProvider
           AI_API_KEY: !Ref AiApiKey
           AI_BASE_URL: !Ref AiBaseUrl
+          AI_CHAT_MODEL: !Ref AiChatModel
           AI_EMBEDDING_MODEL: !Ref AiEmbeddingModel
           AI_EMBEDDING_DIMENSIONS: !Ref AiEmbeddingDimensions
       Events:

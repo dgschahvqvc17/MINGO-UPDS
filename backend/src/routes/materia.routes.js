@@ -46,9 +46,9 @@ router.use('/:materiaId/inscripciones', inscripcionRoutes);
 router.get(
   '/',
   validationMiddleware({ query: materiaBusquedaSchema }),
-  asyncHandler(async (req, res) => {
+  asyncHandler(async (req, res, next) => {
     const controller = new (require('../controllers/materia.controller'))(req.materiaService);
-    await controller.listarMaterias(req, res);
+    await controller.listarMaterias(req, res, next);
   })
 );
 
@@ -58,9 +58,9 @@ router.get(
  */
 router.get(
   '/estadisticas',
-  asyncHandler(async (req, res) => {
+  asyncHandler(async (req, res, next) => {
     const controller = new (require('../controllers/materia.controller'))(req.materiaService);
-    await controller.obtenerEstadisticas(req, res);
+    await controller.obtenerEstadisticas(req, res, next);
   })
 );
 
@@ -70,9 +70,9 @@ router.get(
  */
 router.get(
   '/colores',
-  asyncHandler(async (req, res) => {
+  asyncHandler(async (req, res, next) => {
     const controller = new (require('../controllers/materia.controller'))(req.materiaService);
-    await controller.obtenerColoresDisponibles(req, res);
+    await controller.obtenerColoresDisponibles(req, res, next);
   })
 );
 
@@ -82,9 +82,9 @@ router.get(
  */
 router.get(
   '/periodos',
-  asyncHandler(async (req, res) => {
+  asyncHandler(async (req, res, next) => {
     const controller = new (require('../controllers/materia.controller'))(req.materiaService);
-    await controller.obtenerPeriodosAcademicos(req, res);
+    await controller.obtenerPeriodosAcademicos(req, res, next);
   })
 );
 
@@ -94,9 +94,9 @@ router.get(
  */
 router.get(
   '/buscar',
-  asyncHandler(async (req, res) => {
+  asyncHandler(async (req, res, next) => {
     const controller = new (require('../controllers/materia.controller'))(req.materiaService);
-    await controller.buscarMaterias(req, res);
+    await controller.buscarMaterias(req, res, next);
   })
 );
 
@@ -107,9 +107,9 @@ router.get(
 router.get(
   '/:id',
   validationMiddleware({ params: materiaIdParamSchema }),
-  asyncHandler(async (req, res) => {
+  asyncHandler(async (req, res, next) => {
     const controller = new (require('../controllers/materia.controller'))(req.materiaService);
-    await controller.obtenerMateria(req, res);
+    await controller.obtenerMateria(req, res, next);
   })
 );
 
@@ -121,9 +121,9 @@ router.post(
   '/',
   requireRole(ROLE_ADMINISTRADOR),
   validationMiddleware({ body: materiaCrearSchema }),
-  asyncHandler(async (req, res) => {
+  asyncHandler(async (req, res, next) => {
     const controller = new (require('../controllers/materia.controller'))(req.materiaService);
-    await controller.crearMateria(req, res);
+    await controller.crearMateria(req, res, next);
   })
 );
 
@@ -136,9 +136,9 @@ router.patch(
   requireRole(ROLE_ADMINISTRADOR),
   validationMiddleware({ params: materiaIdParamSchema }),
   validationMiddleware({ body: materiaActualizarSchema }),
-  asyncHandler(async (req, res) => {
+  asyncHandler(async (req, res, next) => {
     const controller = new (require('../controllers/materia.controller'))(req.materiaService);
-    await controller.actualizarMateria(req, res);
+    await controller.actualizarMateria(req, res, next);
   })
 );
 
@@ -151,9 +151,9 @@ router.patch(
   requireRole(ROLE_ADMINISTRADOR),
   validationMiddleware({ params: materiaIdParamSchema }),
   validationMiddleware({ body: materiaCambiarEstadoSchema }),
-  asyncHandler(async (req, res) => {
+  asyncHandler(async (req, res, next) => {
     const controller = new (require('../controllers/materia.controller'))(req.materiaService);
-    await controller.cambiarEstadoMateria(req, res);
+    await controller.cambiarEstadoMateria(req, res, next);
   })
 );
 
@@ -164,9 +164,9 @@ router.patch(
 router.get(
   '/:id/acceso',
   validationMiddleware({ params: materiaIdParamSchema }),
-  asyncHandler(async (req, res) => {
+  asyncHandler(async (req, res, next) => {
     const controller = new (require('../controllers/materia.controller'))(req.materiaService);
-    await controller.validarAccesoMateria(req, res);
+    await controller.validarAccesoMateria(req, res, next);
   })
 );
 

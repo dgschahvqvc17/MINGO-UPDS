@@ -1163,6 +1163,8 @@ Aplicar el mismo patrón a:
 
 Con la migración `0018`, `materias` permite lectura al creador, al docente responsable (`docente_id`) y a estudiantes con inscripción `activa`. `tareas` permite lectura al creador, al docente creador (`docente_id`) y a estudiantes con inscripción `activa` cuando la tarea tiene docente asignado; la escritura exige rol `docente` u `administrador`. `documentos` y `fragmentos_documento` usan las funciones `usuario_puede_leer_documento` y `usuario_puede_gestionar_documento`, que consideran propiedad, docencia e inscripción `activa`. Los administradores se validan consultando `usuario_roles` en las políticas de inserción. `inscripciones` admite `SELECT` a `authenticated` solo cuando el usuario es el estudiante inscrito o el docente responsable de la materia (`materias.docente_id`); `INSERT`, `UPDATE` y `DELETE` se reservan a `service_role`. El backend usa `service_role` para este módulo y valida en el servicio que el solicitante sea administrador o docente responsable antes de consultar o escribir. `tarea_estados` admite lectura de materias accesibles y escritura solo del propio estudiante; `service_role` conserva `ALL`.
 
+La migración `0019_fix_recursion_materias.sql` corrige la recursión `42P17` de la política SELECT de `materias`: la decisión se delega en la función `SECURITY DEFINER` `usuario_puede_ver_materia(uuid)`, que compara `usuario_id` y `docente_id` con `auth.uid()` y consulta `inscripciones` en estado `activa` sin volver a evaluar las políticas de `materias`. La política resultante usa esa función. La función fija `search_path = public`, revoca ejecución a `public` y `anon`, y solo la concede a `authenticated`; `service_role` sigue sin restricciones.
+
 Casos especiales:
 
 ```sql
@@ -1470,6 +1472,7 @@ están implementadas en `supabase/migrations/0009_hu12_chat.sql`.
 | `supabase/migrations/0016_hu17_restringir_permisos_objetivos.sql` | Retira `TRUNCATE`, `TRIGGER` y `REFERENCES` a `authenticated` en `objetivos_estudio`; confirma `ALL` a `service_role` y ningún permiso a `anon` (HU17, idempotente). |
 | `supabase/migrations/0017_hu18_notificaciones.sql` | Tablas `preferencias_usuario` y `notificaciones` con idempotencia, índices, trigger, RLS y permisos (HU18, idempotente). |
 | `supabase/migrations/0018_roles_docente_inscripciones.sql` | Rol `docente`, columnas `docente_id` y `requiere_cambio_clave`, tablas `inscripciones` y `tarea_estados`, políticas RLS por docente/inscripción y redefinición de `match_fragmentos` y `obtener_estadisticas_tareas` (idempotente; conserva datos). |
+| `supabase/migrations/0019_fix_recursion_materias.sql` | Función `SECURITY DEFINER` `usuario_puede_ver_materia` y política SELECT de `materias` sin recursión `42P17` (idempotente; conserva datos). |
 
 - El script `backend/scripts/run-migrations.js` (`npm run migrate`) aplica estas
   migraciones en orden: identidad, materias, tareas, calendario, documentos,
