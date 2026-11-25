@@ -1,14 +1,15 @@
 # Permisos IAM complementarios para `mingo-agente`
 
-**Estado:** propuesto, no aplicado.
+**Estado:** políticas 1 y 2 aplicadas; política 3 propuesta.
 **Cuenta:** `591015654164`.
 **Región:** `us-east-1`.
 **Costo:** `$0`. No crean recursos nuevos.
 
-Estas políticas corrigen dos limitaciones detectadas durante el despliegue de `dev`:
+Estas políticas corrigen tres limitaciones detectadas durante el despliegue de `dev`:
 
 1. `mingo-agente` no puede subir artefactos de Lambda con `aws cloudformation package`.
 2. `mingo-agente` no puede consultar Cost Explorer.
+3. `mingo-agente` no puede recuperar un stack con `cloudformation:ContinueUpdateRollback`.
 
 El agente de OpenCode **no crea ni modifica IAM**. Un administrador debe aplicar las políticas con credenciales locales propias. No se usan credenciales root para operar.
 
@@ -74,34 +75,64 @@ aws iam put-user-policy \
 
 La cuenta está compartida con Concesionaria BMW. El total de la cuenta no equivale al gasto de MINGO. Para aislarlo por etiqueta haría falta activar la cost allocation tag `Project`, cambio de facturación que requiere autorización separada.
 
-## Verificación posterior con `mingo-agente`
+## 3. Recuperación del stack `dev`
 
-Lectura de la política aplicada:
+Archivo: [`mingo-recovery-dev.json`](mingo-recovery-dev.json).
+
+El 2026-11-25 se ejecutó el changeset `roles-docente-pruned-20261125` y falló por dos permisos ausentes:
+
+- `iam:PassRole` sobre el rol de la Lambda API.
+- `s3:GetObject` sobre el artefacto anterior de Lambda durante el rollback.
+
+El código real de las tres Lambda quedó correcto y activo (`LastUpdateStatus=Successful`), pero el stack terminó en `UPDATE_ROLLBACK_FAILED`. La recuperación acordada es continuar el rollback omitiendo `ApiFunction`, `ProcesadorFunction` y `RecordatoriosFunction`, para no revertir el código ya desplegado.
+
+Esta política permite solo esa acción, limitada al stack `mingo-hu09-dev`. No crea ni modifica recursos y cuesta `$0`.
+
+### Aplicación por un administrador
 
 ```bash
-aws iam get-user-policy \
-  --user-name mingo-agente \
-  --policy-name MingoPackageArtifactsDev \
-  --profile mingo-agente \
+aws iam create-policy \
+  --policy-name MingoRecoveryDev \
+  --policy-document file://infra/iam/mingo-recovery-dev.json \
   --region us-east-1
 
-aws iam get-user-policy \
+aws iam attach-user-policy \
   --user-name mingo-agente \
-  --policy-name MingoCostExplorerReadonly \
+  --policy-arn arn:aws:iam::591015654164:policy/MingoRecoveryDev \
+  --region us-east-1
+```
+
+También puede crearse desde **IAM → Policies → Create policy → JSON** y adjuntarse a `mingo-agente` desde **Users → mingo-agente → Add permissions → Attach policies directly**.
+
+Tras aplicarla, el agente ejecuta:
+
+```bash
+aws cloudformation continue-update-rollback \
+  --stack-name mingo-hu09-dev \
+  --resources-to-skip ApiFunction ProcesadorFunction RecordatoriosFunction \
   --profile mingo-agente \
   --region us-east-1
 ```
+
+Después de la recuperación, CloudFormation conserva la plantilla anterior mientras el código de las Lambda es el nuevo. Esa deriva queda documentada: para eliminarla harían falta `iam:PassRole` y `s3:GetObject` sobre los artefactos, además de repetir el changeset.
+
+## Verificación posterior con `mingo-agente`
+
+`mingo-agente` no puede listar ni leer políticas IAM, así que la verificación es funcional:
+
+- `s3:PutObject` en `tmp/artifacts/*` → ya comprobado.
+- `ce:GetCostAndUsage` → ya comprobado.
+- `cloudformation:ContinueUpdateRollback` → se comprueba al ejecutar la recuperación.
 
 Consulta de gasto:
 
 ```bash
 aws ce get-cost-and-usage \
-  --time PeriodStart=2026-11-01 \
-  --time PeriodEnd=2026-11-26 \
+  --time 'Start=2026-11-01,End=2026-11-26' \
   --granularity MONTHLY \
   --metrics BlendedCost \
   --profile mingo-agente \
   --region us-east-1
 ```
 
-Una vez aplicadas, el siguiente paso es repetir `aws cloudformation package` y crear un changeset de solo código para `mingo-hu09-dev`. El changeset no se ejecutará sin confirmación explícita.
+Estado del despliegue: `aws cloudformation package` y el changeset de solo código ya se ejecutaron. El changeset falló por los permisos descritos en la sección 3; el código de las Lambda quedó correcto. Falta aplicar la política de recuperación para devolver el stack a `UPDATE_COMPLETE`.

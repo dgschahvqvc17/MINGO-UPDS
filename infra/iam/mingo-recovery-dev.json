@@ -1,0 +1,1 @@
+{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":["cloudformation:ContinueUpdateRollback"],"Resource":"arn:aws:cloudformation:us-east-1:591015654164:stack/mingo-hu09-dev/*"}]}
