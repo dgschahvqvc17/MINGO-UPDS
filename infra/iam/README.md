@@ -51,6 +51,8 @@ Archivo: [`mingo-agente-cost-explorer-readonly.json`](mingo-agente-cost-explorer
 
 Cost Explorer no admite restricciones por recurso, por eso `Resource` es `*`. La política es solo lectura y no modifica facturación, presupuestos ni alertas.
 
+**Excepción documentada 2026-11-25.** La regla interna de IAM indica “sin `*`”. AWS no permite limitar `ce:GetCostAndUsage` ni `ce:GetCostForecast` por ARN, así que el comodín es inevitable. Se compensa con dos acciones concretas de solo lectura, sin `ce:*`, sin escrituras y sin acceso a presupuestos o facturación. Aprobado por el dueño del proyecto el 2026-11-25. Fecha de revisión: 2027-02-25.
+
 ### Aplicación por un administrador
 
 ```bash
