@@ -26,6 +26,8 @@ El bucket ya existe, es privado y tiene lifecycle que expira `tmp/` en 1 día. N
 
 No usar el bucket frontend para artefactos: su política permite `s3:GetObject` a CloudFront con `SourceArn` de la distribución `E3KT1CRPPEGF3B`, por lo que los zips quedarían servidos por CloudFront.
 
+Si el editor de IAM Console rechaza incluso la versión compacta, usar [`mingo-agente-artefactos-dev-minima.json`](mingo-agente-artefactos-dev-minima.json): tiene 376 caracteres, mantiene la escritura limitada a `tmp/artifacts/*` y no permite `s3:GetObject`.
+
 ### Aplicación por un administrador
 
 ```bash
