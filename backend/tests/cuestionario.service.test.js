@@ -340,6 +340,18 @@ describe('CuestionarioService (HU13)', () => {
     expect(resultado.cuestionario.preguntas[0]).not.toHaveProperty('respuesta_correcta');
   });
 
+  it('rechaza un segundo intento de un estudiante', async () => {
+    const { servicio, dependencias } = crearServicio({
+      cuestionarioAccesible: { ...FILA_CUESTIONARIO, usuario_id: 'otro-docente' },
+    });
+
+    await expect(servicio.iniciarIntento(CUESTIONARIO_ID)).rejects.toMatchObject({
+      statusCode: 409,
+      message: 'Ya iniciaste este cuestionario. Solo se permite un intento.',
+    });
+    expect(dependencias.cuestionarioRepository.crearIntento).not.toHaveBeenCalled();
+  });
+
   it('corrige las preguntas objetivas y finaliza el intento', async () => {
     const { servicio, dependencias } = crearServicio();
 

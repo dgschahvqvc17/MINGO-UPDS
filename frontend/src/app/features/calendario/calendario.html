@@ -106,7 +106,7 @@
           <span class="cal-panel-icon" aria-hidden="true"><i class="bi bi-calendar3"></i></span>
           <div class="cal-panel-heading">
             <h2>Mi calendario</h2>
-            <small>{{ eventos().length }} eventos en el rango visible</small>
+            <small>{{ eventosFullCalendar().length }} actividades en el rango visible</small>
           </div>
           @if (cargando()) {
             <span class="cal-sync" role="status" aria-live="polite">
@@ -119,12 +119,12 @@
         <div class="cal-panel-body">
           <full-calendar [options]="calendarOptions" [events]="eventosFullCalendar()" />
 
-          @if (!cargando() && !error() && eventos().length === 0) {
+          @if (!cargando() && !error() && eventosFullCalendar().length === 0) {
             <div class="cal-empty" role="status">
               <i class="bi bi-calendar-x" aria-hidden="true"></i>
               <p class="mb-1 fw-semibold">Nada por aquí todavía</p>
               <p class="small text-muted-soft mb-0">
-                No hay eventos en este período. Crea uno nuevo o ajusta los filtros.
+                No hay tareas, cuestionarios ni eventos en este período. Ajusta los filtros.
               </p>
             </div>
           }

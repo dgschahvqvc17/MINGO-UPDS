@@ -703,6 +703,17 @@ class CuestionarioService {
     const cuestionario = await this.obtenerCuestionarioAccesible(cuestionarioId);
     this.validarVentanaParaResolver(cuestionario);
 
+    if (cuestionario.usuario_id !== this.usuarioActualId) {
+      const intentosPrevios = await this.cuestionarioRepository.listarIntentos(
+        this.usuarioActualId,
+        cuestionarioId,
+      );
+
+      if (intentosPrevios.length > 0) {
+        throw ApiError.conflict('Ya iniciaste este cuestionario. Solo se permite un intento.');
+      }
+    }
+
     const preguntas = await this.cuestionarioLecturaRepository.listarPreguntas(cuestionarioId);
 
     if (preguntas.length === 0) {

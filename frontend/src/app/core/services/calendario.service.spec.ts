@@ -3,6 +3,7 @@ import { provideHttpClient, withInterceptorsFromDi } from '@angular/common/http'
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import {
   CalendarioService,
+  type ActividadCalendario,
   type EventoCalendario,
   type MateriaResumenEvento,
 } from './calendario.service';
@@ -177,6 +178,52 @@ describe('CalendarioService', () => {
 
     expect(evento.backgroundColor).toBe(service.obtenerColorTipo('examen'));
     expect(evento.end).toBeUndefined();
+  });
+
+  it('adapta tareas y cuestionarios como actividades de solo lectura', () => {
+    const actividades: ActividadCalendario[] = [
+      {
+        id: 'tarea-1',
+        origen: 'tarea',
+        titulo: 'Informe de laboratorio',
+        fecha: '2026-11-30T23:59:00.000Z',
+        estado: 'pendiente',
+        materias: materiaResumen,
+      },
+      {
+        id: 'cuestionario-1',
+        origen: 'cuestionario',
+        titulo: 'Repaso de derivadas',
+        fecha: null,
+        estado: 'completada',
+      },
+    ];
+
+    const eventos = service.aActividadesFullCalendar(actividades);
+
+    expect(eventos).toHaveLength(1);
+    expect(eventos[0].id).toBe('tarea-tarea-1');
+    expect(eventos[0].title).toBe('Tarea: Informe de laboratorio');
+    expect(eventos[0].allDay).toBe(true);
+    expect(eventos[0].backgroundColor).toBe(materiaResumen.color);
+    expect(eventos[0].extendedProps?.['origen']).toBe('tarea');
+  });
+
+  it('marca los cuestionarios para abrirlos desde el calendario', () => {
+    const [evento] = service.aActividadesFullCalendar([
+      {
+        id: 'cuestionario-1',
+        origen: 'cuestionario',
+        titulo: 'Repaso de derivadas',
+        fecha: '2026-12-02T10:00:00.000Z',
+        estado: 'pendiente',
+      },
+    ]);
+
+    expect(evento.id).toBe('cuestionario-cuestionario-1');
+    expect(evento.title).toBe('Cuestionario: Repaso de derivadas');
+    expect(evento.extendedProps?.['actividadId']).toBe('cuestionario-1');
+    expect(evento.backgroundColor).toBe(service.obtenerColorTipo('estudio'));
   });
 
   it('devuelve la clase de badge y la etiqueta del tipo', () => {

@@ -167,7 +167,7 @@ describe('PlanEstudioService (HU15)', () => {
 
     await service.proponer(ENTRADA);
 
-    expect(calendarioRepository.listarEventos).toHaveBeenCalledWith(USUARIO_ID, {
+    expect(calendarioRepository.listarEventos).toHaveBeenCalledWith({
       materia_id: MATERIA_ID,
       tipo_evento: 'examen',
       limit: 10,

@@ -502,7 +502,7 @@ class PlanEstudioService {
         materia_id: materiaId,
         limit: MAXIMO_TAREAS,
       }),
-      this.calendarioRepository.listarEventos(this.usuarioActualId, {
+      this.calendarioRepository.listarEventos({
         materia_id: materiaId,
         tipo_evento: TIPO_EVENTO_EXAMEN,
         limit: MAXIMO_EVALUACIONES,

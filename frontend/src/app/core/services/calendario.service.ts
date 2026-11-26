@@ -58,6 +58,19 @@ export interface EventosProximos {
   rango: RangoProximos;
 }
 
+/**
+ * Actividad de solo lectura que se muestra en el calendario junto a los
+ * eventos: una tarea asignada o un cuestionario publicado.
+ */
+export interface ActividadCalendario {
+  id: string;
+  origen: 'tarea' | 'cuestionario';
+  titulo: string;
+  fecha: string | null;
+  estado: string;
+  materias?: unknown;
+}
+
 export type EventoFiltros = {
   materia_id?: string;
   tipo_evento?: TipoEvento;
@@ -91,6 +104,8 @@ const ETIQUETAS_TIPO: Record<TipoEvento, string> = {
   personal: 'Personal',
   otro: 'Otro',
 };
+
+const COLOR_TAREA = '#0D6EFD';
 
 const COLORES_TIPO: Record<TipoEvento, string> = {
   examen: '#EF4444', // red-500
@@ -180,13 +195,15 @@ export class CalendarioService {
   }
 
   obtenerMateriaDeEvento(evento: EventoCalendario): MateriaResumenEvento | null {
-    const materias = evento.materias;
+    return this.extraerMateria(evento.materias);
+  }
 
+  private extraerMateria(materias: unknown): MateriaResumenEvento | null {
     if (Array.isArray(materias)) {
-      return materias[0] ?? null;
+      return (materias[0] as MateriaResumenEvento | undefined) ?? null;
     }
 
-    return materias ?? null;
+    return (materias as MateriaResumenEvento | null | undefined) ?? null;
   }
 
   formatearFechaHora(fecha: string | null, vacio = 'Sin fecha'): string {
@@ -265,5 +282,34 @@ export class CalendarioService {
         },
       };
     });
+  }
+
+  /**
+   * Convierte tareas y cuestionarios en eventos de solo lectura. No se pueden
+   * arrastrar ni editar desde el calendario: se gestionan en su propia página.
+   */
+  aActividadesFullCalendar(actividades: ActividadCalendario[]): EventInput[] {
+    return actividades
+      .filter((actividad) => Boolean(actividad.fecha))
+      .map((actividad) => {
+        const materia = this.extraerMateria(actividad.materias);
+        const esCuestionario = actividad.origen === 'cuestionario';
+        const color = materia?.color ?? (esCuestionario ? COLORES_TIPO.estudio : COLOR_TAREA);
+
+        return {
+          id: `${actividad.origen}-${actividad.id}`,
+          title: `${esCuestionario ? 'Cuestionario' : 'Tarea'}: ${actividad.titulo}`,
+          start: actividad.fecha as string,
+          allDay: true,
+          backgroundColor: color,
+          borderColor: color,
+          extendedProps: {
+            origen: actividad.origen,
+            actividadId: actividad.id,
+            estado: actividad.estado,
+            materia: materia?.nombre,
+          },
+        };
+      });
   }
 }

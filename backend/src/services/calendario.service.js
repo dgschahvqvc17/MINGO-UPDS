@@ -38,10 +38,7 @@ class CalendarioService {
   async listarEventos(filtros = {}) {
     const filtrosValidados = eventoBusquedaSchema.parse(filtros);
 
-    const { items, total } = await this.calendarioRepository.listarEventos(
-      this.usuarioActualId,
-      filtrosValidados,
-    );
+    const { items, total } = await this.calendarioRepository.listarEventos(filtrosValidados);
 
     return {
       eventos: items,
@@ -80,16 +77,13 @@ class CalendarioService {
   }
 
   /**
-   * Obtiene un evento del usuario o lanza 404.
+   * Obtiene un evento visible para el usuario o lanza 404.
    *
    * @param {string} eventoId UUID del evento.
    * @returns {Promise<object>}
    */
   async obtenerEvento(eventoId) {
-    const evento = await this.calendarioRepository.obtenerEventoPorId(
-      this.usuarioActualId,
-      eventoId,
-    );
+    const evento = await this.calendarioRepository.obtenerEventoPorId(eventoId);
 
     if (!evento) {
       throw ApiError.notFound('Evento no encontrado.');

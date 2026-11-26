@@ -745,6 +745,10 @@ Intentos de resolución de un cuestionario (HU13).
 Reglas:
 
 - Un intento `finalizado` no admite más respuestas: responde `409`.
+- Un estudiante solo puede tener un intento por cuestionario. El servicio
+  responde `409` antes de insertar y el trigger
+  `trigger_validar_intento_unico_estudiante` lo garantiza también ante escrituras
+  directas. El docente dueño sí puede crear intentos de prueba.
 - `puntuacion` se calcula sobre las preguntas calificadas: objetivas exactas y
   abiertas con evaluación guardada (`puntaje / 10`). Las abiertas sin evaluar
   no cuentan como acierto ni como error (HU16).
@@ -1499,15 +1503,12 @@ están implementadas en `supabase/migrations/0009_hu12_chat.sql`.
 | `supabase/migrations/0019_fix_recursion_materias.sql` | Función `SECURITY DEFINER` `usuario_puede_ver_materia` y política SELECT de `materias` sin recursión `42P17` (idempotente; conserva datos). |
 | `supabase/migrations/0020_publicacion_cuestionarios.sql` | Columnas `publicado` y `fecha_publicacion`, RLS de lectura para inscritos activos y actualización restringida al docente responsable (idempotente; aplicada en `dev`). |
 | `supabase/migrations/0021_tareas_visibles_y_ventanas_cuestionario.sql` | Columnas `fecha_inicio` y `fecha_limite` en `cuestionarios`, backfill de 7 días, restricción de ventana, índice, permisos de actualización, función `usuario_puede_ver_tarea` y política SELECT corregida en `tareas` (idempotente; conserva datos; aplicada en `dev`). |
+| `supabase/migrations/0022_acceso_estudiantes_publicacion.sql` | Funciones `usuario_puede_resolver_cuestionario` y `validar_intento_unico_estudiante`; RLS de SELECT en `preguntas`, `opciones_pregunta` y `eventos_calendario` para inscritos activos; INSERT de intentos para estudiantes inscritos; trigger de intento único; RPC `obtener_eventos_proximos` con visibilidad por materia y guard de identidad (idempotente; conserva datos; **pendiente de aplicar en `dev`**). |
 
-- El script `backend/scripts/run-migrations.js` (`npm run migrate`) aplica estas
-  migraciones en orden: identidad, materias, tareas, calendario, documentos,
-  fragmentos, reemplazo de fragmentos, resumenes, búsqueda semántica, chat,
-  cuestionarios, idempotencia, tarjetas de memoria, planes de estudio,
-  evaluación, objetivos académicos, permisos de objetivos, notificaciones,
-  roles docente, inscripciones y estados de tarea, corrección de recursión en
-  `materias`, publicación de cuestionarios y visibilidad de tareas con ventana
-  de cuestionarios.
+- El script `backend/scripts/run-migrations.js` (`npm run migrate`) aplica las
+  migraciones `0001`–`0018` en orden. Las migraciones `0019` en adelante se
+  aplican manualmente desde el editor SQL de Supabase (o con un cliente con
+  permisos de administrador) y se registran en esta tabla.
 
 - Flujo:
 

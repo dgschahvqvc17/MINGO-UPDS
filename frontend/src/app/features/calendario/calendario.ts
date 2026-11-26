@@ -25,10 +25,15 @@ import timeGridPlugin from '@fullcalendar/timegrid';
 import { mensajeDeErrorHttp } from '../../core/utils/http-error';
 import { AuthService } from '../../core/services/auth.service';
 import { MateriaService, type Materia } from '../../core/services/materia.service';
-import { TareaService, type CuestionarioTarea } from '../../core/services/tarea.service';
+import {
+  TareaService,
+  type CuestionarioTarea,
+  type Tarea,
+} from '../../core/services/tarea.service';
 import {
   CalendarioService,
   TIPOS_EVENTO_OPCIONES,
+  type ActividadCalendario,
   type EventoCalendario,
   type EventoFiltros,
   type MateriaResumenEvento,
@@ -65,6 +70,7 @@ export class CalendarioPage implements OnInit {
   readonly diasProximos = DIAS_PROXIMOS;
 
   readonly eventos = signal<EventoCalendario[]>([]);
+  readonly tareas = signal<Tarea[]>([]);
   readonly cuestionarios = signal<CuestionarioTarea[]>([]);
   readonly materias = signal<Materia[]>([]);
   readonly proximos = signal<EventoCalendario[]>([]);
@@ -80,9 +86,29 @@ export class CalendarioPage implements OnInit {
   readonly errorProximos = signal<string | null>(null);
   readonly confirmandoEliminacionId = signal<string | null>(null);
 
-  readonly eventosFullCalendar = computed(() =>
-    this.calendarioService.aEventosFullCalendar(this.eventos()),
-  );
+  readonly actividades = computed<ActividadCalendario[]>(() => [
+    ...this.tareas().map((tarea) => ({
+      id: tarea.id,
+      origen: 'tarea' as const,
+      titulo: tarea.titulo,
+      fecha: tarea.fecha_entrega ?? tarea.fecha_asignacion ?? null,
+      estado: tarea.estado,
+      materias: tarea.materias,
+    })),
+    ...this.cuestionarios().map((cuestionario) => ({
+      id: cuestionario.cuestionario_id,
+      origen: 'cuestionario' as const,
+      titulo: cuestionario.titulo,
+      fecha: cuestionario.fecha_entrega ?? cuestionario.fecha_asignacion ?? null,
+      estado: cuestionario.estado,
+      materias: cuestionario.materias,
+    })),
+  ]);
+
+  readonly eventosFullCalendar = computed(() => [
+    ...this.calendarioService.aEventosFullCalendar(this.eventos()),
+    ...this.calendarioService.aActividadesFullCalendar(this.actividades()),
+  ]);
 
   readonly filtrosActivos = computed(
     () => Boolean(this.filtroTipo()) || Boolean(this.filtroMateria()),
@@ -120,6 +146,8 @@ export class CalendarioPage implements OnInit {
     selectMirror: true,
     eventStartEditable: true,
     eventDurationEditable: true,
+    eventAllow: (_info, evento) =>
+      Boolean(evento) && this.puedeGestionar() && evento?.extendedProps['origen'] === undefined,
     datesSet: (arg) => this.alCambiarRango(arg.start, arg.end),
     eventClick: (arg) => this.alSeleccionarEvento(arg),
     eventDrop: (arg) => this.alMoverEvento(arg),
@@ -129,11 +157,11 @@ export class CalendarioPage implements OnInit {
 
   ngOnInit(): void {
     this.cargarMaterias();
-    this.cargarCuestionarios();
+    this.cargarActividades();
     this.cargarProximos();
   }
 
-  private cargarCuestionarios(): void {
+  private cargarActividades(): void {
     const rango = this.rangoActual();
 
     this.tareaService
@@ -144,8 +172,14 @@ export class CalendarioPage implements OnInit {
       })
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
-        next: ({ cuestionarios }) => this.cuestionarios.set(cuestionarios),
-        error: () => this.cuestionarios.set([]),
+        next: ({ tareas, cuestionarios }) => {
+          this.tareas.set(tareas);
+          this.cuestionarios.set(cuestionarios);
+        },
+        error: () => {
+          this.tareas.set([]);
+          this.cuestionarios.set([]);
+        },
       });
   }
 
@@ -167,7 +201,7 @@ export class CalendarioPage implements OnInit {
 
     this.rangoActual.set(rango);
     this.cargarEventos(rango);
-    this.cargarCuestionarios();
+    this.cargarActividades();
   }
 
   private cargarEventos(rango: RangoCalendario): void {
@@ -345,6 +379,21 @@ export class CalendarioPage implements OnInit {
   }
 
   private alSeleccionarEvento(arg: EventClickArg): void {
+    const origen = arg.event.extendedProps['origen'] as 'tarea' | 'cuestionario' | undefined;
+    const actividadId = arg.event.extendedProps['actividadId'] as string | undefined;
+
+    if (origen === 'cuestionario' && actividadId) {
+      this.router.navigate(['/centro-estudio'], {
+        queryParams: { cuestionario: actividadId },
+      });
+      return;
+    }
+
+    if (origen === 'tarea') {
+      this.router.navigate(['/tareas']);
+      return;
+    }
+
     const evento = this.eventos().find((actual) => actual.id === arg.event.id);
     this.eventoSeleccionado.set(evento ?? null);
   }
@@ -426,5 +475,6 @@ export class CalendarioPage implements OnInit {
     const hasta = new Date(hoy.getTime() + 30 * MILISEGUNDOS_POR_DIA);
 
     this.cargarEventos({ desde: desde.toISOString(), hasta: hasta.toISOString() });
+    this.cargarActividades();
   }
 }

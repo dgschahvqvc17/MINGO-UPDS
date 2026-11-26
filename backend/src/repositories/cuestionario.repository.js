@@ -568,12 +568,14 @@ class CuestionarioRepository {
       .select(CUESTIONARIO_COLUMNS, { count: 'exact' })
       .eq('publicado', true);
 
+    // La proyección se ubica en el calendario por fecha de entrega, igual que
+    // las tareas. Filtrar por fecha_inicio ocultaba cuestionarios ya abiertos.
     if (desde) {
-      builder = builder.gte('fecha_inicio', desde.toISOString());
+      builder = builder.gte('fecha_limite', desde.toISOString());
     }
 
     if (hasta) {
-      builder = builder.lte('fecha_inicio', hasta.toISOString());
+      builder = builder.lte('fecha_limite', hasta.toISOString());
     }
 
     if (materiaId) {
@@ -589,7 +591,7 @@ class CuestionarioRepository {
     }
 
     const { data, error, count } = await builder
-      .order('fecha_inicio', { ascending: true, nullsFirst: false })
+      .order('fecha_limite', { ascending: true, nullsFirst: false })
       .range(offset, offset + limit - 1);
 
     if (error) {

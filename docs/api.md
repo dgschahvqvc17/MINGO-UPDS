@@ -498,6 +498,15 @@ Una tarea cuenta como vencida cuando tiene `fecha_entrega` anterior a ahora y su
 | PUT | `/api/calendario/:id` | HU05 | Actualiza total o parcialmente. |
 | DELETE | `/api/calendario/:id` | HU05 | Elimina. |
 
+- `GET /api/calendario` devuelve los eventos que el usuario puede ver: los que
+  creó y los de materias en las que tiene inscripción `activa`. La lectura ya no
+  filtra por `usuario_id` en la consulta: la visibilidad la resuelve RLS.
+- La UI de `/calendario` combina esos eventos con las tareas y los cuestionarios
+  publicados devueltos por `GET /api/tareas`. Tareas y cuestionarios son de solo
+  lectura desde el calendario; al hacer clic se abre su página correspondiente.
+- `GET /api/calendario/proximos` mantiene el mismo criterio de visibilidad.
+  La RPC rechaza un `p_usuario_id` distinto del usuario autenticado.
+
 **Objeto `evento`**
 
 ```json
@@ -1179,7 +1188,10 @@ contrario responde `404`. Para un cuestionario ajeno, la fecha actual debe estar
 dentro de la ventana `[fecha_inicio, fecha_limite]`; fuera de ella responde
 `409` con un mensaje que indica cuándo abre o que el plazo terminó. El dueño
 puede previsualizarlo fuera de la ventana. Un cuestionario sin preguntas
-responde `422`.
+responde `422`. Un estudiante solo puede tener **un** intento por cuestionario:
+si ya inició uno, responde `409` con `Ya iniciaste este cuestionario. Solo se
+permite un intento.` El límite también está garantizado en la base de datos; el
+dueño del cuestionario sí puede crear intentos de prueba.
 
 **`GET /api/asistente/intentos`**
 

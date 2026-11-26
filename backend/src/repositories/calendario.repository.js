@@ -34,19 +34,19 @@ class CalendarioRepository {
   }
 
   /**
-   * Lista los eventos del usuario en un rango de fechas.
+   * Lista los eventos visibles para el usuario en un rango de fechas.
+   * La propiedad de los eventos la resuelve RLS: un estudiante con inscripción
+   * activa también ve los eventos de la materia, no solo los que creó.
    *
-   * @param {string} usuarioId UUID del usuario.
    * @param {object} filtros Filtros validados (desde, hasta, materia_id, tipo_evento, query, sort, order, limit, offset).
    * @returns {Promise<{ items: object[], total: number }>}
    */
-  async listarEventos(usuarioId, filtros = {}) {
+  async listarEventos(filtros = {}) {
     const { limit = 50, offset = 0, sort = 'fecha_inicio', order = 'asc' } = filtros;
 
     let builder = this.requireClient()
       .from('eventos_calendario')
-      .select(EVENTO_COLUMNS, { count: 'exact' })
-      .eq('usuario_id', usuarioId);
+      .select(EVENTO_COLUMNS, { count: 'exact' });
 
     // Filtro obligatorio: rango de fechas
     if (filtros.desde) {
@@ -87,18 +87,17 @@ class CalendarioRepository {
   }
 
   /**
-   * Obtiene un evento por ID verificando la propiedad con RLS.
+   * Obtiene un evento visible para el usuario. RLS decide si es propietario o
+   * estudiante inscrito en la materia del evento.
    *
-   * @param {string} usuarioId UUID del usuario.
    * @param {string} eventoId UUID del evento.
    * @returns {Promise<object | null>}
    */
-  async obtenerEventoPorId(usuarioId, eventoId) {
+  async obtenerEventoPorId(eventoId) {
     const { data, error } = await this.requireClient()
       .from('eventos_calendario')
       .select(EVENTO_COLUMNS)
       .eq('id', eventoId)
-      .eq('usuario_id', usuarioId)
       .maybeSingle();
 
     if (error) {
@@ -223,7 +222,6 @@ class CalendarioRepository {
     const { data: dataDirect, error: errorDirect } = await client
       .from('eventos_calendario')
       .select(EVENTO_COLUMNS)
-      .eq('usuario_id', usuarioId)
       .gte('fecha_inicio', desde.toISOString())
       .lte('fecha_inicio', hasta.toISOString())
       .order('fecha_inicio', { ascending: true })

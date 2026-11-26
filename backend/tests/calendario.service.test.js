@@ -41,7 +41,7 @@ describe('CalendarioService', () => {
   });
 
   describe('listarEventos', () => {
-    it('normaliza la paginación y consulta solo los eventos del usuario', async () => {
+    it('normaliza la paginación y deja que RLS resuelva la visibilidad', async () => {
       calendarioRepository.listarEventos.mockResolvedValue({
         items: [{ id: EVENTO_ID }],
         total: 1,
@@ -53,7 +53,6 @@ describe('CalendarioService', () => {
       });
 
       expect(calendarioRepository.listarEventos).toHaveBeenCalledWith(
-        USUARIO_ID,
         expect.objectContaining({ limit: 50, offset: 0, sort: 'fecha_inicio', order: 'asc' }),
       );
       expect(resultado.paginacion).toEqual({ limit: 50, offset: 0, total: 1 });
@@ -100,10 +99,7 @@ describe('CalendarioService', () => {
       const evento = await service.obtenerEvento(EVENTO_ID);
 
       expect(evento.id).toBe(EVENTO_ID);
-      expect(calendarioRepository.obtenerEventoPorId).toHaveBeenCalledWith(
-        USUARIO_ID,
-        EVENTO_ID,
-      );
+      expect(calendarioRepository.obtenerEventoPorId).toHaveBeenCalledWith(EVENTO_ID);
     });
 
     it('responde 404 cuando el evento no existe o es de otro usuario', async () => {

@@ -276,6 +276,9 @@ Reglas:
 | Intento en progreso | No revela `respuesta_correcta`, `explicacion` ni `es_correcta`. |
 | Intento finalizado | Revela corrección y explicación. |
 | Responder dos veces el mismo intento | `409`. |
+| Segundo intento de un estudiante en el mismo cuestionario | `409`; ni el servicio ni el trigger permiten el alta. |
+| Estudiante inscrito leyendo preguntas y opciones publicadas | Acceso permitido por RLS; sin corrección. |
+| Estudiante abre `/calendario` | Ve tareas, cuestionarios y eventos de sus materias; no puede arrastrarlos ni editarlos. |
 | Respuesta de una pregunta de otro cuestionario | `400`. |
 | Cuota de cuestionarios agotada | `429` con `AI_QUOTA_EXCEEDED`. |
 | Generar tarjetas sin documento con varios documentos procesados | Usa fragmentos de la materia y guarda el conjunto. |
