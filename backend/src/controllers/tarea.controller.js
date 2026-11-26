@@ -13,12 +13,12 @@ class TareaController {
 
   listarTareas = async (req, res) => {
     const filtros = req.validated?.query ?? req.query;
-    const { tareas, paginacion } = await this.tareaService.listarTareas(filtros);
+    const { tareas, cuestionarios, paginacion } = await this.tareaService.listarTareas(filtros);
 
     res.status(200).json({
       success: true,
       data: tareas,
-      meta: { paginacion },
+      meta: { paginacion, cuestionarios },
     });
   };
 

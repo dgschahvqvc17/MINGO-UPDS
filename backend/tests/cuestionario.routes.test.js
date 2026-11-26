@@ -340,19 +340,36 @@ describe('rutas de cuestionarios (HU13 y publicacion HU20)', () => {
       expect(mockCuestionarioService.publicar).not.toHaveBeenCalled();
     });
 
-    it('PATCH /api/asistente/cuestionarios/:id/publicacion publica siendo docente', async () => {
+    it('PATCH /api/asistente/cuestionarios/:id/publicacion publica con ventana siendo docente', async () => {
       mockRolActual = 'docente';
+      const fechaInicio = '2026-11-27T08:00:00.000Z';
+      const fechaLimite = '2026-11-30T23:59:00.000Z';
 
       const response = await request(app)
         .patch(`/api/asistente/cuestionarios/${CUESTIONARIO_ID}/publicacion`)
-        .send({ publicado: true })
+        .send({ publicado: true, fecha_inicio: fechaInicio, fecha_limite: fechaLimite })
         .expect(200);
 
       expect(response.body.data).toMatchObject({
         id: CUESTIONARIO_ID,
         publicado: true,
       });
-      expect(mockCuestionarioService.publicar).toHaveBeenCalledWith(CUESTIONARIO_ID, true);
+      expect(mockCuestionarioService.publicar).toHaveBeenCalledWith(CUESTIONARIO_ID, true, {
+        fechaInicio: new Date(fechaInicio),
+        fechaLimite: new Date(fechaLimite),
+      });
+    });
+
+    it('PATCH /api/asistente/cuestionarios/:id/publicacion exige la ventana al publicar', async () => {
+      mockRolActual = 'docente';
+
+      const response = await request(app)
+        .patch(`/api/asistente/cuestionarios/${CUESTIONARIO_ID}/publicacion`)
+        .send({ publicado: true })
+        .expect(400);
+
+      expect(response.body.success).toBe(false);
+      expect(mockCuestionarioService.publicar).not.toHaveBeenCalled();
     });
 
     it('PATCH /api/asistente/cuestionarios/:id/publicacion rechaza un cuerpo invalido', async () => {

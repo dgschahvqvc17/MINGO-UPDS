@@ -64,9 +64,11 @@ class CuestionarioController {
   };
 
   publicar = async (req, res) => {
+    const { publicado, fecha_inicio, fecha_limite } = req.validated.body;
     const cuestionario = await this.cuestionarioService.publicar(
       req.validated.params.id,
-      req.validated.body.publicado,
+      publicado,
+      { fechaInicio: fecha_inicio, fechaLimite: fecha_limite },
     );
 
     res.status(200).json({ success: true, data: cuestionario });

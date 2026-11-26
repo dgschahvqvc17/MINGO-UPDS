@@ -465,10 +465,15 @@ describe('CuestionarioService (HU13)', () => {
       expect(resultado.items[0].fecha_publicacion).toBe('2026-11-20T10:00:00.000Z');
     });
 
-    it('publica un cuestionario siendo el docente responsable', async () => {
+    it('publica un cuestionario con ventana siendo el docente responsable', async () => {
       const { servicio, dependencias } = crearServicio();
+      const fechaInicio = new Date('2026-11-27T08:00:00.000Z');
+      const fechaLimite = new Date('2026-11-30T23:59:00.000Z');
 
-      const resultado = await servicio.publicar(CUESTIONARIO_ID, true);
+      const resultado = await servicio.publicar(CUESTIONARIO_ID, true, {
+        fechaInicio,
+        fechaLimite,
+      });
 
       expect(dependencias.cuestionarioRepository.obtenerCuestionarioParaDocente).toHaveBeenCalledWith(
         USUARIO_ID,
@@ -479,11 +484,66 @@ describe('CuestionarioService (HU13)', () => {
         cuestionarioId: CUESTIONARIO_ID,
         materiaId: MATERIA_ID,
         publicado: true,
+        fechaInicio,
+        fechaLimite,
       });
       expect(resultado).toMatchObject({
         id: CUESTIONARIO_ID,
         publicado: true,
         fecha_publicacion: '2026-11-20T10:00:00.000Z',
+      });
+    });
+
+    it('rechaza una ventana sin fechas al publicar', async () => {
+      const { servicio, dependencias } = crearServicio();
+
+      await expect(servicio.publicar(CUESTIONARIO_ID, true)).rejects.toMatchObject({
+        statusCode: 400,
+      });
+      expect(dependencias.cuestionarioRepository.actualizarPublicacion).not.toHaveBeenCalled();
+    });
+
+    it('rechaza una fecha límite anterior al inicio', async () => {
+      const { servicio } = crearServicio();
+
+      await expect(
+        servicio.publicar(CUESTIONARIO_ID, true, {
+          fechaInicio: new Date('2026-11-30T10:00:00.000Z'),
+          fechaLimite: new Date('2026-11-29T10:00:00.000Z'),
+        }),
+      ).rejects.toMatchObject({ statusCode: 400 });
+    });
+
+    it('bloquea un intento antes de la fecha de inicio', async () => {
+      const { servicio, dependencias } = crearServicio({
+        cuestionarioAccesible: {
+          ...FILA_CUESTIONARIO,
+          usuario_id: 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee',
+          publicado: true,
+          fecha_inicio: new Date(Date.now() + 86_400_000).toISOString(),
+          fecha_limite: new Date(Date.now() + 172_800_000).toISOString(),
+        },
+      });
+
+      await expect(servicio.iniciarIntento(CUESTIONARIO_ID)).rejects.toMatchObject({
+        statusCode: 409,
+      });
+      expect(dependencias.cuestionarioRepository.crearIntento).not.toHaveBeenCalled();
+    });
+
+    it('bloquea un intento después de la fecha límite', async () => {
+      const { servicio } = crearServicio({
+        cuestionarioAccesible: {
+          ...FILA_CUESTIONARIO,
+          usuario_id: 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee',
+          publicado: true,
+          fecha_inicio: new Date(Date.now() - 172_800_000).toISOString(),
+          fecha_limite: new Date(Date.now() - 86_400_000).toISOString(),
+        },
+      });
+
+      await expect(servicio.iniciarIntento(CUESTIONARIO_ID)).rejects.toMatchObject({
+        statusCode: 409,
       });
     });
 

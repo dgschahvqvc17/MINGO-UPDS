@@ -18,6 +18,8 @@ const CUESTIONARIO_COLUMNS = `
   tokens_salida,
   publicado,
   fecha_publicacion,
+  fecha_inicio,
+  fecha_limite,
   fecha_creacion,
   materias ( nombre, codigo, color )
 `;
@@ -385,6 +387,28 @@ class CuestionarioRepository {
   }
 
   /**
+   * Lista los intentos del usuario para derivar el estado de los cuestionarios
+   * proyectados en Tareas. Devuelve solo columnas de estado, nunca respuestas.
+   *
+   * @param {string} usuarioId
+   * @returns {Promise<Array<{ cuestionario_id: string, estado: string }>>}
+   */
+  async listarEstadosIntentos(usuarioId) {
+    const { data, error } = await this.requireClient()
+      .from('intentos_cuestionario')
+      .select('cuestionario_id, estado, fecha_inicio')
+      .eq('usuario_id', usuarioId)
+      .order('fecha_inicio', { ascending: false })
+      .limit(200);
+
+    if (error) {
+      throw error;
+    }
+
+    return data ?? [];
+  }
+
+  /**
    * Guarda las evaluaciones de las respuestas abiertas de un intento.
    *
    * @param {Array<object>} evaluaciones
@@ -499,16 +523,73 @@ class CuestionarioRepository {
    * Lista los cuestionarios publicados que el usuario puede resolver. RLS
    * restringe el resultado a las materias con inscripción activa; el filtro
    * explícito por `publicado` evita devolver borradores del docente.
+   * La ventana de fechas evita mostrar cuestionarios aún no abiertos o ya
+   * cerrados como disponibles para resolver.
    *
    * @param {{ limit: number, offset: number }} paginacion
    * @returns {Promise<{ items: object[], total: number }>}
    */
   async listarCuestionariosDisponibles({ limit, offset }) {
+    const ahora = new Date().toISOString();
     const { data, error, count } = await this.requireClient()
       .from('cuestionarios')
       .select(CUESTIONARIO_COLUMNS, { count: 'exact' })
       .eq('publicado', true)
-      .order('fecha_publicacion', { ascending: false })
+      .lte('fecha_inicio', ahora)
+      .gte('fecha_limite', ahora)
+      .order('fecha_inicio', { ascending: false })
+      .range(offset, offset + limit - 1);
+
+    if (error) {
+      throw error;
+    }
+
+    return { items: data ?? [], total: count ?? 0 };
+  }
+
+  /**
+   * Lista todos los cuestionarios publicados accesibles para el usuario,
+   * incluso los programados o cerrados. Se usa para proyectarlos en Tareas y
+   * en el calendario; la resolución sigue sujeta a la ventana de fechas.
+   *
+   * @param {{
+   *   limit: number,
+   *   offset: number,
+   *   desde?: Date,
+   *   hasta?: Date,
+   *   materiaId?: string,
+   *   query?: string
+   * }} filtros
+   * @returns {Promise<{ items: object[], total: number }>}
+   */
+  async listarCuestionariosPublicados({ limit, offset, desde, hasta, materiaId, query }) {
+    let builder = this.requireClient()
+      .from('cuestionarios')
+      .select(CUESTIONARIO_COLUMNS, { count: 'exact' })
+      .eq('publicado', true);
+
+    if (desde) {
+      builder = builder.gte('fecha_inicio', desde.toISOString());
+    }
+
+    if (hasta) {
+      builder = builder.lte('fecha_inicio', hasta.toISOString());
+    }
+
+    if (materiaId) {
+      builder = builder.eq('materia_id', materiaId);
+    }
+
+    if (query) {
+      const terminoSeguro = String(query).replace(/[,()%]/g, ' ').trim();
+
+      if (terminoSeguro) {
+        builder = builder.ilike('titulo', `%${terminoSeguro}%`);
+      }
+    }
+
+    const { data, error, count } = await builder
+      .order('fecha_inicio', { ascending: true, nullsFirst: false })
       .range(offset, offset + limit - 1);
 
     if (error) {
@@ -641,17 +722,34 @@ class CuestionarioRepository {
   /**
    * Publica o despublica un cuestionario propio de una materia concreta. El
    * filtro por `usuario_id` refuerza la política RLS y evita que un docente
-   * modifique un cuestionario generado por otra persona.
+   * modifique un cuestionario generado por otra persona. Al publicar se guarda
+   * la ventana en la que los estudiantes pueden resolverlo.
    *
-   * @param {{ usuarioId: string, cuestionarioId: string, materiaId: string, publicado: boolean }} datos
+   * @param {{
+   *   usuarioId: string,
+   *   cuestionarioId: string,
+   *   materiaId: string,
+   *   publicado: boolean,
+   *   fechaInicio?: Date | null,
+   *   fechaLimite?: Date | null
+   * }} datos
    * @returns {Promise<object | null>}
    */
-  async actualizarPublicacion({ usuarioId, cuestionarioId, materiaId, publicado }) {
+  async actualizarPublicacion({
+    usuarioId,
+    cuestionarioId,
+    materiaId,
+    publicado,
+    fechaInicio = null,
+    fechaLimite = null,
+  }) {
     const { data, error } = await this.requireClient()
       .from('cuestionarios')
       .update({
         publicado,
         fecha_publicacion: publicado ? new Date().toISOString() : null,
+        fecha_inicio: publicado ? fechaInicio?.toISOString() ?? null : null,
+        fecha_limite: publicado ? fechaLimite?.toISOString() ?? null : null,
       })
       .eq('id', cuestionarioId)
       .eq('usuario_id', usuarioId)

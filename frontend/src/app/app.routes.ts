@@ -123,6 +123,8 @@ export const routes: Routes = [
       {
         path: 'calendario/nuevo',
         title: 'Nuevo evento | MINGO',
+        canActivate: [roleGuard],
+        data: { roles: ROLES_GESTION },
         loadComponent: () =>
           import('./features/calendario/calendario-form/calendario-form').then(
             (m) => m.CalendarioFormPage,
@@ -131,6 +133,8 @@ export const routes: Routes = [
       {
         path: 'calendario/:id/editar',
         title: 'Editar evento | MINGO',
+        canActivate: [roleGuard],
+        data: { roles: ROLES_GESTION },
         loadComponent: () =>
           import('./features/calendario/calendario-form/calendario-form').then(
             (m) => m.CalendarioFormPage,

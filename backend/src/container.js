@@ -191,10 +191,12 @@ function createTareaService(usuarioActualId, accessToken, rol = null) {
   const tareaRepository = new TareaRepository({ supabase: supabaseClient });
   const materiaRepository = new MateriaRepository({ supabase: supabaseClient });
   const calendarioService = createCalendarioService(usuarioActualId, accessToken);
+  const cuestionarioRepository = new CuestionarioRepository({ supabase: supabaseClient });
   return new TareaService({
     tareaRepository,
     materiaRepository,
     calendarioService,
+    cuestionarioRepository,
     usuarioActualId,
     rol,
   });

@@ -47,6 +47,18 @@ function finDelDia() {
 }
 
 /**
+ * @param {Date | string | null | undefined} valor
+ * @returns {Date | null}
+ */
+function aFecha(valor) {
+  if (!valor) {
+    return null;
+  }
+
+  return valor instanceof Date ? valor : new Date(valor);
+}
+
+/**
  * Normaliza un texto para comparar respuestas sin depender de mayusculas,
  * tildes ni espacios repetidos.
  *
@@ -115,6 +127,8 @@ function aCuestionarioResumen(fila) {
     tokens_salida: fila.tokens_salida,
     publicado: Boolean(fila.publicado),
     fecha_publicacion: fila.fecha_publicacion ?? null,
+    fecha_inicio: fila.fecha_inicio ?? null,
+    fecha_limite: fila.fecha_limite ?? null,
     fecha_creacion: fila.fecha_creacion,
   };
 }
@@ -538,22 +552,95 @@ class CuestionarioService {
 
   /**
    * Publica o despublica un cuestionario propio. Solo su dueño, que además debe
-   * ser el docente responsable de la materia, puede hacerlo.
+   * ser el docente responsable de la materia, puede hacerlo. Al publicar se
+   * exige la ventana en la que los estudiantes podrán resolverlo.
    *
    * @param {string} cuestionarioId
    * @param {boolean} publicado
+   * @param {{ fechaInicio?: Date | string | null, fechaLimite?: Date | string | null }} [ventana]
    * @returns {Promise<object>}
    */
-  async publicar(cuestionarioId, publicado) {
+  async publicar(cuestionarioId, publicado, ventana = {}) {
     const cuestionario = await this.obtenerCuestionarioParaDocente(cuestionarioId);
+    const { fechaInicio, fechaLimite } = this.obtenerVentanaPublicacion(publicado, ventana);
+
     const actualizado = await this.cuestionarioRepository.actualizarPublicacion({
       usuarioId: this.usuarioActualId,
       cuestionarioId,
       materiaId: cuestionario.materia_id,
       publicado,
+      fechaInicio,
+      fechaLimite,
     });
 
     return aCuestionarioResumen(actualizado ?? cuestionario);
+  }
+
+  /**
+   * Construye y valida la ventana de publicación. Los cuestionarios antiguos sin
+   * fechas reciben una ventana por defecto para no dejarlos inaccesibles.
+   *
+   * @param {boolean} publicado
+   * @param {{ fechaInicio?: Date | string | null, fechaLimite?: Date | string | null }} ventana
+   * @returns {{ fechaInicio: Date | null, fechaLimite: Date | null }}
+   */
+  obtenerVentanaPublicacion(publicado, ventana) {
+    if (!publicado) {
+      return { fechaInicio: null, fechaLimite: null };
+    }
+
+    const fechaInicio = aFecha(ventana.fechaInicio);
+    const fechaLimite = aFecha(ventana.fechaLimite);
+
+    if (!fechaInicio || Number.isNaN(fechaInicio.getTime())) {
+      throw ApiError.badRequest('Indica la fecha de inicio del cuestionario.');
+    }
+
+    if (!fechaLimite || Number.isNaN(fechaLimite.getTime())) {
+      throw ApiError.badRequest('Indica la fecha límite para resolver el cuestionario.');
+    }
+
+    if (fechaLimite < fechaInicio) {
+      throw ApiError.badRequest(
+        'La fecha límite no puede ser anterior a la fecha de inicio.',
+      );
+    }
+
+    return { fechaInicio, fechaLimite };
+  }
+
+  /**
+   * Bloquea la resolución fuera de la ventana programada. El dueño puede
+   * previsualizar su cuestionario en cualquier momento.
+   *
+   * @param {object} cuestionario
+   * @returns {void}
+   */
+  validarVentanaParaResolver(cuestionario) {
+    if (cuestionario.usuario_id === this.usuarioActualId) {
+      return;
+    }
+
+    const fechaInicio = aFecha(cuestionario.fecha_inicio);
+    const fechaLimite = aFecha(cuestionario.fecha_limite);
+
+    if (!fechaInicio || !fechaLimite) {
+      return;
+    }
+
+    const ahora = Date.now();
+
+    if (ahora < fechaInicio.getTime()) {
+      throw ApiError.conflict(
+        `El cuestionario aún no está disponible. Se abre el ${fechaInicio.toLocaleString('es-ES')}.`,
+      );
+    }
+
+    if (ahora > fechaLimite.getTime()) {
+      throw ApiError.conflict(
+        `El plazo para resolver el cuestionario terminó el ${fechaLimite.toLocaleString('es-ES')}.`,
+      );
+    }
   }
 
   /**
@@ -614,6 +701,8 @@ class CuestionarioService {
    */
   async iniciarIntento(cuestionarioId) {
     const cuestionario = await this.obtenerCuestionarioAccesible(cuestionarioId);
+    this.validarVentanaParaResolver(cuestionario);
+
     const preguntas = await this.cuestionarioLecturaRepository.listarPreguntas(cuestionarioId);
 
     if (preguntas.length === 0) {
@@ -661,6 +750,8 @@ class CuestionarioService {
     }
 
     const cuestionario = await this.obtenerCuestionarioAccesible(intento.cuestionario_id);
+    this.validarVentanaParaResolver(cuestionario);
+
     const preguntas = await this.cuestionarioLecturaRepository.listarPreguntas(cuestionario.id);
     const preguntasPorId = new Map(preguntas.map((pregunta) => [pregunta.id, pregunta]));
 

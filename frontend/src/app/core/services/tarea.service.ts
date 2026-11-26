@@ -43,6 +43,31 @@ export interface Tarea {
   materias?: MateriaResumenTarea | MateriaResumenTarea[] | null;
 }
 
+/**
+ * Cuestionario publicado proyectado en Tareas. Es de solo lectura: nunca
+ * incluye preguntas, respuestas correctas ni calificaciones.
+ */
+export interface CuestionarioTarea {
+  id: string;
+  origen: 'cuestionario';
+  cuestionario_id: string;
+  usuario_id: string;
+  materia_id: string;
+  titulo: string;
+  descripcion: null;
+  tipo: 'cuestionario';
+  prioridad: 'media';
+  fecha_asignacion: string | null;
+  fecha_entrega: string | null;
+  estado: EstadoTarea;
+  fecha_creacion: string;
+  fecha_actualizacion: string | null;
+  materias?: MateriaResumenTarea | MateriaResumenTarea[] | null;
+  cantidad_preguntas: number;
+  es_solo_lectura: true;
+  vencida: boolean;
+}
+
 export interface Paginacion {
   limit: number;
   offset: number;
@@ -51,6 +76,7 @@ export interface Paginacion {
 
 export interface TareaListado {
   tareas: Tarea[];
+  cuestionarios: CuestionarioTarea[];
   paginacion: Paginacion;
 }
 
@@ -146,10 +172,14 @@ export class TareaService {
 
   listarTareas(filtros: TareaFiltros = {}): Observable<TareaListado> {
     return this.api
-      .getWithMeta<Tarea[], { paginacion: Paginacion }>('/tareas', filtros)
+      .getWithMeta<Tarea[], { paginacion: Paginacion; cuestionarios?: CuestionarioTarea[] }>(
+        '/tareas',
+        filtros,
+      )
       .pipe(
         map(({ data, meta }) => ({
           tareas: data,
+          cuestionarios: meta.cuestionarios ?? [],
           paginacion: meta.paginacion,
         })),
       );

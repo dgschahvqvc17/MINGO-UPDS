@@ -5,18 +5,24 @@
         <span class="page-eyebrow">Agenda académica</span>
         <h1 class="page-title mt-1 mb-2">Calendario académico</h1>
         <p class="page-subtitle">
-          Clases, entregas, exámenes y eventos personales en una sola vista. Haz clic en un día para
-          crear un evento o arrastra los existentes para reprogramarlos.
+          Clases, entregas, exámenes, cuestionarios y eventos personales en una sola vista.
+          @if (puedeGestionar()) {
+            Haz clic en un día para crear un evento o arrastra los existentes para reprogramarlos.
+          } @else {
+            Consulta aquí las actividades y ventanas de resolución que te asignó el docente.
+          }
         </p>
       </div>
 
-      <button type="button" class="btn-cta" (click)="irANuevoEvento()">
+      @if (puedeGestionar()) {
+        <button type="button" class="btn-cta" (click)="irANuevoEvento()">
         <span class="btn-cta-icon" aria-hidden="true"><i class="bi bi-plus-lg"></i></span>
         <span class="btn-cta-copy">
           <strong>Nuevo evento</strong>
           <small>Agenda una clase, examen o entrega</small>
         </span>
-      </button>
+        </button>
+      }
     </div>
   </header>
 
@@ -125,6 +131,53 @@
         </div>
       </section>
 
+      @if (cuestionarios().length > 0) {
+        <section class="cal-panel cal-upcoming mt-3" aria-labelledby="cal-cuestionarios-titulo">
+          <div class="cal-panel-head">
+            <span class="cal-panel-icon cal-panel-icon--ai" aria-hidden="true">
+              <i class="bi bi-patch-question-fill"></i>
+            </span>
+            <div class="cal-panel-heading">
+              <h2 id="cal-cuestionarios-titulo">Cuestionarios asignados</h2>
+              <small>Disponibles solo dentro de la ventana indicada</small>
+            </div>
+          </div>
+          <div class="cal-panel-body">
+            <ul class="cal-upcoming-list">
+              @for (cuestionario of cuestionarios(); track cuestionario.id) {
+                <li>
+                  <span class="cal-upcoming-icon text-info border-info" aria-hidden="true">
+                    <i class="bi bi-patch-question"></i>
+                  </span>
+                  <span class="cal-upcoming-meta">
+                    <strong>{{ cuestionario.titulo }}</strong>
+                    <small>
+                      <i class="bi bi-clock me-1" aria-hidden="true"></i>
+                      {{ cuestionario.fecha_asignacion ? ('Desde ' + formatearFechaHora(cuestionario.fecha_asignacion)) : 'Disponible ya' }}
+                      ·
+                      {{ formatearFechaHora(cuestionario.fecha_entrega) }}
+                    </small>
+                  </span>
+                  <span class="badge text-bg-info cal-upcoming-badge">
+                    {{ cuestionario.estado === 'completada' ? 'Completado' : cuestionario.vencida ? 'Cerrado' : 'Cuestionario' }}
+                  </span>
+                  @if (!cuestionario.vencida) {
+                    <a
+                      class="btn btn-sm btn-outline-primary"
+                      routerLink="/centro-estudio"
+                      [queryParams]="{ cuestionario: cuestionario.cuestionario_id }"
+                      [attr.aria-label]="'Resolver ' + cuestionario.titulo"
+                    >
+                      Resolver
+                    </a>
+                  }
+                </li>
+              }
+            </ul>
+          </div>
+        </section>
+      }
+
       <section class="cal-legend mt-3" aria-label="Leyenda de tipos de evento">
         @for (tipo of tiposEvento; track tipo.valor) {
           <span class="cal-legend-chip">
@@ -232,25 +285,27 @@
               </div>
             }
 
-            <div class="d-flex flex-wrap gap-2">
-              <button type="button" class="btn btn-primary" (click)="editarEvento(evento)">
-                <i class="bi bi-pencil me-1" aria-hidden="true"></i>
-                Editar
-              </button>
-              <button
-                type="button"
-                class="btn btn-outline-danger"
-                [disabled]="eliminando()"
-                (click)="pedirEliminacion(evento)"
-              >
-                @if (eliminando()) {
-                  <span class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span>
-                } @else {
-                  <i class="bi bi-trash me-1" aria-hidden="true"></i>
-                }
-                Eliminar
-              </button>
-            </div>
+            @if (puedeGestionar()) {
+              <div class="d-flex flex-wrap gap-2">
+                <button type="button" class="btn btn-primary" (click)="editarEvento(evento)">
+                  <i class="bi bi-pencil me-1" aria-hidden="true"></i>
+                  Editar
+                </button>
+                <button
+                  type="button"
+                  class="btn btn-outline-danger"
+                  [disabled]="eliminando()"
+                  (click)="pedirEliminacion(evento)"
+                >
+                  @if (eliminando()) {
+                    <span class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span>
+                  } @else {
+                    <i class="bi bi-trash me-1" aria-hidden="true"></i>
+                  }
+                  Eliminar
+                </button>
+              </div>
+            }
           </div>
         </section>
       }

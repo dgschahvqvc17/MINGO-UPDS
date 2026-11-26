@@ -469,7 +469,7 @@ MINGO usa un único presupuesto compartido de **$1/mes** (`ConcesionariaBMW-1USD
 con alertas al 80 % real y 100 % pronosticado. No se crea un presupuesto de $5
 (decisión del 2026-11-12, revisión 2027-02-12).
 
-### 6.5. Estado desplegado en `dev` (2026-11-22)
+### 6.5. Estado desplegado en `dev` (2026-11-26)
 
 | Stack | Output | Valor |
 |---|---|---|
@@ -481,6 +481,19 @@ con alertas al 80 % real y 100 % pronosticado. No se crea un presupuesto de $5
 El navegador llama siempre a `https://d4qnw8e73f6co.cloudfront.net/api/*`;
 CloudFront reenvía esas peticiones a la API sin CORS entre dominios. La URL
 `execute-api` queda como salida de referencia, no se expone al frontend.
+
+Última actualización autorizada: el parámetro `AllowedOrigins` de
+`mingo-hu09-dev` se actualizó con el changeset `mingo-dev-cors-20261126`
+(`UPDATE_COMPLETE`). La Lambda `mingo-hu09-dev-api` quedó en
+`CodeSha256: rpYxeMj709/pUbDlX/3Rpi0rrsgpfAPHvVnL3hkK6hk=` y el frontend sirve
+el bundle con hash `main-IHC6DL3W.js` (invalidación
+`I4AWMNBV5E4UJTIA6WDEPDD0KY`). `prod` no se tocó.
+
+Permisos observables del perfil `mingo-agente`: `describe-stacks
+--stack-name mingo-frontend-dev` y las actualizaciones autorizadas funcionan;
+`cloudfront:GetInvalidation` y `cloudformation:ListStacks` devuelven
+`AccessDenied`. Esto no autoriza por sí solo nuevas operaciones: cada
+reedición o redespliegue requiere aprobación explícita en el momento.
 
 ## 7. Frontend en S3 + CloudFront
 
@@ -505,8 +518,10 @@ El comportamiento /api/* usa CachingDisabled y reenvía todas las cabeceras
 del viewer excepto Host.
 ```
 
-El despliegue se hace con un changeset que ejecuta el administrador desde la
-consola (el usuario `mingo-agente` no tiene permisos para ejecutar changesets):
+El despliegue de la infraestructura se hace con un changeset. El perfil
+`mingo-agente` puede crear el changeset; ejecutarlo o cualquier otra operación
+de escritura requiere la aprobación explícita previa del usuario sobre la
+plantilla exacta y su costo estimado:
 
 ```bash
 aws cloudformation create-change-set \

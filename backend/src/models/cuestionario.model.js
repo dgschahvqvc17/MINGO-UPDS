@@ -70,11 +70,47 @@ const intentoListarQuerySchema = paginacionQuerySchema;
 const cuestionarioCalificacionesQuerySchema = paginacionQuerySchema;
 
 /** Cuerpo de PATCH /asistente/cuestionarios/:id/publicacion. */
-const cuestionarioPublicarSchema = z.object({
-  publicado: z.boolean({
-    message: 'El valor de publicado debe ser verdadero o falso',
-  }),
-});
+const cuestionarioPublicarSchema = z
+  .object({
+    publicado: z.boolean({
+      message: 'El valor de publicado debe ser verdadero o falso',
+    }),
+    fecha_inicio: z.coerce.date().optional().nullable(),
+    fecha_limite: z.coerce.date().optional().nullable(),
+  })
+  .superRefine((valor, contexto) => {
+    if (!valor.publicado) {
+      return;
+    }
+
+    if (!valor.fecha_inicio) {
+      contexto.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['fecha_inicio'],
+        message: 'Indica la fecha de inicio del cuestionario',
+      });
+    }
+
+    if (!valor.fecha_limite) {
+      contexto.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['fecha_limite'],
+        message: 'Indica la fecha límite para resolver el cuestionario',
+      });
+    }
+
+    if (
+      valor.fecha_inicio &&
+      valor.fecha_limite &&
+      valor.fecha_limite < valor.fecha_inicio
+    ) {
+      contexto.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['fecha_limite'],
+        message: 'La fecha límite no puede ser anterior a la fecha de inicio',
+      });
+    }
+  });
 
 const respuestaSchema = z.object({
   pregunta_id: z.string().uuid('El identificador de la pregunta no es valido'),

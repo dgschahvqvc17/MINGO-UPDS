@@ -7,7 +7,7 @@
   inject,
   signal,
 } from '@angular/core';
-import { Router } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FullCalendarModule } from '@fullcalendar/angular';
 import type {
@@ -23,7 +23,9 @@ import interactionPlugin from '@fullcalendar/interaction';
 import listPlugin from '@fullcalendar/list';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import { mensajeDeErrorHttp } from '../../core/utils/http-error';
+import { AuthService } from '../../core/services/auth.service';
 import { MateriaService, type Materia } from '../../core/services/materia.service';
+import { TareaService, type CuestionarioTarea } from '../../core/services/tarea.service';
 import {
   CalendarioService,
   TIPOS_EVENTO_OPCIONES,
@@ -46,7 +48,7 @@ interface RangoCalendario {
 @Component({
   selector: 'app-calendario',
   standalone: true,
-  imports: [FullCalendarModule],
+  imports: [FullCalendarModule, RouterLink],
   templateUrl: './calendario.html',
   styleUrl: './calendario.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -54,6 +56,8 @@ interface RangoCalendario {
 export class CalendarioPage implements OnInit {
   private readonly calendarioService = inject(CalendarioService);
   private readonly materiaService = inject(MateriaService);
+  private readonly tareaService = inject(TareaService);
+  private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
 
@@ -61,6 +65,7 @@ export class CalendarioPage implements OnInit {
   readonly diasProximos = DIAS_PROXIMOS;
 
   readonly eventos = signal<EventoCalendario[]>([]);
+  readonly cuestionarios = signal<CuestionarioTarea[]>([]);
   readonly materias = signal<Materia[]>([]);
   readonly proximos = signal<EventoCalendario[]>([]);
   readonly eventoSeleccionado = signal<EventoCalendario | null>(null);
@@ -87,6 +92,8 @@ export class CalendarioPage implements OnInit {
     () => Number(Boolean(this.filtroTipo())) + Number(Boolean(this.filtroMateria())),
   );
 
+  readonly puedeGestionar = computed(() => this.auth.puedeGestionar());
+
   readonly calendarOptions: CalendarOptions = {
     plugins: [dayGridPlugin, timeGridPlugin, interactionPlugin, listPlugin],
     initialView: 'dayGridMonth',
@@ -94,6 +101,8 @@ export class CalendarioPage implements OnInit {
     timeZone: 'UTC',
     height: 'auto',
     firstDay: 1,
+    selectable: true,
+    editable: true,
     headerToolbar: {
       left: 'prev,next today',
       center: 'title',
@@ -108,9 +117,7 @@ export class CalendarioPage implements OnInit {
     },
     dayMaxEvents: true,
     nowIndicator: true,
-    selectable: true,
     selectMirror: true,
-    editable: true,
     eventStartEditable: true,
     eventDurationEditable: true,
     datesSet: (arg) => this.alCambiarRango(arg.start, arg.end),
@@ -122,7 +129,24 @@ export class CalendarioPage implements OnInit {
 
   ngOnInit(): void {
     this.cargarMaterias();
+    this.cargarCuestionarios();
     this.cargarProximos();
+  }
+
+  private cargarCuestionarios(): void {
+    const rango = this.rangoActual();
+
+    this.tareaService
+      .listarTareas({
+        limit: 100,
+        desde: rango?.desde,
+        hasta: rango?.hasta,
+      })
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: ({ cuestionarios }) => this.cuestionarios.set(cuestionarios),
+        error: () => this.cuestionarios.set([]),
+      });
   }
 
   private cargarMaterias(): void {
@@ -143,6 +167,7 @@ export class CalendarioPage implements OnInit {
 
     this.rangoActual.set(rango);
     this.cargarEventos(rango);
+    this.cargarCuestionarios();
   }
 
   private cargarEventos(rango: RangoCalendario): void {
@@ -231,12 +256,20 @@ export class CalendarioPage implements OnInit {
   }
 
   irANuevoEvento(fecha?: string): void {
+    if (!this.puedeGestionar()) {
+      return;
+    }
+
     this.router.navigate(['/calendario/nuevo'], {
       queryParams: fecha ? { fecha } : {},
     });
   }
 
   editarEvento(evento: EventoCalendario): void {
+    if (!this.puedeGestionar()) {
+      return;
+    }
+
     this.router.navigate(['/calendario', evento.id, 'editar']);
   }
 
@@ -318,10 +351,18 @@ export class CalendarioPage implements OnInit {
 
   private alSeleccionarRango(arg: DateSelectArg): void {
     arg.view.calendar.unselect();
-    this.irANuevoEvento(arg.startStr.slice(0, 10));
+
+    if (this.puedeGestionar()) {
+      this.irANuevoEvento(arg.startStr.slice(0, 10));
+    }
   }
 
   private alMoverEvento(arg: EventDropArg): void {
+    if (!this.puedeGestionar()) {
+      arg.revert();
+      return;
+    }
+
     const fechaInicio = arg.event.start?.toISOString();
 
     if (!fechaInicio) {
@@ -345,6 +386,11 @@ export class CalendarioPage implements OnInit {
   }
 
   private alRedimensionarEvento(arg: EventChangeArg): void {
+    if (!this.puedeGestionar()) {
+      arg.revert();
+      return;
+    }
+
     const fechaFin = arg.event.end?.toISOString();
 
     if (!fechaFin) {

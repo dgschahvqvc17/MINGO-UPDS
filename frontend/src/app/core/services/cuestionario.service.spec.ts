@@ -24,6 +24,8 @@ const cuestionario: CuestionarioResumen = {
   fecha_creacion: '2026-11-19T10:00:00.000Z',
   publicado: false,
   fecha_publicacion: null,
+  fecha_inicio: null,
+  fecha_limite: null,
 };
 
 describe('CuestionarioService (HU13)', () => {

@@ -280,6 +280,55 @@
     </div>
   }
 
+  <!-- Cuestionarios publicados por el docente -->
+  @if (cuestionarios().length > 0 && !loading()) {
+    <section class="task-panel mb-4" aria-labelledby="cuestionarios-titulo">
+      <div class="task-panel-head">
+        <span class="task-panel-title" id="cuestionarios-titulo">
+          <i class="bi bi-patch-question-fill" aria-hidden="true"></i>
+          Cuestionarios asignados
+          <small>({{ cuestionarios().length }})</small>
+        </span>
+      </div>
+
+      <ul class="task-upcoming-list">
+        @for (cuestionario of cuestionarios(); track cuestionario.id) {
+          <li class="task-upcoming-item">
+            <div class="d-flex align-items-center gap-2 min-width-0">
+              <span class="mat-badge mat-badge--info">Cuestionario</span>
+              <span class="task-upcoming-title" [title]="cuestionario.titulo">
+                {{ cuestionario.titulo }}
+              </span>
+              <span class="task-upcoming-subject">
+                · {{ nombreMateriaCuestionario(cuestionario) }}
+              </span>
+              @if (cuestionario.vencida && cuestionario.estado !== 'completada') {
+                <span class="mat-badge mat-badge--danger">Vencida</span>
+              }
+              @if (cuestionario.estado === 'completada') {
+                <span class="mat-badge mat-badge--success">Completada</span>
+              }
+            </div>
+            <div class="d-flex align-items-center gap-3">
+              <span class="task-upcoming-date">
+                <i class="bi bi-calendar-event" aria-hidden="true"></i>
+                {{ formatearFecha(cuestionario.fecha_entrega, 'Sin fecha límite') }}
+              </span>
+              <a
+                class="btn btn-sm btn-outline-primary"
+                routerLink="/centro-estudio"
+                [queryParams]="{ cuestionario: cuestionario.id }"
+                [attr.aria-label]="'Resolver ' + cuestionario.titulo"
+              >
+                Resolver
+              </a>
+            </div>
+          </li>
+        }
+      </ul>
+    </section>
+  }
+
   <!-- Listado -->
   @if (tieneResultados() && !loading()) {
     <div class="row g-4">

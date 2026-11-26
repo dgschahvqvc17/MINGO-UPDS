@@ -399,7 +399,14 @@ Reglas:
 - Una tarea de otro usuario no es visible ni editable.
 - Una tarea con `fecha_entrega` anterior a ahora y estado distinto de `completada` cuenta como vencida.
 - Con la migración `0018`, `tareas` es una definición compartida y el estado por estudiante vive en `tarea_estados` (sección 3.7).
-- DDL: `supabase/migrations/0002_hu04_tareas.sql` (idempotente), ampliado por `0018_roles_docente_inscripciones.sql`.
+- La migración `0021` corrige la política SELECT: además del propietario y del
+  docente, un estudiante con inscripción `activa` ve las tareas de una materia
+  con docente responsable, aunque `tareas.docente_id` sea `NULL` o la haya
+  creado un administrador. La comprobación usa la función `SECURITY DEFINER`
+  `public.usuario_puede_ver_tarea(uuid)` para evitar recursión RLS.
+- DDL: `supabase/migrations/0002_hu04_tareas.sql` (idempotente), ampliado por
+  `0018_roles_docente_inscripciones.sql` y
+  `0021_tareas_visibles_y_ventanas_cuestionario.sql` (pendiente de aplicar).
 
 ### 3.7. `tarea_estados`
 
@@ -608,6 +615,8 @@ Cuestionarios generados por IA a partir del material del estudiante (HU13).
 | `fecha_creacion` | `TIMESTAMPTZ` | No | | Fecha de generación. |
 | `publicado` | `BOOLEAN` | No | | `true` cuando el docente responsable lo pone a disposición de los inscritos activos. |
 | `fecha_publicacion` | `TIMESTAMPTZ` | Sí | | Momento de la última publicación; `NULL` al despublicar. |
+| `fecha_inicio` | `TIMESTAMPTZ` | Sí | | Inicio de la ventana en la que el estudiante puede abrir el cuestionario. |
+| `fecha_limite` | `TIMESTAMPTZ` | Sí | | Fin de la ventana; el backend bloquea los intentos fuera de este rango. |
 
 Reglas:
 
@@ -617,9 +626,15 @@ Reglas:
   publicar o despublicar. El backend verifica `cuestionarios.usuario_id =
   auth.uid()` y `materias.docente_id = auth.uid()`, además del rol `docente`.
 - Los destinatarios son estudiantes con inscripción `activa` en la materia.
+- Al publicar, la ventana `fecha_inicio`–`fecha_limite` es obligatoria y
+  `fecha_limite >= fecha_inicio`. Al despublicar ambas fechas vuelven a `NULL`.
+- Los cuestionarios publicados antes de esta migración reciben una ventana de
+  7 días desde `fecha_publicacion` (o `fecha_creacion` si no hay publicación).
 - Al borrar el documento, el cuestionario se conserva con `documento_id = NULL`.
-- DDL: `supabase/migrations/0010_hu13_cuestionarios.sql` (idempotente) y
-  `supabase/migrations/0020_publicacion_cuestionarios.sql` (idempotente).
+- DDL: `supabase/migrations/0010_hu13_cuestionarios.sql` (idempotente),
+  `supabase/migrations/0020_publicacion_cuestionarios.sql` (idempotente) y
+  `supabase/migrations/0021_tareas_visibles_y_ventanas_cuestionario.sql`
+  (idempotente; **pendiente de aplicar en `dev`**).
 
 ### 3.14. `preguntas`
 
@@ -1482,13 +1497,17 @@ están implementadas en `supabase/migrations/0009_hu12_chat.sql`.
 | `supabase/migrations/0017_hu18_notificaciones.sql` | Tablas `preferencias_usuario` y `notificaciones` con idempotencia, índices, trigger, RLS y permisos (HU18, idempotente). |
 | `supabase/migrations/0018_roles_docente_inscripciones.sql` | Rol `docente`, columnas `docente_id` y `requiere_cambio_clave`, tablas `inscripciones` y `tarea_estados`, políticas RLS por docente/inscripción y redefinición de `match_fragmentos` y `obtener_estadisticas_tareas` (idempotente; conserva datos). |
 | `supabase/migrations/0019_fix_recursion_materias.sql` | Función `SECURITY DEFINER` `usuario_puede_ver_materia` y política SELECT de `materias` sin recursión `42P17` (idempotente; conserva datos). |
+| `supabase/migrations/0020_publicacion_cuestionarios.sql` | Columnas `publicado` y `fecha_publicacion`, RLS de lectura para inscritos activos y actualización restringida al docente responsable (idempotente; aplicada en `dev`). |
+| `supabase/migrations/0021_tareas_visibles_y_ventanas_cuestionario.sql` | Columnas `fecha_inicio` y `fecha_limite` en `cuestionarios`, backfill de 7 días, restricción de ventana, índice, permisos de actualización, función `usuario_puede_ver_tarea` y política SELECT corregida en `tareas` (idempotente; conserva datos; **pendiente de aplicar en `dev`**). |
 
 - El script `backend/scripts/run-migrations.js` (`npm run migrate`) aplica estas
   migraciones en orden: identidad, materias, tareas, calendario, documentos,
   fragmentos, reemplazo de fragmentos, resumenes, búsqueda semántica, chat,
   cuestionarios, idempotencia, tarjetas de memoria, planes de estudio,
-  evaluación, objetivos académicos, permisos de objetivos, notificaciones y
-  roles docente, inscripciones y estados de tarea.
+  evaluación, objetivos académicos, permisos de objetivos, notificaciones,
+  roles docente, inscripciones y estados de tarea, corrección de recursión en
+  `materias`, publicación de cuestionarios y visibilidad de tareas con ventana
+  de cuestionarios.
 
 - Flujo:
 

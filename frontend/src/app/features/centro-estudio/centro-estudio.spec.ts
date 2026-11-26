@@ -31,6 +31,8 @@ function crearCuestionario(id: string, titulo: string, publicado = false): Cuest
     fecha_creacion: '2026-11-19T10:00:00.000Z',
     publicado,
     fecha_publicacion: publicado ? '2026-11-20T10:00:00.000Z' : null,
+    fecha_inicio: publicado ? '2026-11-27T08:00:00.000Z' : null,
+    fecha_limite: publicado ? '2026-11-30T23:59:00.000Z' : null,
   };
 }
 
@@ -144,13 +146,26 @@ describe('CentroEstudioPage (HU13/HU18)', () => {
     expect(fixture.nativeElement.querySelector('[aria-label="Publicar cuestionario"]')).toBeNull();
   });
 
-  it('publica un cuestionario, actualiza su estado y recarga los disponibles', () => {
+  it('publica un cuestionario con fecha de inicio y límite', () => {
     crearPagina(true);
+    componente.ventanasPublicacion.set({
+      [CUESTIONARIO_ID]: {
+        inicio: '2026-11-27T08:00',
+        limite: '2026-11-30T23:59',
+      },
+    });
 
     componente.publicar(cuestionario, true);
     fixture.detectChanges();
 
-    expect(publicar).toHaveBeenCalledWith(CUESTIONARIO_ID, true);
+    expect(publicar).toHaveBeenCalledWith(
+      CUESTIONARIO_ID,
+      true,
+      expect.objectContaining({
+        fecha_inicio: expect.any(String),
+        fecha_limite: expect.any(String),
+      }),
+    );
     expect(componente.cuestionarios()[0].publicado).toBe(true);
     expect(componente.mensajeExito()).toContain('está disponible');
     expect(listarDisponibles).toHaveBeenCalledTimes(2);
@@ -161,12 +176,27 @@ describe('CentroEstudioPage (HU13/HU18)', () => {
     const respuesta = new Subject<CuestionarioResumen>();
     publicar.mockReturnValue(respuesta.asObservable());
     crearPagina(true);
+    componente.ventanasPublicacion.set({
+      [CUESTIONARIO_ID]: {
+        inicio: '2026-11-27T08:00',
+        limite: '2026-11-30T23:59',
+      },
+    });
 
     componente.publicar(cuestionario, true);
     componente.publicar(cuestionario, true);
 
     expect(publicar).toHaveBeenCalledTimes(1);
     expect(componente.publicandoId()).toBe(CUESTIONARIO_ID);
+  });
+
+  it('no publica sin fecha de inicio y límite', () => {
+    crearPagina(true);
+
+    componente.publicar(cuestionario, true);
+
+    expect(publicar).not.toHaveBeenCalled();
+    expect(componente.errorAccion()).toContain('fecha de inicio');
   });
 
   it('abre y cierra el panel de calificaciones', () => {

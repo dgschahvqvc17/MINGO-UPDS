@@ -385,10 +385,22 @@ Todas las rutas de esta sección requieren autenticación. La creación, actuali
   "success": true,
   "data": [],
   "meta": {
-    "paginacion": { "limit": 20, "offset": 0, "total": 0 }
+    "paginacion": { "limit": 20, "offset": 0, "total": 0 },
+    "cuestionarios": []
   }
 }
 ```
+
+`data` sigue conteniendo únicamente filas de `tareas`, por lo que la paginación y
+los filtros de `tareas` no cambian. `meta.cuestionarios` es una proyección de solo
+lectura de los cuestionarios publicados que el usuario puede resolver: incluye
+`id`, `cuestionario_id`, `origen: "cuestionario"`, `tipo: "cuestionario"`,
+`título`, `materia`, `fecha_asignacion` (inicio de la ventana), `fecha_entrega`
+(límite), `estado`, `cantidad_preguntas`, `vencida` y `es_solo_lectura: true`.
+Nunca incluye preguntas, respuestas correctas, correcciones ni calificaciones.
+La proyección respeta `estado`, `vencidas`, `materia_id`, `query` y el rango de
+fechas; se omite cuando se filtra por `prioridad`. No suma al `total` de
+paginación de `tareas`.
 
 **Body `POST /api/tareas`**
 
@@ -1126,14 +1138,21 @@ ID inválido responde `400`.
 **Body**
 
 ```json
-{ "publicado": true }
+{
+  "publicado": true,
+  "fecha_inicio": "2026-11-27T08:00:00.000Z",
+  "fecha_limite": "2026-11-30T23:59:00.000Z"
+}
 ```
 
-Publica (`true`) o despublica (`false`) un cuestionario. Requiere rol `docente`
-y que el docente sea el responsable de la materia (`materias.docente_id`). Un
-docente no responsable recibe `404`; cualquier otro rol recibe `403`. `false`
-deja `fecha_publicacion` en `null`. Los administradores no pueden publicar
-cuestionarios ajenos.
+Publica (`true`) o despublica (`false`) un cuestionario. Al publicar,
+`fecha_inicio` y `fecha_limite` son obligatorias, deben ser fechas ISO 8601 y
+`fecha_limite` no puede ser anterior a `fecha_inicio`; fuera de esa ventana los
+estudiantes no pueden iniciar intentos. Al despublicar (`publicado: false`) las
+fechas se ignoran. Requiere rol `docente` y que el docente sea el responsable de
+la materia (`materias.docente_id`). Un docente no responsable recibe `404`;
+cualquier otro rol recibe `403`. `false` deja `fecha_publicacion` en `null`. Los
+administradores no pueden publicar cuestionarios ajenos.
 
 **`GET /api/asistente/cuestionarios/:id/calificaciones`**
 
@@ -1156,7 +1175,11 @@ devuelve `404`.
 Crea un intento en estado `en_progreso` y devuelve `intento` y `cuestionario`
 con sus preguntas, sin revelar la corrección. El cuestionario debe ser propio o
 estar publicado y pertenecer a una materia con inscripción `activa`; en caso
-contrario responde `404`. Un cuestionario sin preguntas responde `422`.
+contrario responde `404`. Para un cuestionario ajeno, la fecha actual debe estar
+dentro de la ventana `[fecha_inicio, fecha_limite]`; fuera de ella responde
+`409` con un mensaje que indica cuándo abre o que el plazo terminó. El dueño
+puede previsualizarlo fuera de la ventana. Un cuestionario sin preguntas
+responde `422`.
 
 **`GET /api/asistente/intentos`**
 

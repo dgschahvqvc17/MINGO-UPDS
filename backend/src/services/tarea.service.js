@@ -16,6 +16,8 @@ const {
 
 const MILISEGUNDOS_POR_DIA = 24 * 60 * 60 * 1000;
 const MENSAJE_FECHAS = 'La fecha de entrega no puede ser anterior a la fecha de asignación';
+/** Tope de cuestionarios proyectados en Tareas por petición. */
+const LIMITE_CUESTIONARIOS_PROYECTADOS = 100;
 
 class TareaService {
   /**
@@ -23,6 +25,7 @@ class TareaService {
    *   tareaRepository: import('../repositories/tarea.repository'),
    *   materiaRepository: import('../repositories/materia.repository'),
    *   calendarioService: import('../services/calendario.service') | null,
+   *   cuestionarioRepository: import('../repositories/cuestionario.repository') | null,
    *   usuarioActualId: string,
    *   rol: string | null
    * }} dependencies
@@ -31,12 +34,14 @@ class TareaService {
     tareaRepository,
     materiaRepository,
     calendarioService = null,
+    cuestionarioRepository = null,
     usuarioActualId,
     rol = null,
   }) {
     this.tareaRepository = tareaRepository;
     this.materiaRepository = materiaRepository;
     this.calendarioService = calendarioService;
+    this.cuestionarioRepository = cuestionarioRepository;
     this.usuarioActualId = usuarioActualId;
     this.rol = rol;
   }
@@ -57,15 +62,114 @@ class TareaService {
       this.usuarioActualId,
       filtrosValidados,
     );
+    const cuestionarios = await this.listarCuestionariosProyectados(filtrosValidados);
 
     return {
       tareas: items,
+      cuestionarios,
       paginacion: {
         limit: filtrosValidados.limit,
         offset: filtrosValidados.offset,
         total: Number(total ?? 0),
       },
     };
+  }
+
+  /**
+   * Proyecta los cuestionarios publicados como actividades de solo lectura en
+   * Tareas. No copia filas ni expone preguntas, respuestas correctas ni notas.
+   *
+   * @param {object} filtros Filtros validados del listado de tareas.
+   * @returns {Promise<object[]>}
+   */
+  async listarCuestionariosProyectados(filtros) {
+    if (!this.cuestionarioRepository || filtros.prioridad) {
+      return [];
+    }
+
+    const { items } = await this.cuestionarioRepository.listarCuestionariosPublicados({
+      limit: LIMITE_CUESTIONARIOS_PROYECTADOS,
+      offset: 0,
+      desde: filtros.desde,
+      hasta: filtros.hasta,
+      materiaId: filtros.materia_id,
+      query: filtros.query,
+    });
+
+    const intentos = await this.cuestionarioRepository.listarEstadosIntentos(
+      this.usuarioActualId,
+    );
+    const estadoPorCuestionario = new Map();
+
+    for (const intento of intentos) {
+      if (!estadoPorCuestionario.has(intento.cuestionario_id)) {
+        estadoPorCuestionario.set(intento.cuestionario_id, intento.estado);
+      }
+    }
+
+    return items
+      .map((cuestionario) =>
+        this.aCuestionarioProyectado(cuestionario, estadoPorCuestionario.get(cuestionario.id)),
+      )
+      .filter((cuestionario) => this.cumpleFiltrosProyectados(cuestionario, filtros));
+  }
+
+  /**
+   * @param {object} cuestionario
+   * @param {string | undefined} estadoIntento
+   * @returns {object}
+   */
+  aCuestionarioProyectado(cuestionario, estadoIntento) {
+    const estado =
+      estadoIntento === 'finalizado'
+        ? 'completada'
+        : estadoIntento === 'en_progreso'
+          ? 'en_progreso'
+          : 'pendiente';
+
+    return {
+      id: cuestionario.id,
+      origen: 'cuestionario',
+      cuestionario_id: cuestionario.id,
+      usuario_id: cuestionario.usuario_id,
+      materia_id: cuestionario.materia_id,
+      titulo: cuestionario.titulo,
+      descripcion: null,
+      tipo: 'cuestionario',
+      prioridad: 'media',
+      fecha_asignacion: cuestionario.fecha_inicio ?? cuestionario.fecha_publicacion,
+      fecha_entrega: cuestionario.fecha_limite ?? null,
+      estado,
+      fecha_creacion: cuestionario.fecha_creacion,
+      fecha_actualizacion: cuestionario.fecha_publicacion ?? null,
+      materias: cuestionario.materias ?? null,
+      cantidad_preguntas: cuestionario.cantidad_preguntas,
+      es_solo_lectura: true,
+      vencida: Boolean(
+        cuestionario.fecha_limite && Date.parse(cuestionario.fecha_limite) < Date.now(),
+      ),
+    };
+  }
+
+  /**
+   * @param {object} cuestionario DTO ya proyectado.
+   * @param {object} filtros Filtros validados.
+   * @returns {boolean}
+   */
+  cumpleFiltrosProyectados(cuestionario, filtros) {
+    if (filtros.estado && cuestionario.estado !== filtros.estado) {
+      return false;
+    }
+
+    if (filtros.vencidas === 'true' && !cuestionario.vencida) {
+      return false;
+    }
+
+    if (filtros.vencidas === 'false' && cuestionario.vencida) {
+      return false;
+    }
+
+    return true;
   }
 
   /**

@@ -34,6 +34,8 @@ export interface CuestionarioResumen {
   fecha_creacion: string;
   publicado: boolean;
   fecha_publicacion: string | null;
+  fecha_inicio: string | null;
+  fecha_limite: string | null;
 }
 
 export interface OpcionCuestionario {
@@ -148,6 +150,11 @@ export interface IntentoListado {
   total: number;
 }
 
+export interface VentanaPublicacion {
+  fecha_inicio: string;
+  fecha_limite: string;
+}
+
 export interface SolicitudCuestionario {
   materia_id: string;
   documento_id?: string | null;
@@ -207,10 +214,14 @@ export class CuestionarioService {
       );
   }
 
-  publicar(id: string, publicado: boolean): Observable<CuestionarioResumen> {
+  publicar(
+    id: string,
+    publicado: boolean,
+    ventana?: VentanaPublicacion,
+  ): Observable<CuestionarioResumen> {
     return this.api.patch<CuestionarioResumen>(
       `/asistente/cuestionarios/${encodeURIComponent(id)}/publicacion`,
-      { publicado },
+      { publicado, ...ventana },
     );
   }
 

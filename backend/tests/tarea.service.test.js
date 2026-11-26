@@ -52,6 +52,86 @@ describe('TareaService', () => {
       expect(resultado.tareas).toHaveLength(1);
       expect(resultado.paginacion).toEqual({ limit: 10, offset: 20, total: 1 });
     });
+
+    it('proyecta cuestionarios publicados como actividades de solo lectura', async () => {
+      tareaRepository.listarTareas.mockResolvedValue({ items: [], total: 0 });
+      const cuestionarioRepository = {
+        listarCuestionariosPublicados: j.fn().mockResolvedValue({
+          items: [
+            {
+              id: 'c1d2e3f4-5a6b-4c7d-8e9f-0a1b2c3d4e5f',
+              usuario_id: OTRO_USUARIO_ID,
+              materia_id: MATERIA_ID,
+              titulo: 'Examen de cálculo',
+              cantidad_preguntas: 10,
+              publicado: true,
+              fecha_publicacion: '2026-11-20T10:00:00.000Z',
+              fecha_inicio: '2026-11-27T08:00:00.000Z',
+              fecha_limite: '2026-11-30T23:59:00.000Z',
+              fecha_creacion: '2026-11-19T10:00:00.000Z',
+              materias: { nombre: 'Cálculo', codigo: 'MAT-101', color: '#3B82F6' },
+            },
+          ],
+          total: 1,
+        }),
+        listarEstadosIntentos: j.fn().mockResolvedValue([]),
+      };
+      const servicioConCuestionarios = new TareaService({
+        tareaRepository,
+        materiaRepository,
+        cuestionarioRepository,
+        usuarioActualId: USUARIO_ID,
+      });
+
+      const resultado = await servicioConCuestionarios.listarTareas({ limit: 10, offset: 0 });
+
+      expect(cuestionarioRepository.listarCuestionariosPublicados).toHaveBeenCalledWith(
+        expect.objectContaining({ limit: 100, offset: 0 }),
+      );
+      expect(resultado.cuestionarios).toHaveLength(1);
+      expect(resultado.cuestionarios[0]).toMatchObject({
+        origen: 'cuestionario',
+        cuestionario_id: 'c1d2e3f4-5a6b-4c7d-8e9f-0a1b2c3d4e5f',
+        tipo: 'cuestionario',
+        estado: 'pendiente',
+        es_solo_lectura: true,
+        fecha_asignacion: '2026-11-27T08:00:00.000Z',
+        fecha_entrega: '2026-11-30T23:59:00.000Z',
+      });
+      expect(resultado.cuestionarios[0]).not.toHaveProperty('preguntas');
+      expect(resultado.cuestionarios[0]).not.toHaveProperty('respuesta_correcta');
+      expect(resultado.tareas).toHaveLength(0);
+      expect(resultado.paginacion.total).toBe(0);
+    });
+
+    it('deriva completada la proyección cuando el estudiante finalizó el intento', async () => {
+      tareaRepository.listarTareas.mockResolvedValue({ items: [], total: 0 });
+      const cuestionarioRepository = {
+        listarCuestionariosPublicados: j.fn().mockResolvedValue({
+          items: [
+            {
+              id: 'c1d2e3f4-5a6b-4c7d-8e9f-0a1b2c3d4e5f',
+              titulo: 'Examen de cálculo',
+              fecha_creacion: '2026-11-19T10:00:00.000Z',
+            },
+          ],
+          total: 1,
+        }),
+        listarEstadosIntentos: j.fn().mockResolvedValue([
+          { cuestionario_id: 'c1d2e3f4-5a6b-4c7d-8e9f-0a1b2c3d4e5f', estado: 'finalizado' },
+        ]),
+      };
+      const servicioConCuestionarios = new TareaService({
+        tareaRepository,
+        materiaRepository,
+        cuestionarioRepository,
+        usuarioActualId: USUARIO_ID,
+      });
+
+      const resultado = await servicioConCuestionarios.listarTareas({ limit: 10, offset: 0 });
+
+      expect(resultado.cuestionarios[0].estado).toBe('completada');
+    });
   });
 
   describe('listarProximas', () => {

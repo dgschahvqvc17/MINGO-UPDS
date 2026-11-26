@@ -7,7 +7,7 @@
   signal,
 } from '@angular/core';
 import { DatePipe } from '@angular/common';
-import { RouterLink } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { AuthService } from '../../core/services/auth.service';
 import { DocumentoService, type Documento } from '../../core/services/documento.service';
@@ -18,6 +18,7 @@ import {
   TIPOS_PREGUNTA_CUESTIONARIO,
   type CuestionarioGenerado,
   type CuestionarioResumen,
+  type VentanaPublicacion,
   type DificultadCuestionario,
   type IntentoHistorial,
   type TipoPreguntaCuestionario,
@@ -61,6 +62,7 @@ export class CentroEstudioPage {
   private readonly materiaService = inject(MateriaService);
   private readonly documentoService = inject(DocumentoService);
   private readonly auth = inject(AuthService);
+  private readonly route = inject(ActivatedRoute);
   private readonly destroyRef = inject(DestroyRef);
 
   readonly esDocente = this.auth.isDocente;
@@ -90,6 +92,8 @@ export class CentroEstudioPage {
   readonly publicandoId = signal<string | null>(null);
   readonly resolviendo = signal<CuestionarioEnResolucion | null>(null);
   readonly calificacionesDe = signal<CuestionarioSeleccionado | null>(null);
+  readonly cuestionarioSolicitadoId = signal<string | null>(null);
+  readonly ventanasPublicacion = signal<Record<string, { inicio: string; limite: string }>>({});
 
   readonly materiaId = signal('');
   readonly documentoId = signal('');
@@ -148,6 +152,10 @@ export class CentroEstudioPage {
   );
 
   constructor() {
+    this.cuestionarioSolicitadoId.set(
+      this.route.snapshot.queryParamMap.get('cuestionario'),
+    );
+
     this.cargarMaterias();
     this.cargarCuestionarios();
     this.cargarIntentos();
@@ -183,6 +191,7 @@ export class CentroEstudioPage {
         next: ({ cuestionarios, total }) => {
           this.cuestionarios.set(cuestionarios);
           this.totalCuestionarios.set(total);
+          this.inicializarVentanas(cuestionarios);
           this.cargandoCuestionarios.set(false);
         },
         error: (error: unknown) => {
@@ -208,6 +217,7 @@ export class CentroEstudioPage {
         next: ({ cuestionarios, total }) => {
           this.cuestionarios.update((actuales) => [...actuales, ...cuestionarios]);
           this.totalCuestionarios.set(total);
+          this.inicializarVentanas(cuestionarios);
           this.cargandoCuestionarios.set(false);
         },
         error: (error: unknown) => {
@@ -231,6 +241,7 @@ export class CentroEstudioPage {
           this.cuestionariosDisponibles.set(cuestionarios);
           this.totalDisponibles.set(total);
           this.cargandoDisponibles.set(false);
+          this.abrirCuestionarioSolicitado(cuestionarios);
         },
         error: (error: unknown) => {
           this.errorDisponibles.set(
@@ -409,6 +420,38 @@ export class CentroEstudioPage {
     this.resolviendo.set({ id: cuestionario.id, titulo: cuestionario.titulo });
   }
 
+  abrirCuestionarioSolicitado(cuestionarios: CuestionarioResumen[]): void {
+    const idSolicitado = this.cuestionarioSolicitadoId();
+    const cuestionario = cuestionarios.find((item) => item.id === idSolicitado);
+
+    if (!cuestionario) {
+      return;
+    }
+
+    this.cuestionarioSolicitadoId.set(null);
+    this.resolver(cuestionario);
+  }
+
+  cambiarFechaPublicacion(
+    cuestionarioId: string,
+    campo: 'inicio' | 'limite',
+    evento: Event,
+  ): void {
+    const valor = this.valorCampo(evento);
+
+    this.ventanasPublicacion.update((ventanas) => ({
+      ...ventanas,
+      [cuestionarioId]: {
+        ...ventanas[cuestionarioId],
+        [campo]: valor,
+      },
+    }));
+  }
+
+  fechaPublicacion(cuestionarioId: string, campo: 'inicio' | 'limite'): string {
+    return this.ventanasPublicacion()[cuestionarioId]?.[campo] ?? '';
+  }
+
   cerrarResolver(): void {
     this.resolviendo.set(null);
   }
@@ -427,12 +470,18 @@ export class CentroEstudioPage {
       return;
     }
 
+    const ventana = publicado ? this.construirVentana(cuestionario.id) : undefined;
+
+    if (publicado && !ventana) {
+      return;
+    }
+
     this.publicandoId.set(cuestionario.id);
     this.errorAccion.set(null);
     this.mensajeExito.set(null);
 
     this.cuestionarioService
-      .publicar(cuestionario.id, publicado)
+      .publicar(cuestionario.id, publicado, ventana ?? undefined)
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (actualizado) => {
@@ -454,6 +503,57 @@ export class CentroEstudioPage {
           this.publicandoId.set(null);
         },
       });
+  }
+
+  private inicializarVentanas(cuestionarios: CuestionarioResumen[]): void {
+    const ventanas = { ...this.ventanasPublicacion() };
+
+    for (const cuestionario of cuestionarios) {
+      if (!ventanas[cuestionario.id]) {
+        ventanas[cuestionario.id] = {
+          inicio: this.aFechaLocal(cuestionario.fecha_inicio),
+          limite: this.aFechaLocal(cuestionario.fecha_limite),
+        };
+      }
+    }
+
+    this.ventanasPublicacion.set(ventanas);
+  }
+
+  private aFechaLocal(iso: string | null): string {
+    if (!iso) {
+      return '';
+    }
+
+    const fecha = new Date(iso);
+
+    if (Number.isNaN(fecha.getTime())) {
+      return '';
+    }
+
+    const desplazamiento = fecha.getTimezoneOffset() * 60_000;
+    return new Date(fecha.getTime() - desplazamiento).toISOString().slice(0, 16);
+  }
+
+  private construirVentana(cuestionarioId: string): VentanaPublicacion | null {
+    const ventana = this.ventanasPublicacion()[cuestionarioId];
+    const inicio = Date.parse(ventana?.inicio ?? '');
+    const limite = Date.parse(ventana?.limite ?? '');
+
+    if (Number.isNaN(inicio) || Number.isNaN(limite)) {
+      this.errorAccion.set('Indica la fecha de inicio y la fecha límite antes de publicar.');
+      return null;
+    }
+
+    if (limite < inicio) {
+      this.errorAccion.set('La fecha límite no puede ser anterior a la fecha de inicio.');
+      return null;
+    }
+
+    return {
+      fecha_inicio: new Date(inicio).toISOString(),
+      fecha_limite: new Date(limite).toISOString(),
+    };
   }
 
   verCalificaciones(cuestionario: CuestionarioResumen): void {

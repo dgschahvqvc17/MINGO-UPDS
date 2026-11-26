@@ -10,6 +10,7 @@ import {
   ESTADOS_TAREA,
   PRIORIDADES_TAREA,
   TareaService,
+  type CuestionarioTarea,
   type EstadoTarea,
   type PrioridadTarea,
   type Tarea,
@@ -46,6 +47,7 @@ export class TareasPage {
   private readonly destroyRef = inject(DestroyRef);
 
   readonly tareas = signal<Tarea[]>([]);
+  readonly cuestionarios = signal<CuestionarioTarea[]>([]);
   readonly proximas = signal<Tarea[]>([]);
   readonly materias = signal<Materia[]>([]);
   readonly estadisticas = signal<TareaEstadisticas>(ESTADISTICAS_INICIALES);
@@ -79,7 +81,9 @@ export class TareasPage {
     );
   });
 
-  readonly tieneResultados = computed(() => this.tareas().length > 0);
+  readonly tieneResultados = computed(
+    () => this.tareas().length > 0 || this.cuestionarios().length > 0,
+  );
   readonly mostrarCargando = computed(() => this.loading() && this.tareas().length === 0);
   readonly mostrarError = computed(() => !this.loading() && this.error() !== null);
   readonly mostrarListaVacia = computed(
@@ -132,10 +136,13 @@ export class TareasPage {
       .subscribe({
         next: (resultado) => {
           this.tareas.set(resultado.tareas);
+          this.cuestionarios.set(resultado.cuestionarios);
           this.paginacion.set(resultado.paginacion);
           this.loading.set(false);
         },
         error: (error: unknown) => {
+          this.tareas.set([]);
+          this.cuestionarios.set([]);
           this.error.set(mensajeDeErrorHttp(error, 'No se pudieron cargar las tareas.'));
           this.loading.set(false);
         },
@@ -305,6 +312,16 @@ export class TareasPage {
 
   obtenerMateria(tarea: Tarea) {
     return this.tareaService.obtenerMateriaDeTarea(tarea);
+  }
+
+  nombreMateriaCuestionario(cuestionario: CuestionarioTarea): string {
+    const materias = cuestionario.materias;
+
+    if (Array.isArray(materias)) {
+      return materias[0]?.nombre ?? 'Sin materia';
+    }
+
+    return materias?.nombre ?? 'Sin materia';
   }
 
   esVencida(tarea: Tarea): boolean {
