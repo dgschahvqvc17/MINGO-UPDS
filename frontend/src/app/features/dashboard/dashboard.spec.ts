@@ -6,6 +6,7 @@ import { AuthService } from '../../core/services/auth.service';
 import { CalendarioService, type EventoCalendario } from '../../core/services/calendario.service';
 import { DashboardService, type DashboardResumen } from '../../core/services/dashboard.service';
 import { TareaService, type Tarea } from '../../core/services/tarea.service';
+import { PreferenciasInterfazService } from '../../core/services/preferencias-interfaz.service';
 import { DashboardPage } from './dashboard';
 
 function crearTarea(overrides: Partial<Tarea> = {}): Tarea {
@@ -68,6 +69,10 @@ function crearResumen(overrides: Partial<DashboardResumen> = {}): DashboardResum
 }
 
 const obtenerResumen = vi.fn();
+const asistenteFlotanteVisible = signal(true);
+const establecerAsistenteFlotante = vi.fn((visible: boolean) => {
+  asistenteFlotanteVisible.set(visible);
+});
 
 function configurarTestBed(resumen: DashboardResumen = crearResumen()): void {
   obtenerResumen.mockReturnValue(of(resumen));
@@ -81,6 +86,13 @@ function configurarTestBed(resumen: DashboardResumen = crearResumen()): void {
         useValue: { fullName: signal('Ana Pérez'), role: signal('estudiante') },
       },
       { provide: DashboardService, useValue: { obtenerResumen } },
+      {
+        provide: PreferenciasInterfazService,
+        useValue: {
+          asistenteFlotanteVisible: asistenteFlotanteVisible.asReadonly(),
+          establecerAsistenteFlotante,
+        },
+      },
       {
         provide: TareaService,
         useValue: {
@@ -114,6 +126,8 @@ function crearComponente() {
 describe('DashboardPage (HU06)', () => {
   beforeEach(() => {
     obtenerResumen.mockReset();
+    establecerAsistenteFlotante.mockClear();
+    asistenteFlotanteVisible.set(true);
   });
 
   afterEach(() => vi.useRealTimers());
@@ -148,6 +162,30 @@ describe('DashboardPage (HU06)', () => {
     expect(mascota.querySelector('.mascota__burbuja')?.textContent).toContain('Ana Pérez');
 
     fixture.destroy();
+  });
+
+  it('permite ocultar y volver a mostrar el asistente flotante', () => {
+    configurarTestBed();
+
+    const fixture = crearComponente();
+    const interruptor = fixture.nativeElement.querySelector(
+      '#asistente-flotante-toggle',
+    ) as HTMLInputElement;
+
+    expect(interruptor.checked).toBe(true);
+
+    interruptor.checked = false;
+    interruptor.dispatchEvent(new Event('change'));
+    fixture.detectChanges();
+
+    expect(establecerAsistenteFlotante).toHaveBeenCalledWith(false);
+    expect(asistenteFlotanteVisible()).toBe(false);
+
+    interruptor.checked = true;
+    interruptor.dispatchEvent(new Event('change'));
+
+    expect(establecerAsistenteFlotante).toHaveBeenCalledWith(true);
+    expect(asistenteFlotanteVisible()).toBe(true);
   });
 
   it('muestra los estados vacíos cuando el usuario no tiene datos', () => {

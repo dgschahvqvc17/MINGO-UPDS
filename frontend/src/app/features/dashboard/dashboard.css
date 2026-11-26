@@ -29,6 +29,24 @@
   gap: 0.5rem;
 }
 
+.mingo-asistente-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  margin-bottom: 0;
+}
+
+.mingo-asistente-toggle .form-check-input {
+  margin-top: 0;
+  cursor: pointer;
+}
+
+.mingo-asistente-toggle .form-check-label {
+  cursor: pointer;
+  font-size: 0.82rem;
+  color: var(--mingo-text-muted);
+}
+
 .dashboard-hero__agente {
   display: flex;
   align-items: center;

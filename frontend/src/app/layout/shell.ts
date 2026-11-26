@@ -5,6 +5,7 @@ import { filter, map } from 'rxjs';
 import { ROLES_GESTION_ACADEMICA, RolUsuario } from '../core/models/dominio.models';
 import { AuthService } from '../core/services/auth.service';
 import { NotificacionService } from '../core/services/notificacion.service';
+import { PreferenciasInterfazService } from '../core/services/preferencias-interfaz.service';
 import { AyudanteFlotanteComponent } from '../shared/components/ayudante-flotante/ayudante-flotante.component';
 
 interface NavItem {
@@ -88,8 +89,10 @@ export class ShellComponent {
   private readonly authService = inject(AuthService);
   private readonly router = inject(Router);
   private readonly notificacionService = inject(NotificacionService);
+  private readonly preferenciasInterfaz = inject(PreferenciasInterfazService);
 
   readonly menuOpen = signal(false);
+  readonly asistenteFlotanteVisible = this.preferenciasInterfaz.asistenteFlotanteVisible;
   readonly notificacionesNoLeidas = this.notificacionService.noLeidas;
   readonly collapsed = signal(false);
   readonly role = this.authService.role;

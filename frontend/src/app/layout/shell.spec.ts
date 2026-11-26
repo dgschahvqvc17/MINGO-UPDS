@@ -5,9 +5,12 @@ import { of } from 'rxjs';
 import { RolUsuario } from '../core/models/dominio.models';
 import { AuthService } from '../core/services/auth.service';
 import { NotificacionService } from '../core/services/notificacion.service';
+import { PreferenciasInterfazService } from '../core/services/preferencias-interfaz.service';
 import { ShellComponent } from './shell';
 
-function createShell(role: RolUsuario, fullName = 'Ana Perez'): ShellComponent {
+const asistenteFlotanteVisible = signal(true);
+
+function configurarShell(role: RolUsuario, fullName = 'Ana Perez'): void {
   TestBed.configureTestingModule({
     imports: [ShellComponent],
     providers: [
@@ -29,9 +32,18 @@ function createShell(role: RolUsuario, fullName = 'Ana Perez'): ShellComponent {
           contarNoLeidas: vi.fn().mockReturnValue(of(2)),
         },
       },
+      {
+        provide: PreferenciasInterfazService,
+        useValue: {
+          asistenteFlotanteVisible: asistenteFlotanteVisible.asReadonly(),
+        },
+      },
     ],
   });
+}
 
+function createShell(role: RolUsuario, fullName = 'Ana Perez'): ShellComponent {
+  configurarShell(role, fullName);
   return TestBed.createComponent(ShellComponent).componentInstance;
 }
 
@@ -41,6 +53,7 @@ function navigationPaths(shell: ShellComponent): string[] {
 
 describe('ShellComponent', () => {
   afterEach(() => {
+    asistenteFlotanteVisible.set(true);
     TestBed.resetTestingModule();
   });
 
@@ -97,5 +110,24 @@ describe('ShellComponent', () => {
     expect(shell.collapsed()).toBe(true);
     shell.toggleCollapsed();
     expect(shell.collapsed()).toBe(false);
+  });
+
+  it('muestra el ayudante flotante cuando la preferencia esta activada', () => {
+    configurarShell('estudiante');
+
+    const fixture = TestBed.createComponent(ShellComponent);
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('app-ayudante-flotante')).not.toBeNull();
+  });
+
+  it('oculta el ayudante flotante cuando la preferencia esta desactivada', () => {
+    asistenteFlotanteVisible.set(false);
+    configurarShell('estudiante');
+
+    const fixture = TestBed.createComponent(ShellComponent);
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('app-ayudante-flotante')).toBeNull();
   });
 });

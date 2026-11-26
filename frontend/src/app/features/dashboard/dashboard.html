@@ -27,6 +27,23 @@
           {{ rolTexto() }}
         </span>
 
+        <div class="form-check form-switch mingo-asistente-toggle">
+          <input
+            #asistenteToggle
+            id="asistente-flotante-toggle"
+            class="form-check-input"
+            type="checkbox"
+            role="switch"
+            [checked]="asistenteFlotanteVisible()"
+            (change)="cambiarAsistenteFlotante(asistenteToggle.checked)"
+            aria-label="Mostrar asistente IA flotante en todas las páginas"
+            title="Muestra u oculta la mascota del asistente en todas las páginas"
+          />
+          <label class="form-check-label" for="asistente-flotante-toggle">
+            Asistente flotante
+          </label>
+        </div>
+
         <button
           type="button"
           class="btn btn-sm btn-outline-info d-inline-flex align-items-center gap-2"

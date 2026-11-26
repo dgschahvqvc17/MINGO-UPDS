@@ -11,6 +11,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { AuthService } from '../../core/services/auth.service';
 import { DashboardService, type DashboardResumen } from '../../core/services/dashboard.service';
 import { CalendarioService, type EventoCalendario } from '../../core/services/calendario.service';
+import { PreferenciasInterfazService } from '../../core/services/preferencias-interfaz.service';
 import { TareaService, type Tarea } from '../../core/services/tarea.service';
 import { CardComponent } from '../../shared/components/card/card.component';
 import { MascotaAgenteComponent } from '../../shared/components/mascota-agente/mascota-agente.component';
@@ -147,6 +148,7 @@ export class DashboardPage {
   private readonly dashboardService = inject(DashboardService);
   private readonly tareaService = inject(TareaService);
   private readonly calendarioService = inject(CalendarioService);
+  private readonly preferenciasInterfaz = inject(PreferenciasInterfazService);
   private readonly destroyRef = inject(DestroyRef);
 
   private readonly resumenSignal = signal<DashboardResumen | null>(null);
@@ -161,6 +163,7 @@ export class DashboardPage {
 
   readonly nombre = this.authService.fullName;
   readonly rol = this.authService.role;
+  readonly asistenteFlotanteVisible = this.preferenciasInterfaz.asistenteFlotanteVisible;
 
   readonly rolTexto = computed(() =>
     this.rol() === 'administrador' ? 'Administrador' : 'Estudiante',
@@ -259,6 +262,10 @@ export class DashboardPage {
     }
 
     this.cargar();
+  }
+
+  cambiarAsistenteFlotante(visible: boolean): void {
+    this.preferenciasInterfaz.establecerAsistenteFlotante(visible);
   }
 
   private cargar(): void {
