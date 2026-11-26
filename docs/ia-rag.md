@@ -301,6 +301,10 @@ Agente: confirma la creación y muestra el enlace
 - `POST /api/asistente/chat` recibe mensaje, conversación, materia y hasta 5
   documentos opcionales. Todos los IDs son UUID; la propiedad se valida en el
   servicio antes de recuperar fragmentos.
+- En la interfaz, «Fuentes de la conversación» permite elegir una materia y
+  luego documentos de esa materia. Sin documentos seleccionados, la búsqueda se
+  restringe a la materia elegida; con «Todas las materias» se mantiene el
+  comportamiento original de buscar en todos los documentos procesados.
 - Con `usar_documentos: true` se genera un embedding de la pregunta y se buscan
   fragmentos propios con `match_fragmentos` (`match_count = 8`, umbral `0.55`).
   Sin fragmentos sobre el umbral se devuelve el mensaje de "sin información",

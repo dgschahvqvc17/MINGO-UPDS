@@ -113,12 +113,42 @@
         </div>
 
         @if (usarDocumentos()) {
+          @if (cargandoMaterias()) {
+            <div class="text-center chat-texto-secundario py-3 small" role="status">
+              Cargando materias…
+            </div>
+          } @else if (errorMaterias()) {
+            <div class="alert alert-danger small" role="alert">{{ errorMaterias() }}</div>
+          } @else {
+            <label for="materia-chat" class="form-label small">Materia</label>
+            <select
+              id="materia-chat"
+              class="form-select form-select-sm mb-3"
+              (change)="alCambiarMateria($event)"
+            >
+              <option value="">Todas las materias</option>
+              @for (materia of materias(); track materia.id) {
+                <option [value]="materia.id">
+                  {{ materia.nombre }}{{ materia.estado === 'archivado' ? ' (archivado)' : '' }}
+                </option>
+              }
+            </select>
+          }
+
           @if (cargandoDocumentos()) {
             <div class="text-center chat-texto-secundario py-3 small" role="status">
               Cargando documentos…
             </div>
           } @else if (errorDocumentos()) {
             <div class="alert alert-danger small" role="alert">{{ errorDocumentos() }}</div>
+          } @else if (documentosFiltrados().length === 0) {
+            <p class="small text-muted-soft mb-0">
+              @if (materiaId()) {
+                Esta materia no tiene documentos procesados.
+              } @else {
+                Todavía no tienes documentos procesados.
+              }
+            </p>
           } @else {
             <label for="documentos-chat" class="form-label small">Documentos (máximo 5)</label>
             <select
@@ -128,12 +158,18 @@
               size="5"
               (change)="alCambiarDocumentos($event)"
             >
-              @for (documento of documentos(); track documento.id) {
-                <option [value]="documento.id">{{ documento.nombre }}</option>
+              @for (documento of documentosFiltrados(); track documento.id) {
+                <option [value]="documento.id" [selected]="documentoIds().includes(documento.id)">
+                  {{ documento.nombre }}
+                </option>
               }
             </select>
             <p class="form-text small mb-0">
-              Sin selección, el asistente busca en todos tus documentos procesados.
+              @if (materiaId()) {
+                Sin selección, el asistente busca en los documentos de la materia elegida.
+              } @else {
+                Sin selección, el asistente busca en todos tus documentos procesados.
+              }
             </p>
             @if (avisoDocumentos()) {
               <p class="small text-warning mt-1 mb-0" role="status">{{ avisoDocumentos() }}</p>

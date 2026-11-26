@@ -17,12 +17,14 @@ import type {
 } from '../../../../core/models/dominio.models';
 import { ChatService } from '../../../../core/services/chat.service';
 import { DocumentoService, type Documento } from '../../../../core/services/documento.service';
+import { MateriaService, type Materia } from '../../../../core/services/materia.service';
 import { mensajeDeErrorHttp } from '../../../../core/utils/http-error';
 import { crearClaveIdempotencia } from '../../../../core/utils/idempotency-key';
 import { MascotaAgenteComponent } from '../../../../shared/components/mascota-agente/mascota-agente.component';
 import { crearEstadoMascota } from '../../../../shared/components/mascota-agente/estado-mascota';
 
 const LIMITE_DOCUMENTOS = 100;
+const LIMITE_MATERIAS = 100;
 const MAXIMO_DOCUMENTOS_CHAT = 5;
 const LIMITE_CONVERSACIONES = 20;
 const LONGITUD_MAXIMA_MENSAJE = 4000;
@@ -40,6 +42,7 @@ type MensajeVista = Mensaje & { referencias: ReferenciaRespuesta[] };
 export class ChatComponent {
   private readonly chatService = inject(ChatService);
   private readonly documentoService = inject(DocumentoService);
+  private readonly materiaService = inject(MateriaService);
   private readonly destroyRef = inject(DestroyRef);
 
   /** Clave del envio pendiente: se reutiliza al reintentar la misma solicitud. */
@@ -74,6 +77,18 @@ export class ChatComponent {
   readonly avisoDocumentos = signal<string | null>(null);
   readonly usarDocumentos = signal(true);
 
+  readonly materias = signal<Materia[]>([]);
+  readonly materiaId = signal<string | null>(null);
+  readonly cargandoMaterias = signal(false);
+  readonly errorMaterias = signal<string | null>(null);
+
+  readonly documentosFiltrados = computed(() => {
+    const materiaId = this.materiaId();
+    return materiaId
+      ? this.documentos().filter((documento) => documento.materia_id === materiaId)
+      : this.documentos();
+  });
+
   readonly conversacionActual = computed(
     () =>
       this.conversaciones().find((conversacion) => conversacion.id === this.conversacionActualId())
@@ -95,6 +110,7 @@ export class ChatComponent {
   constructor() {
     this.cargarConversaciones();
     this.cargarDocumentos();
+    this.cargarMaterias();
   }
 
   cargarConversaciones(): void {
@@ -127,6 +143,22 @@ export class ChatComponent {
       .subscribe({
         next: ({ documentos }) => this.documentos.set(documentos),
         error: () => this.errorDocumentos.set('No se pudieron cargar tus documentos.'),
+      });
+  }
+
+  cargarMaterias(): void {
+    this.cargandoMaterias.set(true);
+    this.errorMaterias.set(null);
+
+    this.materiaService
+      .listarMaterias({ limit: LIMITE_MATERIAS })
+      .pipe(
+        takeUntilDestroyed(this.destroyRef),
+        finalize(() => this.cargandoMaterias.set(false)),
+      )
+      .subscribe({
+        next: ({ data }) => this.materias.set(data),
+        error: () => this.errorMaterias.set('No se pudieron cargar tus materias.'),
       });
   }
 
@@ -233,7 +265,7 @@ export class ChatComponent {
     const solicitud = {
       conversacion_id: this.conversacionActualId(),
       mensaje: contenido,
-      materia_id: null,
+      materia_id: this.materiaId(),
       documento_ids: this.documentoIds(),
       usar_documentos: this.usarDocumentos(),
     };
@@ -273,6 +305,13 @@ export class ChatComponent {
           );
         },
       });
+  }
+
+  alCambiarMateria(evento: Event): void {
+    const valor = (evento.target as HTMLSelectElement).value;
+    this.materiaId.set(valor || null);
+    this.documentoIds.set([]);
+    this.avisoDocumentos.set(null);
   }
 
   alCambiarDocumentos(evento: Event): void {

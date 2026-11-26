@@ -2,11 +2,15 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Subject, of, throwError } from 'rxjs';
 import type { Conversacion } from '../../../../core/models/dominio.models';
 import { ChatService, type RespuestaChat } from '../../../../core/services/chat.service';
-import { DocumentoService } from '../../../../core/services/documento.service';
+import { DocumentoService, type Documento } from '../../../../core/services/documento.service';
+import { MateriaService, type Materia } from '../../../../core/services/materia.service';
 import { ChatComponent } from './chat.component';
 
 const CONVERSACION_ID = 'c1d2e3f4-5a6b-4c7d-8e9f-0a1b2c3d4e5f';
+const MATERIA_ID = '7a1b2c3d-4e5f-4a6b-8c9d-0e1f2a3b4c5d';
+const MATERIA_OTRA_ID = '3f2e1d0c-9b8a-4f7e-8d6c-5b4a3928170f';
 const DOCUMENTO_ID = '9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d';
+const DOCUMENTO_OTRO_ID = '1c2d3e4f-5a6b-4c7d-8e9f-0a1b2c3d4e5f';
 
 const conversacion: Conversacion = {
   id: CONVERSACION_ID,
@@ -34,11 +38,60 @@ const respuesta: RespuestaChat = {
   consumo: { tokens_entrada: 100, tokens_salida: 40 },
 };
 
+function crearMateria(id: string, nombre: string): Materia {
+  return {
+    id,
+    usuario_id: 'usuario-1',
+    nombre,
+    codigo: nombre.slice(0, 4).toUpperCase(),
+    docente: 'Docente',
+    docente_id: null,
+    descripcion: null,
+    periodo_academico: '2026-1',
+    color: '#0d6efd',
+    estado: 'activo',
+    fecha_creacion: '2026-01-01T00:00:00.000Z',
+    fecha_actualizacion: null,
+    total_tareas: 0,
+    tareas_pendientes: 0,
+    total_documentos: 1,
+  };
+}
+
+function crearDocumento(id: string, nombre: string, materiaId: string): Documento {
+  return {
+    id,
+    usuario_id: 'usuario-1',
+    materia_id: materiaId,
+    unidad_id: null,
+    nombre,
+    nombre_archivo: `${nombre}.pdf`,
+    ruta_almacenamiento: `usuarios/usuario-1/documentos/${id}/original`,
+    tipo_archivo: 'application/pdf',
+    tamano: 1024,
+    estado_procesamiento: 'procesado',
+    motivo_error: null,
+    numero_paginas: 1,
+    fecha_carga: '2026-01-01T00:00:00.000Z',
+    fecha_actualizacion: null,
+  };
+}
+
+const materias = [
+  crearMateria(MATERIA_ID, 'Cálculo'),
+  crearMateria(MATERIA_OTRA_ID, 'Historia'),
+];
+const documentos = [
+  crearDocumento(DOCUMENTO_ID, 'Apuntes de cálculo', MATERIA_ID),
+  crearDocumento(DOCUMENTO_OTRO_ID, 'Apuntes de historia', MATERIA_OTRA_ID),
+];
+
 const listar = vi.fn();
 const obtener = vi.fn();
 const enviar = vi.fn();
 const eliminar = vi.fn();
 const listarDocumentos = vi.fn();
+const listarMaterias = vi.fn();
 
 describe('ChatComponent (HU12)', () => {
   let fixture: ComponentFixture<ChatComponent>;
@@ -76,12 +129,14 @@ describe('ChatComponent (HU12)', () => {
     enviar.mockReset().mockReturnValue(of(respuesta));
     eliminar.mockReset().mockReturnValue(of({ id: CONVERSACION_ID }));
     listarDocumentos.mockReset().mockReturnValue(of({ documentos: [], total: 0 }));
+    listarMaterias.mockReset().mockReturnValue(of({ success: true, data: [], meta: {} }));
 
     TestBed.configureTestingModule({
       imports: [ChatComponent],
       providers: [
         { provide: ChatService, useValue: { listar, obtener, enviar, eliminar } },
         { provide: DocumentoService, useValue: { listar: listarDocumentos } },
+        { provide: MateriaService, useValue: { listarMaterias } },
       ],
     });
 
@@ -94,10 +149,49 @@ describe('ChatComponent (HU12)', () => {
     TestBed.resetTestingModule();
   });
 
-  it('carga las conversaciones y los documentos al iniciar', () => {
+  it('carga las conversaciones, los documentos y las materias al iniciar', () => {
     expect(listar).toHaveBeenCalledWith(20, 0);
     expect(listarDocumentos).toHaveBeenCalledWith({ estado: 'procesado', limit: 100 });
+    expect(listarMaterias).toHaveBeenCalledWith({ limit: 100 });
     expect(componente.conversaciones()).toEqual([conversacion]);
+  });
+
+  it('muestra las materias del usuario en el selector de fuentes', () => {
+    listarMaterias.mockReturnValue(of({ success: true, data: materias, meta: {} }));
+    componente.cargarMaterias();
+    fixture.detectChanges();
+
+    const selector = fixture.nativeElement.querySelector('#materia-chat') as HTMLSelectElement;
+    expect(Array.from(selector.options).map((opcion) => opcion.textContent?.trim())).toEqual([
+      'Todas las materias',
+      'Cálculo',
+      'Historia',
+    ]);
+  });
+
+  it('filtra los documentos por la materia elegida y limpia la selección anterior', () => {
+    listarDocumentos.mockReturnValue(of({ documentos, paginacion: { limit: 100, offset: 0, total: 2 } }));
+    listarMaterias.mockReturnValue(of({ success: true, data: materias, meta: {} }));
+    componente.cargarDocumentos();
+    componente.cargarMaterias();
+    componente.documentoIds.set([DOCUMENTO_OTRO_ID]);
+    fixture.detectChanges();
+
+    const selector = fixture.nativeElement.querySelector('#materia-chat') as HTMLSelectElement;
+    selector.value = MATERIA_ID;
+    selector.dispatchEvent(new Event('change'));
+    fixture.detectChanges();
+
+    expect(componente.materiaId()).toBe(MATERIA_ID);
+    expect(componente.documentoIds()).toEqual([]);
+    expect(componente.documentosFiltrados().map((documento) => documento.id)).toEqual([
+      DOCUMENTO_ID,
+    ]);
+
+    const opciones = Array.from(
+      (fixture.nativeElement.querySelector('#documentos-chat') as HTMLSelectElement).options,
+    ).map((opcion) => opcion.value);
+    expect(opciones).toEqual([DOCUMENTO_ID]);
   });
 
   it('muestra el estado vacio cuando no hay conversaciones', () => {
@@ -124,6 +218,7 @@ describe('ChatComponent (HU12)', () => {
 
   it('envia una pregunta con los filtros seleccionados', () => {
     componente.mensajeControl.setValue('¿Qué es una derivada?');
+    componente.materiaId.set(MATERIA_ID);
     componente.documentoIds.set([DOCUMENTO_ID]);
     componente.usarDocumentos.set(false);
 
@@ -134,7 +229,7 @@ describe('ChatComponent (HU12)', () => {
       {
         conversacion_id: null,
         mensaje: '¿Qué es una derivada?',
-        materia_id: null,
+        materia_id: MATERIA_ID,
         documento_ids: [DOCUMENTO_ID],
         usar_documentos: false,
       },
