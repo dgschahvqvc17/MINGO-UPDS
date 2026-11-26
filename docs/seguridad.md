@@ -68,7 +68,7 @@ Supabase PostgreSQL (RLS activo como segunda barrera)
 | Rol | Acceso |
 |---|---|
 | `estudiante` | Datos académicos propios o de materias con inscripción `activa`; puede actualizar su propio estado en `tarea_estados`. No gestiona inscripciones. |
-| `docente` | Materias cuyo `docente_id` sea suyo: gestiona inscripciones, tareas y documentos según las reglas de propiedad y RLS. |
+| `docente` | Materias cuyo `docente_id` sea suyo: gestiona inscripciones, tareas, documentos y publicación de cuestionarios según las reglas de propiedad y RLS. |
 | `administrador` | Panel de usuarios (`/api/usuarios`), roles y estadísticas agregadas. Gestiona materias, inscripciones, tareas y documentos conforme a las reglas de propiedad y RLS; no obtiene acceso automático a conversaciones ni artefactos IA privados. |
 
 El rol se guarda en `roles` + `usuario_roles`. La fuente de verdad es la base de datos; `app_metadata.role` puede usarse como caché de autorización, nunca como única validación. La precedencia efectiva es `administrador > docente > estudiante`. `/api/auth/me` devuelve `role` (efectivo), `rol` (alias de compatibilidad) y `roles` (todos los asignados, ordenados por precedencia).
@@ -94,7 +94,9 @@ router.post('/', requireRole('administrador'), controller.crear);
 - Toda consulta de datos de usuario incluye `usuario_id = req.user.id`.
 - Toda actualización verifica primero que el recurso pertenece al usuario.
 - Un recurso de otro usuario responde `404`, no `403`.
-- El administrador **no** hereda permisos sobre conversaciones ni artefactos IA privados; el acceso a documentos y fragmentos se rige por las funciones RLS de la migración `0018`.
+- El administrador **no** hereda permisos sobre conversaciones ni artefactos IA privados; el acceso a documentos y fragmentos se rige por las funciones RLS de la migración `0018`. Tampoco puede publicar o consultar calificaciones de cuestionarios ajenos.
+- Publicar/despublicar y consultar calificaciones requiere rol `docente` **y** ser el responsable de la materia (`materias.docente_id`). Un docente no responsable recibe `404`, no `403`, para no revelar existencia.
+- Los cuestionarios publicados son visibles solo para estudiantes con inscripción `activa`. Las preguntas, opciones y respuestas correctas siguen protegidas; la corrección se ejecuta en el backend con acceso acotado mediante `service_role`.
 - Los cambios de rol o estado no pueden aplicarse a uno mismo: `noSelfModificationMiddleware` y el servicio lo rechazan con `403`.
 - No se puede desactivar ni quitar el rol a un administrador si sería el único del sistema.
 - Las inscripciones por materia (`GET`, `POST` y `DELETE` en `/api/materias/:id/inscripciones`) requieren `administrador` o `docente`. El docente solo opera sobre materias cuyo `docente_id` sea suyo; un estudiante no puede consultarlas.
@@ -104,7 +106,7 @@ router.post('/', requireRole('administrador'), controller.crear);
 - RLS activo en **todas** las tablas del dominio. Sin política, el acceso se deniega.
 - El frontend usa la clave `anon`; nunca la `service_role`.
 - El backend usa `service_role` solo para tareas administrativas acotadas y **siempre** filtra por propietario.
-- Las funciones `security definer` requieren revisión de otra persona, `search_path` fijo y justificación.
+- Las funciones `security definer` requieren revisión de otra persona, `search_path` fijo y justificación. Las de publicación (`0020`) son `usuario_es_docente_de_materia` y `usuario_estudiante_activo_en_materia`.
 - Las pruebas de RLS se hacen con dos usuarios distintos (ver [plan-pruebas.md](plan-pruebas.md)).
 
 Detalle de políticas y funciones en [base-datos.md](base-datos.md), sección 6.

@@ -9,6 +9,7 @@
 import { DatePipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { AuthService } from '../../core/services/auth.service';
 import { DocumentoService, type Documento } from '../../core/services/documento.service';
 import { MateriaService, type Materia } from '../../core/services/materia.service';
 import {
@@ -23,6 +24,7 @@ import {
 } from '../../core/services/cuestionario.service';
 import { mensajeDeErrorHttp } from '../../core/utils/http-error';
 import { valorDeCampo } from '../../core/utils/form-event';
+import { CuestionarioCalificacionesComponent } from './components/cuestionario-calificaciones/cuestionario-calificaciones';
 import { CuestionarioResolverComponent } from './components/cuestionario-resolver/cuestionario-resolver';
 
 const LIMITE_CUESTIONARIOS = 20;
@@ -37,9 +39,19 @@ interface CuestionarioEnResolucion {
   intentoId?: string;
 }
 
+interface CuestionarioSeleccionado {
+  id: string;
+  titulo: string;
+}
+
 @Component({
   selector: 'app-centro-estudio',
-  imports: [DatePipe, RouterLink, CuestionarioResolverComponent],
+  imports: [
+    DatePipe,
+    RouterLink,
+    CuestionarioCalificacionesComponent,
+    CuestionarioResolverComponent,
+  ],
   templateUrl: './centro-estudio.html',
   styleUrl: './centro-estudio.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -48,7 +60,10 @@ export class CentroEstudioPage {
   private readonly cuestionarioService = inject(CuestionarioService);
   private readonly materiaService = inject(MateriaService);
   private readonly documentoService = inject(DocumentoService);
+  private readonly auth = inject(AuthService);
   private readonly destroyRef = inject(DestroyRef);
+
+  readonly esDocente = this.auth.isDocente;
 
   readonly materias = signal<Materia[]>([]);
   readonly documentos = signal<Documento[]>([]);
@@ -56,19 +71,25 @@ export class CentroEstudioPage {
   readonly totalCuestionarios = signal(0);
   readonly intentos = signal<IntentoHistorial[]>([]);
   readonly totalIntentos = signal(0);
+  readonly cuestionariosDisponibles = signal<CuestionarioResumen[]>([]);
+  readonly totalDisponibles = signal(0);
 
   readonly cargandoMaterias = signal(false);
   readonly cargandoDocumentos = signal(false);
   readonly cargandoCuestionarios = signal(true);
   readonly cargandoIntentos = signal(true);
+  readonly cargandoDisponibles = signal(true);
   readonly generando = signal(false);
   readonly error = signal<string | null>(null);
   readonly errorHistorial = signal<string | null>(null);
+  readonly errorDisponibles = signal<string | null>(null);
   readonly errorAccion = signal<string | null>(null);
   readonly mensajeExito = signal<string | null>(null);
   readonly confirmandoEliminar = signal<string | null>(null);
   readonly eliminandoId = signal<string | null>(null);
+  readonly publicandoId = signal<string | null>(null);
   readonly resolviendo = signal<CuestionarioEnResolucion | null>(null);
+  readonly calificacionesDe = signal<CuestionarioSeleccionado | null>(null);
 
   readonly materiaId = signal('');
   readonly documentoId = signal('');
@@ -108,7 +129,18 @@ export class CentroEstudioPage {
   readonly hayMasIntentos = computed(() => this.intentos().length < this.totalIntentos());
 
   readonly mostrarListaVaciaIntentos = computed(
-    () => !this.cargandoIntentos() && this.intentos().length === 0,
+    () => !this.cargandoIntentos() && !this.errorHistorial() && this.intentos().length === 0,
+  );
+
+  readonly mostrarListaVaciaDisponibles = computed(
+    () =>
+      !this.cargandoDisponibles() &&
+      !this.errorDisponibles() &&
+      this.cuestionariosDisponibles().length === 0,
+  );
+
+  readonly hayMasDisponibles = computed(
+    () => this.cuestionariosDisponibles().length < this.totalDisponibles(),
   );
 
   readonly sinMaterias = computed(
@@ -119,6 +151,7 @@ export class CentroEstudioPage {
     this.cargarMaterias();
     this.cargarCuestionarios();
     this.cargarIntentos();
+    this.cargarDisponibles();
   }
 
   cargarMaterias(): void {
@@ -182,6 +215,57 @@ export class CentroEstudioPage {
             mensajeDeErrorHttp(error, 'No se pudieron cargar más cuestionarios.'),
           );
           this.cargandoCuestionarios.set(false);
+        },
+      });
+  }
+
+  cargarDisponibles(): void {
+    this.cargandoDisponibles.set(true);
+    this.errorDisponibles.set(null);
+
+    this.cuestionarioService
+      .listarDisponibles({ limit: LIMITE_CUESTIONARIOS, offset: 0 })
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: ({ cuestionarios, total }) => {
+          this.cuestionariosDisponibles.set(cuestionarios);
+          this.totalDisponibles.set(total);
+          this.cargandoDisponibles.set(false);
+        },
+        error: (error: unknown) => {
+          this.errorDisponibles.set(
+            mensajeDeErrorHttp(error, 'No se pudieron cargar los cuestionarios disponibles.'),
+          );
+          this.cuestionariosDisponibles.set([]);
+          this.cargandoDisponibles.set(false);
+        },
+      });
+  }
+
+  cargarMasDisponibles(): void {
+    if (this.cargandoDisponibles() || !this.hayMasDisponibles()) {
+      return;
+    }
+
+    this.cargandoDisponibles.set(true);
+
+    this.cuestionarioService
+      .listarDisponibles({
+        limit: LIMITE_CUESTIONARIOS,
+        offset: this.cuestionariosDisponibles().length,
+      })
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: ({ cuestionarios, total }) => {
+          this.cuestionariosDisponibles.update((actuales) => [...actuales, ...cuestionarios]);
+          this.totalDisponibles.set(total);
+          this.cargandoDisponibles.set(false);
+        },
+        error: (error: unknown) => {
+          this.errorDisponibles.set(
+            mensajeDeErrorHttp(error, 'No se pudieron cargar más cuestionarios disponibles.'),
+          );
+          this.cargandoDisponibles.set(false);
         },
       });
   }
@@ -338,9 +422,53 @@ export class CentroEstudioPage {
     });
   }
 
+  publicar(cuestionario: CuestionarioResumen, publicado: boolean): void {
+    if (this.publicandoId()) {
+      return;
+    }
+
+    this.publicandoId.set(cuestionario.id);
+    this.errorAccion.set(null);
+    this.mensajeExito.set(null);
+
+    this.cuestionarioService
+      .publicar(cuestionario.id, publicado)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (actualizado) => {
+          this.cuestionarios.update((actuales) =>
+            actuales.map((actual) => (actual.id === actualizado.id ? actualizado : actual)),
+          );
+          this.mensajeExito.set(
+            publicado
+              ? `"${actualizado.titulo}" está disponible para tus estudiantes.`
+              : `"${actualizado.titulo}" ya no está disponible para tus estudiantes.`,
+          );
+          this.publicandoId.set(null);
+          this.cargarDisponibles();
+        },
+        error: (error: unknown) => {
+          this.errorAccion.set(
+            mensajeDeErrorHttp(error, 'No se pudo cambiar la publicación del cuestionario.'),
+          );
+          this.publicandoId.set(null);
+        },
+      });
+  }
+
+  verCalificaciones(cuestionario: CuestionarioResumen): void {
+    this.errorAccion.set(null);
+    this.calificacionesDe.set({ id: cuestionario.id, titulo: cuestionario.titulo });
+  }
+
+  cerrarCalificaciones(): void {
+    this.calificacionesDe.set(null);
+  }
+
   alCompletar(): void {
     this.cargarCuestionarios();
     this.cargarIntentos();
+    this.cargarDisponibles();
   }
 
   solicitarEliminar(cuestionario: CuestionarioResumen): void {

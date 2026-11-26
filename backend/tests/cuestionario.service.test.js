@@ -72,6 +72,8 @@ const FILA_CUESTIONARIO = {
   modelo: 'gemini-3.5-flash-lite',
   tokens_entrada: 500,
   tokens_salida: 800,
+  publicado: false,
+  fecha_publicacion: null,
   fecha_creacion: '2026-11-19T10:00:00.000Z',
   materias: { nombre: 'Cálculo Diferencial', codigo: 'MAT-101', color: '#3B82F6' },
 };
@@ -108,6 +110,9 @@ function crearServicio({
   preguntas = PREGUNTAS,
   respuestasGuardadas = [],
   errorIa = null,
+  cuestionarioAccesible = FILA_CUESTIONARIO,
+  esDocente = true,
+  calificaciones = [],
 } = {}) {
   const dependencias = {
     materiaRepository: {
@@ -135,7 +140,28 @@ function crearServicio({
         })),
       })),
       listarCuestionarios: jest.fn().mockResolvedValue({ items: [FILA_CUESTIONARIO], total: 1 }),
+      listarCuestionariosDisponibles: jest
+        .fn()
+        .mockResolvedValue({
+          items: [
+            {
+              ...FILA_CUESTIONARIO,
+              publicado: true,
+              fecha_publicacion: '2026-11-20T10:00:00.000Z',
+            },
+          ],
+          total: 1,
+        }),
       obtenerCuestionarioPorId: jest.fn().mockResolvedValue(FILA_CUESTIONARIO),
+      obtenerCuestionarioAccesiblePorId: jest.fn().mockResolvedValue(cuestionarioAccesible),
+      obtenerCuestionarioParaDocente: jest
+        .fn()
+        .mockImplementation(async () => (esDocente ? FILA_CUESTIONARIO : null)),
+      actualizarPublicacion: jest.fn().mockImplementation(async ({ publicado }) => ({
+        ...FILA_CUESTIONARIO,
+        publicado,
+        fecha_publicacion: publicado ? '2026-11-20T10:00:00.000Z' : null,
+      })),
       listarPreguntas: jest.fn().mockResolvedValue(preguntas),
       eliminarCuestionario: jest.fn().mockResolvedValue(undefined),
       crearIntento: jest.fn().mockResolvedValue(INTENTO_EN_PROGRESO),
@@ -150,6 +176,13 @@ function crearServicio({
         ...INTENTO_EN_PROGRESO,
         ...datos,
       })),
+    },
+    cuestionarioLecturaRepository: {
+      listarPreguntas: jest.fn().mockResolvedValue(preguntas),
+      listarCalificaciones: jest.fn().mockResolvedValue({
+        items: calificaciones,
+        total: calificaciones.length,
+      }),
     },
     consumoRepository: {
       contar: jest.fn().mockResolvedValue(consumo),
@@ -412,5 +445,137 @@ describe('CuestionarioService (HU13)', () => {
       statusCode: 404,
     });
     expect(ajeno.dependencias.cuestionarioRepository.eliminarCuestionario).not.toHaveBeenCalled();
+  });
+
+  describe('publicación y calificaciones (HU20)', () => {
+    const ESTUDIANTE_ID = 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee';
+
+    it('lista los cuestionarios publicados con su estado', async () => {
+      const { servicio, dependencias } = crearServicio();
+
+      const resultado = await servicio.listarDisponibles({ limite: 10, desplazamiento: 5 });
+
+      expect(
+        dependencias.cuestionarioRepository.listarCuestionariosDisponibles,
+      ).toHaveBeenCalledWith({ limit: 10, offset: 5 });
+      expect(resultado).toMatchObject({
+        total: 1,
+        items: [{ id: CUESTIONARIO_ID, publicado: true }],
+      });
+      expect(resultado.items[0].fecha_publicacion).toBe('2026-11-20T10:00:00.000Z');
+    });
+
+    it('publica un cuestionario siendo el docente responsable', async () => {
+      const { servicio, dependencias } = crearServicio();
+
+      const resultado = await servicio.publicar(CUESTIONARIO_ID, true);
+
+      expect(dependencias.cuestionarioRepository.obtenerCuestionarioParaDocente).toHaveBeenCalledWith(
+        USUARIO_ID,
+        CUESTIONARIO_ID,
+      );
+      expect(dependencias.cuestionarioRepository.actualizarPublicacion).toHaveBeenCalledWith({
+        usuarioId: USUARIO_ID,
+        cuestionarioId: CUESTIONARIO_ID,
+        materiaId: MATERIA_ID,
+        publicado: true,
+      });
+      expect(resultado).toMatchObject({
+        id: CUESTIONARIO_ID,
+        publicado: true,
+        fecha_publicacion: '2026-11-20T10:00:00.000Z',
+      });
+    });
+
+    it('despublica limpiando la fecha de publicación', async () => {
+      const { servicio } = crearServicio();
+
+      const resultado = await servicio.publicar(CUESTIONARIO_ID, false);
+
+      expect(resultado).toMatchObject({ publicado: false, fecha_publicacion: null });
+    });
+
+    it('responde 404 si un administrador sin docencia intenta publicar', async () => {
+      const { servicio, dependencias } = crearServicio({ esDocente: false });
+
+      await expect(servicio.publicar(CUESTIONARIO_ID, true)).rejects.toMatchObject({
+        statusCode: 404,
+      });
+      expect(dependencias.cuestionarioRepository.actualizarPublicacion).not.toHaveBeenCalled();
+    });
+
+    it('responde 404 si el cuestionario no es propio ni está publicado', async () => {
+      const { servicio, dependencias } = crearServicio({ cuestionarioAccesible: null });
+
+      await expect(servicio.obtener(CUESTIONARIO_ID)).rejects.toMatchObject({ statusCode: 404 });
+      expect(dependencias.cuestionarioLecturaRepository.listarPreguntas).not.toHaveBeenCalled();
+    });
+
+    it('lee las preguntas del repositorio de lectura acotado', async () => {
+      const { servicio, dependencias } = crearServicio();
+
+      await servicio.obtener(CUESTIONARIO_ID);
+
+      expect(dependencias.cuestionarioLecturaRepository.listarPreguntas).toHaveBeenCalledWith(
+        CUESTIONARIO_ID,
+      );
+      expect(dependencias.cuestionarioRepository.listarPreguntas).not.toHaveBeenCalled();
+    });
+
+    it('devuelve calificaciones sin respuestas ni correcciones', async () => {
+      const calificaciones = [
+        {
+          id: INTENTO_ID,
+          usuario_id: ESTUDIANTE_ID,
+          puntuacion: 85.5,
+          estado: 'finalizado',
+          respuestas_correctas: 3,
+          total_preguntas: 4,
+          fecha_inicio: '2026-11-20T10:05:00.000Z',
+          fecha_finalizacion: '2026-11-20T11:00:00.000Z',
+          perfiles: {
+            id: ESTUDIANTE_ID,
+            nombre: 'Ana',
+            apellido: 'Pérez',
+            correo: 'ana@mingo.test',
+          },
+        },
+      ];
+      const { servicio, dependencias } = crearServicio({ calificaciones });
+
+      const resultado = await servicio.listarCalificaciones(CUESTIONARIO_ID, {
+        limite: 5,
+        desplazamiento: 0,
+      });
+
+      expect(dependencias.cuestionarioLecturaRepository.listarCalificaciones).toHaveBeenCalledWith({
+        cuestionarioId: CUESTIONARIO_ID,
+        limit: 5,
+        offset: 0,
+      });
+      expect(resultado.items).toEqual([
+        {
+          intento_id: INTENTO_ID,
+          estudiante_id: ESTUDIANTE_ID,
+          estudiante_nombre: 'Ana Pérez',
+          puntuacion: 85.5,
+          estado: 'finalizado',
+          respuestas_correctas: 3,
+          total_preguntas: 4,
+          fecha_inicio: '2026-11-20T10:05:00.000Z',
+          fecha_finalizacion: '2026-11-20T11:00:00.000Z',
+        },
+      ]);
+      expect(JSON.stringify(resultado)).not.toMatch(/respuesta_correcta|es_correcta/);
+    });
+
+    it('responde 404 si un administrador consulta calificaciones ajenas', async () => {
+      const { servicio, dependencias } = crearServicio({ esDocente: false });
+
+      await expect(
+        servicio.listarCalificaciones(CUESTIONARIO_ID, { limite: 20, desplazamiento: 0 }),
+      ).rejects.toMatchObject({ statusCode: 404 });
+      expect(dependencias.cuestionarioLecturaRepository.listarCalificaciones).not.toHaveBeenCalled();
+    });
   });
 });

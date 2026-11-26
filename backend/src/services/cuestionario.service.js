@@ -1,8 +1,9 @@
 /**
- * Servicio de cuestionarios academicos (HU13).
+ * Servicio de cuestionarios academicos (HU13 y publicacion HU20).
  * Aplica las reglas de negocio: propiedad de materia y documento, material
  * suficiente, cuota diaria, validacion de la salida del modelo, persistencia y
- * correccion determinista de las preguntas objetivas.
+ * correccion determinista de las preguntas objetivas. Tambien controla que
+ * solo el docente responsable publique y consulte calificaciones.
  * No conoce req ni res.
  */
 const ApiError = require('../utils/ApiError');
@@ -112,7 +113,35 @@ function aCuestionarioResumen(fila) {
     modelo: fila.modelo,
     tokens_entrada: fila.tokens_entrada,
     tokens_salida: fila.tokens_salida,
+    publicado: Boolean(fila.publicado),
+    fecha_publicacion: fila.fecha_publicacion ?? null,
     fecha_creacion: fila.fecha_creacion,
+  };
+}
+
+/**
+ * Convierte un intento finalizado en una calificación segura para el docente.
+ * Nunca incluye respuestas, correcciones ni texto de las preguntas.
+ *
+ * @param {object} intento Fila con la relacion `perfiles`.
+ * @returns {object}
+ */
+function aCalificacion(intento) {
+  const estudiante = Array.isArray(intento.perfiles) ? intento.perfiles[0] : intento.perfiles;
+  const nombre = estudiante
+    ? [estudiante.nombre, estudiante.apellido].filter(Boolean).join(' ').trim()
+    : '';
+
+  return {
+    intento_id: intento.id,
+    estudiante_id: intento.usuario_id,
+    estudiante_nombre: nombre || estudiante?.correo || null,
+    puntuacion: intento.puntuacion === null ? null : Number(intento.puntuacion),
+    estado: intento.estado,
+    respuestas_correctas: intento.respuestas_correctas,
+    total_preguntas: intento.total_preguntas,
+    fecha_inicio: intento.fecha_inicio,
+    fecha_finalizacion: intento.fecha_finalizacion,
   };
 }
 
@@ -372,6 +401,7 @@ class CuestionarioService {
    *   documentoRepository: object,
    *   fragmentoRepository: object,
    *   cuestionarioRepository: object,
+   *   cuestionarioLecturaRepository?: object,
    *   consumoRepository: object,
    *   iaService: object,
    *   evaluadorIaService?: object,
@@ -383,6 +413,7 @@ class CuestionarioService {
     documentoRepository,
     fragmentoRepository,
     cuestionarioRepository,
+    cuestionarioLecturaRepository,
     consumoRepository,
     iaService,
     evaluadorIaService,
@@ -392,6 +423,10 @@ class CuestionarioService {
     this.documentoRepository = documentoRepository;
     this.fragmentoRepository = fragmentoRepository;
     this.cuestionarioRepository = cuestionarioRepository;
+    // Repositorio de solo lectura con service_role para contenido con
+    // respuestas correctas y calificaciones. Se inyecta en produccion; las
+    // pruebas pueden usar el mismo repositorio simulado.
+    this.cuestionarioLecturaRepository = cuestionarioLecturaRepository ?? cuestionarioRepository;
     this.consumoRepository = consumoRepository;
     this.iaService = iaService;
     this.evaluadorIaService = evaluadorIaService;
@@ -487,14 +522,69 @@ class CuestionarioService {
   }
 
   /**
-   * Devuelve un cuestionario propio con sus preguntas, sin respuestas correctas.
+   * Lista los cuestionarios publicados que el usuario puede resolver.
+   *
+   * @param {{ limite: number, desplazamiento: number }} paginacion
+   * @returns {Promise<{ items: object[], total: number }>}
+   */
+  async listarDisponibles({ limite, desplazamiento }) {
+    const { items, total } = await this.cuestionarioRepository.listarCuestionariosDisponibles({
+      limit: limite,
+      offset: desplazamiento,
+    });
+
+    return { items: items.map(aCuestionarioResumen), total };
+  }
+
+  /**
+   * Publica o despublica un cuestionario propio. Solo su dueño, que además debe
+   * ser el docente responsable de la materia, puede hacerlo.
+   *
+   * @param {string} cuestionarioId
+   * @param {boolean} publicado
+   * @returns {Promise<object>}
+   */
+  async publicar(cuestionarioId, publicado) {
+    const cuestionario = await this.obtenerCuestionarioParaDocente(cuestionarioId);
+    const actualizado = await this.cuestionarioRepository.actualizarPublicacion({
+      usuarioId: this.usuarioActualId,
+      cuestionarioId,
+      materiaId: cuestionario.materia_id,
+      publicado,
+    });
+
+    return aCuestionarioResumen(actualizado ?? cuestionario);
+  }
+
+  /**
+   * Devuelve las calificaciones finalizadas de un cuestionario al docente
+   * responsable. No incluye respuestas ni correcciones.
+   *
+   * @param {string} cuestionarioId
+   * @param {{ limite: number, desplazamiento: number }} paginacion
+   * @returns {Promise<{ items: object[], total: number }>}
+   */
+  async listarCalificaciones(cuestionarioId, { limite, desplazamiento }) {
+    await this.obtenerCuestionarioParaDocente(cuestionarioId);
+
+    const { items, total } = await this.cuestionarioLecturaRepository.listarCalificaciones({
+      cuestionarioId,
+      limit: limite,
+      offset: desplazamiento,
+    });
+
+    return { items: items.map(aCalificacion), total };
+  }
+
+  /**
+   * Devuelve un cuestionario accesible con sus preguntas, sin respuestas correctas.
    *
    * @param {string} cuestionarioId
    * @returns {Promise<object>}
    */
   async obtener(cuestionarioId) {
-    const cuestionario = await this.obtenerCuestionario(cuestionarioId);
-    const preguntas = await this.cuestionarioRepository.listarPreguntas(cuestionarioId);
+    const cuestionario = await this.obtenerCuestionarioAccesible(cuestionarioId);
+    const preguntas = await this.cuestionarioLecturaRepository.listarPreguntas(cuestionarioId);
     const intentos = await this.cuestionarioRepository.listarIntentos(
       this.usuarioActualId,
       cuestionarioId,
@@ -517,14 +607,14 @@ class CuestionarioService {
   }
 
   /**
-   * Inicia un intento de resolucion de un cuestionario propio.
+   * Inicia un intento de resolucion de un cuestionario accesible.
    *
    * @param {string} cuestionarioId
    * @returns {Promise<object>}
    */
   async iniciarIntento(cuestionarioId) {
-    const cuestionario = await this.obtenerCuestionario(cuestionarioId);
-    const preguntas = await this.cuestionarioRepository.listarPreguntas(cuestionarioId);
+    const cuestionario = await this.obtenerCuestionarioAccesible(cuestionarioId);
+    const preguntas = await this.cuestionarioLecturaRepository.listarPreguntas(cuestionarioId);
 
     if (preguntas.length === 0) {
       throw ApiError.unprocessable('El cuestionario no tiene preguntas para resolver.');
@@ -570,8 +660,8 @@ class CuestionarioService {
       throw ApiError.conflict('Este intento ya fue finalizado.');
     }
 
-    const cuestionario = await this.obtenerCuestionario(intento.cuestionario_id);
-    const preguntas = await this.cuestionarioRepository.listarPreguntas(cuestionario.id);
+    const cuestionario = await this.obtenerCuestionarioAccesible(intento.cuestionario_id);
+    const preguntas = await this.cuestionarioLecturaRepository.listarPreguntas(cuestionario.id);
     const preguntasPorId = new Map(preguntas.map((pregunta) => [pregunta.id, pregunta]));
 
     for (const respuesta of respuestas) {
@@ -772,8 +862,8 @@ class CuestionarioService {
    */
   async obtenerResultadoIntento(intentoId) {
     const intento = await this.obtenerIntento(intentoId);
-    const cuestionario = await this.obtenerCuestionario(intento.cuestionario_id);
-    const preguntas = await this.cuestionarioRepository.listarPreguntas(cuestionario.id);
+    const cuestionario = await this.obtenerCuestionarioAccesible(intento.cuestionario_id);
+    const preguntas = await this.cuestionarioLecturaRepository.listarPreguntas(cuestionario.id);
     const respuestas = await this.cuestionarioRepository.listarRespuestas(
       this.usuarioActualId,
       intentoId,
@@ -927,6 +1017,47 @@ class CuestionarioService {
    */
   async obtenerCuestionario(cuestionarioId) {
     const cuestionario = await this.cuestionarioRepository.obtenerCuestionarioPorId(
+      this.usuarioActualId,
+      cuestionarioId,
+    );
+
+    if (!cuestionario) {
+      throw ApiError.notFound('Cuestionario no encontrado.');
+    }
+
+    return cuestionario;
+  }
+
+  /**
+   * Obtiene un cuestionario que el usuario puede ver: propio, o publicado en
+   * una materia con inscripción activa. Un recurso ajeno responde 404.
+   *
+   * @param {string} cuestionarioId
+   * @returns {Promise<object>}
+   */
+  async obtenerCuestionarioAccesible(cuestionarioId) {
+    const cuestionario =
+      await this.cuestionarioRepository.obtenerCuestionarioAccesiblePorId(
+        this.usuarioActualId,
+        cuestionarioId,
+      );
+
+    if (!cuestionario) {
+      throw ApiError.notFound('Cuestionario no encontrado.');
+    }
+
+    return cuestionario;
+  }
+
+  /**
+   * Obtiene un cuestionario solo si el usuario es su dueño y el docente
+   * responsable de la materia.
+   *
+   * @param {string} cuestionarioId
+   * @returns {Promise<object>}
+   */
+  async obtenerCuestionarioParaDocente(cuestionarioId) {
+    const cuestionario = await this.cuestionarioRepository.obtenerCuestionarioParaDocente(
       this.usuarioActualId,
       cuestionarioId,
     );

@@ -1,5 +1,5 @@
 /**
- * Controlador HTTP de cuestionarios academicos (HU13).
+ * Controlador HTTP de cuestionarios academicos (HU13 y publicacion HU20).
  * Traduce HTTP -> servicio -> HTTP y responde con el sobre estandar.
  */
 class CuestionarioController {
@@ -31,6 +31,53 @@ class CuestionarioController {
       limite: limit,
       desplazamiento: offset,
     });
+
+    res.status(200).json({
+      success: true,
+      data: items,
+      meta: {
+        page: Math.floor(offset / limit) + 1,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    });
+  };
+
+  listarDisponibles = async (req, res) => {
+    const { limit, offset } = req.validated.query;
+    const { items, total } = await this.cuestionarioService.listarDisponibles({
+      limite: limit,
+      desplazamiento: offset,
+    });
+
+    res.status(200).json({
+      success: true,
+      data: items,
+      meta: {
+        page: Math.floor(offset / limit) + 1,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    });
+  };
+
+  publicar = async (req, res) => {
+    const cuestionario = await this.cuestionarioService.publicar(
+      req.validated.params.id,
+      req.validated.body.publicado,
+    );
+
+    res.status(200).json({ success: true, data: cuestionario });
+  };
+
+  listarCalificaciones = async (req, res) => {
+    const { limit, offset } = req.validated.query;
+    const { items, total } = await this.cuestionarioService.listarCalificaciones(
+      req.validated.params.id,
+      { limite: limit, desplazamiento: offset },
+    );
 
     res.status(200).json({
       success: true,

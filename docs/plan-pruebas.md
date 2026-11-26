@@ -258,6 +258,13 @@ Reglas:
 | Tarjetas con frente o reverso vacíos o duplicados | Se descartan antes de persistir. |
 | Salida del modelo con JSON inválido | Se reintenta una vez; si sigue fallando, 503. |
 | Cuestionario de otro usuario | 404. |
+| Docente responsable publica o despublica | `200` con `publicado` y `fecha_publicacion` coherentes. |
+| Docente no responsable publica o consulta calificaciones | `404`. |
+| Estudiante o administrador publica | `403` desde el middleware de rol. |
+| Estudiante con inscripción activa lista disponibles | Ve solo cuestionarios publicados de sus materias. |
+| Estudiante sin inscripción activa obtiene un cuestionario publicado | `404`; tampoco puede iniciar intento. |
+| Calificaciones de docente responsable | Devuelve notas de los intentos de sus estudiantes. |
+| Respuestas correctas en detalle o inicio de intento | No se exponen. |
 | Generar sin documento con varios documentos procesados | Usa fragmentos de la materia y guarda el cuestionario. |
 | Generar sin material procesado | `422`. |
 | Pregunta objetiva correcta / incorrecta | `es_correcta` verdadero / falso y puntuación coherente. |

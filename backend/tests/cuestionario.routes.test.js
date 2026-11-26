@@ -5,9 +5,14 @@ const CUESTIONARIO_ID = 'c1d2e3f4-5a6b-4c7d-8e9f-0a1b2c3d4e5f';
 const INTENTO_ID = 'f1e2d3c4-b5a6-4c7d-8e9f-0a1b2c3d4e5f';
 const PREGUNTA_ID = '11111111-1111-4111-8111-111111111111';
 
+let mockRolActual = 'estudiante';
+
 const mockCuestionarioService = {
   generar: jest.fn(),
   listar: jest.fn(),
+  listarDisponibles: jest.fn(),
+  publicar: jest.fn(),
+  listarCalificaciones: jest.fn(),
   obtener: jest.fn(),
   eliminar: jest.fn(),
   iniciarIntento: jest.fn(),
@@ -17,7 +22,12 @@ const mockCuestionarioService = {
 };
 
 jest.mock('../src/middlewares/auth.middleware', () => (req, _res, next) => {
-  req.user = { id: USUARIO_ID, email: 'estudiante@mingo.test', role: 'estudiante' };
+  req.user = {
+    id: USUARIO_ID,
+    email: `${mockRolActual}@mingo.test`,
+    role: mockRolActual,
+    roles: [mockRolActual],
+  };
   req.accessToken = 'token-de-prueba';
   next();
 });
@@ -64,11 +74,25 @@ const INTENTO = {
   fecha_finalizacion: null,
 };
 
-describe('rutas de cuestionarios (HU13)', () => {
+describe('rutas de cuestionarios (HU13 y publicacion HU20)', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockRolActual = 'estudiante';
     mockCuestionarioService.generar.mockResolvedValue(CUESTIONARIO);
     mockCuestionarioService.listar.mockResolvedValue({ items: [CUESTIONARIO], total: 1 });
+    mockCuestionarioService.listarDisponibles.mockResolvedValue({
+      items: [{ ...CUESTIONARIO, publicado: true }],
+      total: 1,
+    });
+    mockCuestionarioService.publicar.mockResolvedValue({
+      ...CUESTIONARIO,
+      publicado: true,
+      fecha_publicacion: '2026-11-20T10:00:00.000Z',
+    });
+    mockCuestionarioService.listarCalificaciones.mockResolvedValue({
+      items: [{ intento_id: INTENTO_ID, puntuacion: 80 }],
+      total: 1,
+    });
     mockCuestionarioService.obtener.mockResolvedValue(CUESTIONARIO);
     mockCuestionarioService.eliminar.mockResolvedValue(undefined);
     mockCuestionarioService.iniciarIntento.mockResolvedValue({
@@ -280,5 +304,101 @@ describe('rutas de cuestionarios (HU13)', () => {
       .expect(404);
 
     expect(response.body.error.message).toBe('Cuestionario no encontrado.');
+  });
+
+  describe('publicación y calificaciones (HU20)', () => {
+    it('GET /api/asistente/cuestionarios/disponibles no cae en la ruta :id', async () => {
+      const response = await request(app)
+        .get('/api/asistente/cuestionarios/disponibles')
+        .query({ limit: 5, offset: 0 })
+        .expect(200);
+
+      expect(response.body.data[0].publicado).toBe(true);
+      expect(mockCuestionarioService.listarDisponibles).toHaveBeenCalledWith({
+        limite: 5,
+        desplazamiento: 0,
+      });
+      expect(mockCuestionarioService.obtener).not.toHaveBeenCalled();
+    });
+
+    it('GET /api/asistente/cuestionarios/disponibles rechaza un limite fuera de rango', async () => {
+      await request(app)
+        .get('/api/asistente/cuestionarios/disponibles')
+        .query({ limit: 51 })
+        .expect(400);
+
+      expect(mockCuestionarioService.listarDisponibles).not.toHaveBeenCalled();
+    });
+
+    it('PATCH /api/asistente/cuestionarios/:id/publicacion devuelve 403 al estudiante', async () => {
+      const response = await request(app)
+        .patch(`/api/asistente/cuestionarios/${CUESTIONARIO_ID}/publicacion`)
+        .send({ publicado: true })
+        .expect(403);
+
+      expect(response.body.success).toBe(false);
+      expect(mockCuestionarioService.publicar).not.toHaveBeenCalled();
+    });
+
+    it('PATCH /api/asistente/cuestionarios/:id/publicacion publica siendo docente', async () => {
+      mockRolActual = 'docente';
+
+      const response = await request(app)
+        .patch(`/api/asistente/cuestionarios/${CUESTIONARIO_ID}/publicacion`)
+        .send({ publicado: true })
+        .expect(200);
+
+      expect(response.body.data).toMatchObject({
+        id: CUESTIONARIO_ID,
+        publicado: true,
+      });
+      expect(mockCuestionarioService.publicar).toHaveBeenCalledWith(CUESTIONARIO_ID, true);
+    });
+
+    it('PATCH /api/asistente/cuestionarios/:id/publicacion rechaza un cuerpo invalido', async () => {
+      mockRolActual = 'docente';
+
+      await request(app)
+        .patch(`/api/asistente/cuestionarios/${CUESTIONARIO_ID}/publicacion`)
+        .send({ publicado: 'si' })
+        .expect(400);
+
+      expect(mockCuestionarioService.publicar).not.toHaveBeenCalled();
+    });
+
+    it('GET /api/asistente/cuestionarios/:id/calificaciones devuelve 403 al estudiante', async () => {
+      await request(app)
+        .get(`/api/asistente/cuestionarios/${CUESTIONARIO_ID}/calificaciones`)
+        .expect(403);
+
+      expect(mockCuestionarioService.listarCalificaciones).not.toHaveBeenCalled();
+    });
+
+    it('GET /api/asistente/cuestionarios/:id/calificaciones lista las notas del docente', async () => {
+      mockRolActual = 'docente';
+
+      const response = await request(app)
+        .get(`/api/asistente/cuestionarios/${CUESTIONARIO_ID}/calificaciones`)
+        .query({ limit: 10, offset: 0 })
+        .expect(200);
+
+      expect(response.body.data).toEqual([{ intento_id: INTENTO_ID, puntuacion: 80 }]);
+      expect(response.body.meta).toEqual({ page: 1, limit: 10, total: 1, totalPages: 1 });
+      expect(mockCuestionarioService.listarCalificaciones).toHaveBeenCalledWith(CUESTIONARIO_ID, {
+        limite: 10,
+        desplazamiento: 0,
+      });
+    });
+
+    it('GET /api/asistente/cuestionarios/:id/calificaciones rechaza un limite fuera de rango', async () => {
+      mockRolActual = 'docente';
+
+      await request(app)
+        .get(`/api/asistente/cuestionarios/${CUESTIONARIO_ID}/calificaciones`)
+        .query({ limit: 0 })
+        .expect(400);
+
+      expect(mockCuestionarioService.listarCalificaciones).not.toHaveBeenCalled();
+    });
   });
 });

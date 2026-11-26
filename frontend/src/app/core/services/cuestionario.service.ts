@@ -32,6 +32,8 @@ export interface CuestionarioResumen {
   tokens_entrada: number;
   tokens_salida: number;
   fecha_creacion: string;
+  publicado: boolean;
+  fecha_publicacion: string | null;
 }
 
 export interface OpcionCuestionario {
@@ -112,6 +114,22 @@ export interface CuestionarioListado {
   total: number;
 }
 
+export interface CalificacionCuestionario {
+  estudiante_id: string;
+  estudiante_nombre: string | null;
+  puntuacion: number | null;
+  estado: EstadoIntento;
+  fecha_inicio: string;
+  fecha_finalizacion: string | null;
+  respuestas_correctas: number;
+  total_preguntas: number;
+}
+
+export interface CalificacionListado {
+  calificaciones: CalificacionCuestionario[];
+  total: number;
+}
+
 export interface IntentoIniciado {
   intento: IntentoCuestionarioResumen;
   cuestionario: CuestionarioGenerado;
@@ -149,8 +167,9 @@ export interface PaginacionCuestionarios {
 }
 
 /**
- * Servicio HTTP de cuestionarios academicos (HU13).
- * Genera, lista, resuelve y elimina cuestionarios del usuario autenticado.
+ * Servicio HTTP de cuestionarios academicos (HU13/HU18).
+ * Genera, lista, publica, resuelve y elimina cuestionarios; también consulta
+ * los disponibles para estudiantes y las calificaciones del docente.
  */
 @Injectable({ providedIn: 'root' })
 export class CuestionarioService {
@@ -169,6 +188,44 @@ export class CuestionarioService {
       .pipe(
         map(({ data, meta }) => ({
           cuestionarios: data ?? [],
+          total: meta.total ?? 0,
+        })),
+      );
+  }
+
+  listarDisponibles({ limit, offset }: PaginacionCuestionarios): Observable<CuestionarioListado> {
+    return this.api
+      .getWithMeta<CuestionarioResumen[], { total: number }>(
+        '/asistente/cuestionarios/disponibles',
+        { limit, offset },
+      )
+      .pipe(
+        map(({ data, meta }) => ({
+          cuestionarios: data ?? [],
+          total: meta.total ?? 0,
+        })),
+      );
+  }
+
+  publicar(id: string, publicado: boolean): Observable<CuestionarioResumen> {
+    return this.api.patch<CuestionarioResumen>(
+      `/asistente/cuestionarios/${encodeURIComponent(id)}/publicacion`,
+      { publicado },
+    );
+  }
+
+  listarCalificaciones(
+    id: string,
+    { limit, offset }: PaginacionCuestionarios,
+  ): Observable<CalificacionListado> {
+    return this.api
+      .getWithMeta<CalificacionCuestionario[], { total: number }>(
+        `/asistente/cuestionarios/${encodeURIComponent(id)}/calificaciones`,
+        { limit, offset },
+      )
+      .pipe(
+        map(({ data, meta }) => ({
+          calificaciones: data ?? [],
           total: meta.total ?? 0,
         })),
       );

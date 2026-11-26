@@ -1,5 +1,6 @@
 const { Router } = require('express');
 const authMiddleware = require('../middlewares/auth.middleware');
+const { requireRole } = require('../middlewares/roles.middleware');
 const idempotencyMiddleware = require('../middlewares/idempotency.middleware');
 const validationMiddleware = require('../middlewares/validation.middleware');
 const asyncHandler = require('../utils/asyncHandler');
@@ -28,6 +29,8 @@ const {
   cuestionarioGenerarSchema,
   cuestionarioParamSchema,
   cuestionarioListarQuerySchema,
+  cuestionarioCalificacionesQuerySchema,
+  cuestionarioPublicarSchema,
   intentoListarQuerySchema,
   intentoResponderSchema,
 } = require('../models/cuestionario.model');
@@ -89,7 +92,7 @@ function atenderChat(accion) {
  * Construye un handler que delega en el controlador de cuestionarios.
  * El servicio se compone por peticion para usar el cliente JWT del usuario.
  *
- * @param {'generar' | 'listar' | 'obtener' | 'eliminar' | 'iniciarIntento' | 'responder' | 'obtenerIntento' | 'listarIntentos'} accion
+ * @param {'generar' | 'listar' | 'listarDisponibles' | 'publicar' | 'listarCalificaciones' | 'obtener' | 'eliminar' | 'iniciarIntento' | 'responder' | 'obtenerIntento' | 'listarIntentos'} accion
  * @returns {import('express').RequestHandler}
  */
 function atenderCuestionario(accion) {
@@ -222,13 +225,55 @@ router.get(
 );
 
 /**
+ * GET /asistente/cuestionarios/disponibles
+ * Lista los cuestionarios publicados en materias con inscripción activa.
+ * Se declara antes de `/cuestionarios/:id` para que "disponibles" no se
+ * interprete como un identificador.
+ */
+router.get(
+  '/cuestionarios/disponibles',
+  validationMiddleware({ query: cuestionarioListarQuerySchema }),
+  atenderCuestionario('listarDisponibles'),
+);
+
+/**
  * GET /asistente/cuestionarios/:id
- * Devuelve un cuestionario propio con sus preguntas y opciones.
+ * Devuelve un cuestionario accesible: propio o publicado con inscripción activa.
+ * Las respuestas correctas se ocultan hasta finalizar el intento.
  */
 router.get(
   '/cuestionarios/:id',
   validationMiddleware({ params: cuestionarioParamSchema }),
   atenderCuestionario('obtener'),
+);
+
+/**
+ * PATCH /asistente/cuestionarios/:id/publicacion
+ * Publica o despublica un cuestionario. Solo el docente responsable de la
+ * materia puede hacerlo; el servicio comprueba `materias.docente_id`.
+ */
+router.patch(
+  '/cuestionarios/:id/publicacion',
+  requireRole('docente'),
+  validationMiddleware({
+    params: cuestionarioParamSchema,
+    body: cuestionarioPublicarSchema,
+  }),
+  atenderCuestionario('publicar'),
+);
+
+/**
+ * GET /asistente/cuestionarios/:id/calificaciones
+ * Panel de notas del docente responsable. No expone respuestas ni correcciones.
+ */
+router.get(
+  '/cuestionarios/:id/calificaciones',
+  requireRole('docente'),
+  validationMiddleware({
+    params: cuestionarioParamSchema,
+    query: cuestionarioCalificacionesQuerySchema,
+  }),
+  atenderCuestionario('listarCalificaciones'),
 );
 
 /**

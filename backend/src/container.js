@@ -81,6 +81,7 @@ const evaluadorIaServiceCompartido = new EvaluadorIaService();
 const tarjetaIaServiceCompartido = new TarjetaIaService();
 const planIaServiceCompartido = new PlanIaService();
 const {
+  supabaseAdmin,
   createSupabaseClient,
   createSupabaseServiceRoleClient,
   createSupabaseAnonClient,
@@ -363,9 +364,11 @@ function createChatController(chatService) {
 }
 
 /**
- * Crea el servicio de cuestionarios de HU13.
- * Usa el cliente del usuario: materias, documentos, fragmentos, cuestionarios,
- * intentos y consumo quedan limitados por RLS. Reutiliza el cliente de IA.
+ * Crea el servicio de cuestionarios de HU13 y publicacion HU20.
+ * Usa el cliente del usuario para materias, documentos, fragmentos,
+ * cuestionarios, intentos y consumo (RLS). El contenido de preguntas y las
+ * calificaciones se leen con un repositorio acotado de service_role, siempre
+ * despues de verificar la autorizacion en el servicio. Reutiliza el cliente de IA.
  *
  * @param {string} usuarioActualId - ID del usuario autenticado.
  * @param {string} accessToken - JWT del usuario autenticado.
@@ -379,6 +382,7 @@ function createCuestionarioService(usuarioActualId, accessToken) {
     documentoRepository: new DocumentoRepository({ supabase: supabaseClient }),
     fragmentoRepository: new FragmentoRepository({ supabase: supabaseClient }),
     cuestionarioRepository: new CuestionarioRepository({ supabase: supabaseClient }),
+    cuestionarioLecturaRepository: new CuestionarioRepository({ supabase: supabaseAdmin }),
     consumoRepository: new ConsumoIaRepository({ supabase: supabaseClient }),
     iaService: cuestionarioIaServiceCompartido,
     evaluadorIaService: evaluadorIaServiceCompartido,

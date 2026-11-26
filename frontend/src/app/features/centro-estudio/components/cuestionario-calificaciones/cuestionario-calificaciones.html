@@ -1,0 +1,97 @@
+<section class="app-card calificaciones-cuestionario" aria-labelledby="titulo-calificaciones">
+  <div class="card-body p-4 p-lg-5">
+    <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
+      <div>
+        <h2 class="h5 mb-1" id="titulo-calificaciones">Calificaciones de {{ titulo() }}</h2>
+        <p class="small text-muted-soft mb-0">
+          Notas de los intentos de tus estudiantes en este cuestionario.
+        </p>
+      </div>
+      <button type="button" class="btn btn-sm btn-outline-info" (click)="cerrarPanel()">
+        <i class="bi bi-x-lg me-1" aria-hidden="true"></i>
+        Cerrar
+      </button>
+    </div>
+
+    @if (errorMessage()) {
+      <div class="alert alert-danger d-flex align-items-center mb-4" role="alert">
+        <i class="bi bi-exclamation-triangle me-2" aria-hidden="true"></i>
+        <span class="flex-grow-1">{{ errorMessage() }}</span>
+        <button type="button" class="btn btn-sm btn-outline-danger" (click)="cargar()">
+          Reintentar
+        </button>
+      </div>
+    }
+
+    @if (isLoading() && calificaciones().length === 0) {
+      <div class="text-center py-5 text-muted-soft" role="status" aria-live="polite">
+        <span class="spinner-border spinner-border-sm text-primary me-2" aria-hidden="true"></span>
+        Cargando calificaciones...
+      </div>
+    } @else if (estaVacio()) {
+      <div class="text-center py-5">
+        <h3 class="h6 mb-1">Todavía no hay calificaciones</h3>
+        <p class="small text-muted-soft mb-0">
+          Cuando tus estudiantes finalicen el cuestionario, sus notas aparecerán aquí.
+        </p>
+      </div>
+    } @else {
+      <div class="d-flex justify-content-end mb-3">
+        <span class="badge badge-info">
+          <i class="bi bi-people me-1" aria-hidden="true"></i>
+          {{ total() }} {{ total() === 1 ? 'intento' : 'intentos' }}
+        </span>
+      </div>
+
+      <div class="table-responsive">
+        <table class="table table-hover align-middle">
+          <thead>
+            <tr>
+              <th scope="col">Estudiante</th>
+              <th scope="col">Nota</th>
+              <th scope="col">Aciertos</th>
+              <th scope="col">Estado</th>
+              <th scope="col">Inicio</th>
+              <th scope="col">Finalización</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (
+              calificacion of calificaciones();
+              track calificacion.estudiante_id + calificacion.fecha_inicio
+            ) {
+              <tr>
+                <td>{{ calificacion.estudiante_nombre ?? 'Estudiante' }}</td>
+                <td>
+                  @if (calificacion.puntuacion !== null) {
+                    <span class="fw-semibold">{{ calificacion.puntuacion | number }}%</span>
+                  } @else {
+                    <span class="text-muted">Pendiente</span>
+                  }
+                </td>
+                <td>{{ calificacion.respuestas_correctas }}/{{ calificacion.total_preguntas }}</td>
+                <td>
+                  <span
+                    class="badge"
+                    [class.badge-success]="calificacion.estado === 'finalizado'"
+                    [class.badge-info]="calificacion.estado === 'en_progreso'"
+                  >
+                    {{ etiquetaEstado(calificacion.estado) }}
+                  </span>
+                </td>
+                <td>{{ calificacion.fecha_inicio | date: 'dd/MM/yyyy HH:mm' }}</td>
+                <td>
+                  @if (calificacion.fecha_finalizacion) {
+                    {{ calificacion.fecha_finalizacion | date: 'dd/MM/yyyy HH:mm' }}
+                  } @else {
+                    <span class="text-muted">—</span>
+                  }
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  </div>
+</section>

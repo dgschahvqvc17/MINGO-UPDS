@@ -16,6 +16,8 @@ const CUESTIONARIO_COLUMNS = `
   modelo,
   tokens_entrada,
   tokens_salida,
+  publicado,
+  fecha_publicacion,
   fecha_creacion,
   materias ( nombre, codigo, color )
 `;
@@ -491,6 +493,206 @@ class CuestionarioRepository {
     }
 
     return data;
+  }
+
+  /**
+   * Lista los cuestionarios publicados que el usuario puede resolver. RLS
+   * restringe el resultado a las materias con inscripción activa; el filtro
+   * explícito por `publicado` evita devolver borradores del docente.
+   *
+   * @param {{ limit: number, offset: number }} paginacion
+   * @returns {Promise<{ items: object[], total: number }>}
+   */
+  async listarCuestionariosDisponibles({ limit, offset }) {
+    const { data, error, count } = await this.requireClient()
+      .from('cuestionarios')
+      .select(CUESTIONARIO_COLUMNS, { count: 'exact' })
+      .eq('publicado', true)
+      .order('fecha_publicacion', { ascending: false })
+      .range(offset, offset + limit - 1);
+
+    if (error) {
+      throw error;
+    }
+
+    return { items: data ?? [], total: count ?? 0 };
+  }
+
+  /**
+   * Devuelve un cuestionario accesible para el usuario: propio, o publicado en
+   * una materia donde tiene inscripción activa. Un recurso ajeno se trata como
+   * inexistente para no revelar su existencia.
+   *
+   * @param {string} usuarioId
+   * @param {string} cuestionarioId
+   * @returns {Promise<object | null>}
+   */
+  async obtenerCuestionarioAccesiblePorId(usuarioId, cuestionarioId) {
+    const { data, error } = await this.requireClient()
+      .from('cuestionarios')
+      .select(CUESTIONARIO_COLUMNS)
+      .eq('id', cuestionarioId)
+      .maybeSingle();
+
+    if (error) {
+      throw error;
+    }
+
+    if (!data || data.usuario_id === usuarioId) {
+      return data ?? null;
+    }
+
+    if (!data.publicado) {
+      return null;
+    }
+
+    const esEstudianteActivo = await this.usuarioEstudianteActivoEnMateria(
+      usuarioId,
+      data.materia_id,
+    );
+
+    return esEstudianteActivo ? data : null;
+  }
+
+  /**
+   * Devuelve un cuestionario solo si el usuario es su dueño y el docente
+   * responsable de la materia. Se usa para publicar y para consultar
+   * calificaciones; un artefacto IA privado de otra persona no se expone.
+   *
+   * @param {string} usuarioId
+   * @param {string} cuestionarioId
+   * @returns {Promise<object | null>}
+   */
+  async obtenerCuestionarioParaDocente(usuarioId, cuestionarioId) {
+    const { data, error } = await this.requireClient()
+      .from('cuestionarios')
+      .select(CUESTIONARIO_COLUMNS)
+      .eq('id', cuestionarioId)
+      .eq('usuario_id', usuarioId)
+      .maybeSingle();
+
+    if (error) {
+      throw error;
+    }
+
+    if (!data) {
+      return null;
+    }
+
+    const esDocente = await this.esDocenteResponsable(usuarioId, data.materia_id);
+    return esDocente ? data : null;
+  }
+
+  /**
+   * @param {string} usuarioId
+   * @param {string} materiaId
+   * @returns {Promise<boolean>}
+   */
+  async usuarioEstudianteActivoEnMateria(usuarioId, materiaId) {
+    const materias = await this.listarMateriasConInscripcionActiva(usuarioId);
+    return materias.some((materia) => materia.materia_id === materiaId);
+  }
+
+  /**
+   * Lista las materias en las que el usuario tiene inscripción activa.
+   *
+   * @param {string} usuarioId
+   * @returns {Promise<Array<object>>}
+   */
+  async listarMateriasConInscripcionActiva(usuarioId) {
+    const { data, error } = await this.requireClient()
+      .from('inscripciones')
+      .select('id, materia_id, materias ( id, nombre, codigo )')
+      .eq('estudiante_id', usuarioId)
+      .eq('estado', 'activa')
+      .order('fecha_inscripcion', { ascending: false });
+
+    if (error) {
+      throw error;
+    }
+
+    return data ?? [];
+  }
+
+  /**
+   * Comprueba que el usuario sea el docente responsable de la materia. Se
+   * filtra explícitamente por `docente_id` como defensa en profundidad: un
+   * administrador sin esa responsabilidad no puede publicar.
+   *
+   * @param {string} usuarioId
+   * @param {string} materiaId
+   * @returns {Promise<boolean>}
+   */
+  async esDocenteResponsable(usuarioId, materiaId) {
+    const { data, error } = await this.requireClient()
+      .from('materias')
+      .select('id')
+      .eq('id', materiaId)
+      .eq('docente_id', usuarioId)
+      .maybeSingle();
+
+    if (error) {
+      throw error;
+    }
+
+    return Boolean(data);
+  }
+
+  /**
+   * Publica o despublica un cuestionario propio de una materia concreta. El
+   * filtro por `usuario_id` refuerza la política RLS y evita que un docente
+   * modifique un cuestionario generado por otra persona.
+   *
+   * @param {{ usuarioId: string, cuestionarioId: string, materiaId: string, publicado: boolean }} datos
+   * @returns {Promise<object | null>}
+   */
+  async actualizarPublicacion({ usuarioId, cuestionarioId, materiaId, publicado }) {
+    const { data, error } = await this.requireClient()
+      .from('cuestionarios')
+      .update({
+        publicado,
+        fecha_publicacion: publicado ? new Date().toISOString() : null,
+      })
+      .eq('id', cuestionarioId)
+      .eq('usuario_id', usuarioId)
+      .eq('materia_id', materiaId)
+      .select(CUESTIONARIO_COLUMNS)
+      .maybeSingle();
+
+    if (error) {
+      throw error;
+    }
+
+    return data;
+  }
+
+  /**
+   * Lista los intentos finalizados de un cuestionario con la identidad del
+   * estudiante. Solo debe invocarse con el cliente service_role y después de
+   * verificar que el solicitante es el docente responsable de la materia.
+   *
+   * @param {{ cuestionarioId: string, limit: number, offset: number }} paginacion
+   * @returns {Promise<{ items: object[], total: number }>}
+   */
+  async listarCalificaciones({ cuestionarioId, limit, offset }) {
+    const { data, error, count } = await this.requireClient()
+      .from('intentos_cuestionario')
+      .select(
+        `id, usuario_id, cuestionario_id, estado, total_preguntas, respuestas_correctas,
+         puntuacion, fecha_inicio, fecha_finalizacion,
+         perfiles ( id, nombre, apellido, correo )`,
+        { count: 'exact' },
+      )
+      .eq('cuestionario_id', cuestionarioId)
+      .eq('estado', 'finalizado')
+      .order('fecha_finalizacion', { ascending: false })
+      .range(offset, offset + limit - 1);
+
+    if (error) {
+      throw error;
+    }
+
+    return { items: data ?? [], total: count ?? 0 };
   }
 
   requireClient() {

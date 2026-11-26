@@ -66,6 +66,16 @@ const cuestionarioListarQuerySchema = paginacionQuerySchema;
 /** Query de GET /asistente/intentos. */
 const intentoListarQuerySchema = paginacionQuerySchema;
 
+/** Query de GET /asistente/cuestionarios/:id/calificaciones. */
+const cuestionarioCalificacionesQuerySchema = paginacionQuerySchema;
+
+/** Cuerpo de PATCH /asistente/cuestionarios/:id/publicacion. */
+const cuestionarioPublicarSchema = z.object({
+  publicado: z.boolean({
+    message: 'El valor de publicado debe ser verdadero o falso',
+  }),
+});
+
 const respuestaSchema = z.object({
   pregunta_id: z.string().uuid('El identificador de la pregunta no es valido'),
   respuesta: z
@@ -100,6 +110,8 @@ module.exports = {
   cuestionarioGenerarSchema,
   cuestionarioParamSchema,
   cuestionarioListarQuerySchema,
+  cuestionarioCalificacionesQuerySchema,
+  cuestionarioPublicarSchema,
   intentoListarQuerySchema,
   intentoResponderSchema,
 };

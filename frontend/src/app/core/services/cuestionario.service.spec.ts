@@ -22,6 +22,8 @@ const cuestionario: CuestionarioResumen = {
   tokens_entrada: 500,
   tokens_salida: 800,
   fecha_creacion: '2026-11-19T10:00:00.000Z',
+  publicado: false,
+  fecha_publicacion: null,
 };
 
 describe('CuestionarioService (HU13)', () => {
@@ -76,6 +78,63 @@ describe('CuestionarioService (HU13)', () => {
     req.flush({ success: true, data: [cuestionario], meta: { total: 3 } });
 
     expect(total).toBe(3);
+  });
+
+  it('lista los cuestionarios disponibles y usa el total del metadato', () => {
+    let total = 0;
+
+    service.listarDisponibles({ limit: 10, offset: 0 }).subscribe((resultado) => {
+      total = resultado.total;
+      expect(resultado.cuestionarios).toEqual([cuestionario]);
+    });
+
+    const req = httpMock.expectOne('/api/asistente/cuestionarios/disponibles?limit=10&offset=0');
+    expect(req.request.method).toBe('GET');
+    req.flush({ success: true, data: [cuestionario], meta: { total: 4 } });
+
+    expect(total).toBe(4);
+  });
+
+  it('cambia la publicación de un cuestionario con PATCH', () => {
+    let publicado = false;
+
+    service.publicar(CUESTIONARIO_ID, true).subscribe((resultado) => {
+      publicado = resultado.publicado;
+    });
+
+    const req = httpMock.expectOne(`/api/asistente/cuestionarios/${CUESTIONARIO_ID}/publicacion`);
+    expect(req.request.method).toBe('PATCH');
+    expect(req.request.body).toEqual({ publicado: true });
+    req.flush({ success: true, data: { ...cuestionario, publicado: true } });
+
+    expect(publicado).toBe(true);
+  });
+
+  it('lista las calificaciones del cuestionario y usa el total del metadato', () => {
+    const calificacion = {
+      estudiante_id: 'estudiante-1',
+      estudiante_nombre: 'Ana Torres',
+      puntuacion: 92,
+      estado: 'finalizado',
+      fecha_inicio: '2026-11-19T10:05:00.000Z',
+      fecha_finalizacion: '2026-11-19T10:10:00.000Z',
+      respuestas_correctas: 9,
+      total_preguntas: 10,
+    };
+    let total = 0;
+
+    service.listarCalificaciones(CUESTIONARIO_ID, { limit: 20, offset: 0 }).subscribe((resultado) => {
+      total = resultado.total;
+      expect(resultado.calificaciones).toEqual([calificacion]);
+    });
+
+    const req = httpMock.expectOne(
+      `/api/asistente/cuestionarios/${CUESTIONARIO_ID}/calificaciones?limit=20&offset=0`,
+    );
+    expect(req.request.method).toBe('GET');
+    req.flush({ success: true, data: [calificacion], meta: { total: 7 } });
+
+    expect(total).toBe(7);
   });
 
   it('inicia un intento del cuestionario', () => {

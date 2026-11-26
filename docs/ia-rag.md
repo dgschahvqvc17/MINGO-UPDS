@@ -383,8 +383,16 @@ Agente: confirma la creación y muestra el enlace
   calificarse.
 - Cuota: 10 cuestionarios por usuario y día, registrados en `consumo_ia` con
   `operacion = 'cuestionario'` (`429 AI_QUOTA_EXCEEDED` al agotarla).
+- Publicación: el docente responsable de la materia puede publicar o despublicar
+  sus cuestionarios. Los estudiantes con inscripción `activa` los ven en
+  “Cuestionarios disponibles”, los resuelven con el flujo habitual y reciben su
+  nota automática. El docente consulta las notas desde “Ver notas”.
+- RLS: `preguntas`, `opciones_pregunta` y las correcciones no se exponen a los
+  estudiantes durante el intento. El backend usa `service_role` solo para leer
+  las respuestas correctas y calificar; nunca las devuelve antes de finalizar.
 - UI: `/centro-estudio` permite generar, listar, resolver y revisar
-  cuestionarios y evaluaciones, con estados de carga, vacío y error.
+  cuestionarios y evaluaciones, publicar/despublicar si es docente responsable,
+  y consultar calificaciones, con estados de carga, vacío y error.
 
 ### 8.5. Tarjetas de memoria (HU14)
 

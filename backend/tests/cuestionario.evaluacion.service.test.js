@@ -98,6 +98,7 @@ function crearServicio({ evaluador = true, falloEvaluador = null, consumosEvalua
     fragmentoRepository: {},
     cuestionarioRepository: {
       obtenerCuestionarioPorId: jest.fn().mockResolvedValue(CUESTIONARIO),
+      obtenerCuestionarioAccesiblePorId: jest.fn().mockResolvedValue(CUESTIONARIO),
       listarPreguntas: jest.fn().mockResolvedValue(PREGUNTAS),
       obtenerIntentoPorId: jest.fn().mockResolvedValue(INTENTO_EN_PROGRESO),
       guardarRespuestas: jest.fn().mockImplementation(async (filas) => filas),
@@ -137,6 +138,9 @@ function crearServicio({ evaluador = true, falloEvaluador = null, consumosEvalua
         ...INTENTO_EN_PROGRESO,
         ...datos,
       })),
+    },
+    cuestionarioLecturaRepository: {
+      listarPreguntas: jest.fn().mockResolvedValue(PREGUNTAS),
     },
     consumoRepository: {
       contar: jest

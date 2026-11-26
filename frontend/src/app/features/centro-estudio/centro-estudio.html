@@ -7,6 +7,12 @@
       (volver)="cerrarResolver()"
       (completado)="alCompletar()"
     />
+  } @else if (calificacionesDe(); as calificaciones) {
+    <app-cuestionario-calificaciones
+      [cuestionarioId]="calificaciones.id"
+      [titulo]="calificaciones.titulo"
+      (cerrar)="cerrarCalificaciones()"
+    />
   } @else {
     <header class="page-header mb-4">
       <div class="d-flex flex-wrap justify-content-between align-items-start gap-3">
@@ -237,10 +243,17 @@
                             {{ cuestionario.fecha_creacion | date: 'dd/MM/yyyy' }}
                           </p>
                         </div>
-                        <span class="badge badge-success badge-sm">
-                          <i class="bi bi-check2-circle me-1" aria-hidden="true"></i>
-                          Listo
-                        </span>
+                        @if (cuestionario.publicado) {
+                          <span class="badge badge-success badge-sm">
+                            <i class="bi bi-globe me-1" aria-hidden="true"></i>
+                            Publicado
+                          </span>
+                        } @else {
+                          <span class="badge badge-info badge-sm">
+                            <i class="bi bi-file-earmark me-1" aria-hidden="true"></i>
+                            Borrador
+                          </span>
+                        }
                       </div>
 
                       <div class="meta-chips mt-3">
@@ -259,6 +272,33 @@
                           <i class="bi bi-play-fill me-1" aria-hidden="true"></i>
                           Resolver
                         </button>
+
+                        @if (esDocente()) {
+                          <button
+                            type="button"
+                            class="btn btn-sm btn-outline-info"
+                            [disabled]="publicandoId() === cuestionario.id"
+                            [attr.aria-label]="cuestionario.publicado ? 'Despublicar cuestionario' : 'Publicar cuestionario'"
+                            (click)="publicar(cuestionario, !cuestionario.publicado)"
+                          >
+                            @if (publicandoId() === cuestionario.id) {
+                              <span class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span>
+                            } @else if (cuestionario.publicado) {
+                              <i class="bi bi-eye-slash me-1" aria-hidden="true"></i>
+                            } @else {
+                              <i class="bi bi-send me-1" aria-hidden="true"></i>
+                            }
+                            {{ cuestionario.publicado ? 'Despublicar' : 'Publicar' }}
+                          </button>
+                          <button
+                            type="button"
+                            class="btn btn-sm btn-outline-info"
+                            (click)="verCalificaciones(cuestionario)"
+                          >
+                            <i class="bi bi-list-check me-1" aria-hidden="true"></i>
+                            Ver notas
+                          </button>
+                        }
 
                         @if (confirmandoEliminar() === cuestionario.id) {
                           <button
@@ -304,6 +344,124 @@
                     (click)="cargarMas()"
                   >
                     @if (cargandoCuestionarios()) {
+                      <span class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span>
+                    } @else {
+                      <i class="bi bi-chevron-down me-1" aria-hidden="true"></i>
+                    }
+                    Cargar más
+                  </button>
+                </div>
+              }
+            }
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="row g-4 mt-1">
+      <div class="col-12">
+        <div class="app-card h-100">
+          <div class="card-body p-4 p-lg-5">
+            <div class="panel-heading">
+              <span class="icon-badge icon-badge--ai icon-badge--lg" aria-hidden="true">
+                <i class="bi bi-mortarboard"></i>
+              </span>
+              <div class="flex-grow-1">
+                <h2 class="h5 mb-1" id="titulo-cuestionarios-disponibles">
+                  Cuestionarios disponibles
+                </h2>
+                <p class="small text-muted-soft mb-0">
+                  Resuelve los cuestionarios que tus docentes han publicado para ti.
+                </p>
+              </div>
+              <span class="badge badge-info">
+                <i class="bi bi-collection me-1" aria-hidden="true"></i>
+                {{ totalDisponibles() }}
+                {{ totalDisponibles() === 1 ? 'cuestionario' : 'cuestionarios' }}
+              </span>
+            </div>
+
+            @if (errorDisponibles()) {
+              <div class="alert alert-danger d-flex align-items-center mb-4" role="alert">
+                <i class="bi bi-exclamation-triangle me-2" aria-hidden="true"></i>
+                <span class="flex-grow-1">{{ errorDisponibles() }}</span>
+                <button
+                  type="button"
+                  class="btn btn-sm btn-outline-danger"
+                  (click)="cargarDisponibles()"
+                >
+                  Reintentar
+                </button>
+              </div>
+            }
+
+            @if (cargandoDisponibles() && cuestionariosDisponibles().length === 0) {
+              <div class="app-card" role="status" aria-live="polite">
+                <div class="card-body p-5 text-center text-muted-soft">
+                  <span class="spinner-border spinner-border-sm text-primary me-2" aria-hidden="true"></span>
+                  Cargando cuestionarios disponibles...
+                </div>
+              </div>
+            } @else if (mostrarListaVaciaDisponibles()) {
+              <div class="app-card">
+                <div class="card-body p-5 text-center">
+                  <h3 class="h6 mb-1">No hay cuestionarios disponibles</h3>
+                  <p class="small text-muted-soft mb-0">
+                    Cuando un docente publique un cuestionario para tu materia, podrás resolverlo aquí.
+                  </p>
+                </div>
+              </div>
+            } @else {
+              <div class="cuestionarios-grid">
+                @for (cuestionario of cuestionariosDisponibles(); track cuestionario.id) {
+                  <div class="app-card cuestionario-card">
+                    <div class="card-body p-4">
+                      <h3 class="h6 mb-1">{{ cuestionario.titulo }}</h3>
+                      <p class="small text-muted-soft mb-0">
+                        @if (cuestionario.materia_nombre) {
+                          <i class="bi bi-book me-1" aria-hidden="true"></i>
+                          {{ cuestionario.materia_nombre }}
+                        }
+                        @if (cuestionario.fecha_publicacion) {
+                          <br />
+                          <i class="bi bi-calendar3 me-1" aria-hidden="true"></i>
+                          Publicado el {{ cuestionario.fecha_publicacion | date: 'dd/MM/yyyy' }}
+                        }
+                      </p>
+                      <div class="meta-chips mt-3">
+                        <span class="meta-chip">
+                          <i class="bi bi-list-check" aria-hidden="true"></i>
+                          {{ cuestionario.cantidad_preguntas }} preguntas
+                        </span>
+                        <span class="meta-chip">
+                          <i class="bi bi-bar-chart" aria-hidden="true"></i>
+                          {{ etiquetaDificultad(cuestionario) }}
+                        </span>
+                      </div>
+                      <div class="mt-4 pt-3 border-top">
+                        <button
+                          type="button"
+                          class="btn btn-aceptar btn-sm"
+                          (click)="resolver(cuestionario)"
+                        >
+                          <i class="bi bi-play-fill me-1" aria-hidden="true"></i>
+                          Resolver
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                }
+              </div>
+
+              @if (hayMasDisponibles()) {
+                <div class="text-center mt-4">
+                  <button
+                    type="button"
+                    class="btn btn-outline-info btn-sm"
+                    [disabled]="cargandoDisponibles()"
+                    (click)="cargarMasDisponibles()"
+                  >
+                    @if (cargandoDisponibles()) {
                       <span class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span>
                     } @else {
                       <i class="bi bi-chevron-down me-1" aria-hidden="true"></i>

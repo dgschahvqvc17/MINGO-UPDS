@@ -27,6 +27,8 @@ const cuestionario: CuestionarioResumen = {
   tokens_entrada: 500,
   tokens_salida: 800,
   fecha_creacion: '2026-11-19T10:00:00.000Z',
+  publicado: false,
+  fecha_publicacion: null,
 };
 
 const intento = {

@@ -606,13 +606,20 @@ Cuestionarios generados por IA a partir del material del estudiante (HU13).
 | `tokens_entrada` | `INTEGER` | No | | Tokens enviados al proveedor. |
 | `tokens_salida` | `INTEGER` | No | | Tokens devueltos por el proveedor. |
 | `fecha_creacion` | `TIMESTAMPTZ` | No | | Fecha de generación. |
+| `publicado` | `BOOLEAN` | No | | `true` cuando el docente responsable lo pone a disposición de los inscritos activos. |
+| `fecha_publicacion` | `TIMESTAMPTZ` | Sí | | Momento de la última publicación; `NULL` al despublicar. |
 
 Reglas:
 
 - La propiedad de la materia y del documento se valida en el servicio; un
   recurso ajeno responde `404`.
+- Solo el propietario que además es docente responsable de la materia puede
+  publicar o despublicar. El backend verifica `cuestionarios.usuario_id =
+  auth.uid()` y `materias.docente_id = auth.uid()`, además del rol `docente`.
+- Los destinatarios son estudiantes con inscripción `activa` en la materia.
 - Al borrar el documento, el cuestionario se conserva con `documento_id = NULL`.
-- DDL: `supabase/migrations/0010_hu13_cuestionarios.sql` (idempotente).
+- DDL: `supabase/migrations/0010_hu13_cuestionarios.sql` (idempotente) y
+  `supabase/migrations/0020_publicacion_cuestionarios.sql` (idempotente).
 
 ### 3.14. `preguntas`
 
@@ -1227,6 +1234,8 @@ Aplicar a:
 - El frontend usa la clave `anon`.
 - El backend usa `service_role` solo en operaciones administrativas y **siempre** filtra por propietario en el repository.
 - El administrador obtiene acceso a documentos y fragmentos según `usuario_puede_leer_documento` y `usuario_puede_gestionar_documento`, pero no a conversaciones, resúmenes ni artefactos IA privados de otros usuarios.
+- `cuestionarios` permite `SELECT` al propietario y a los estudiantes con inscripción activa cuando `publicado = true` (migración `0020`). `UPDATE` de publicación queda restringido al propietario que además es docente responsable de la materia.
+- `preguntas` y `opciones_pregunta` siguen siendo privadas: contienen respuestas correctas. El backend lee esas tablas con `service_role` de forma acotada y elimina `respuesta_correcta`, `explicacion` y `es_correcta` antes de responder mientras el intento no está finalizado.
 - Un recurso ajeno responde `404`.
 - Probar cada tabla con dos usuarios distintos.
 - Las funciones `security definer` requieren revisión y `search_path` fijo.

@@ -876,9 +876,12 @@ GET /api/documentos/buscar?q=derivadas%20de%20funciones&materia_id=6d1c2a53-4f7e
 | GET | `/api/asistente/resumen/:documento_id` | HU10 | Recupera el último resumen guardado del documento. |
 | POST | `/api/asistente/cuestionario` | HU13 | Genera y guarda un cuestionario. |
 | GET | `/api/asistente/cuestionarios` | HU13 | Lista los cuestionarios propios. |
-| GET | `/api/asistente/cuestionarios/:id` | HU13 | Detalle con preguntas e intentos. |
+| GET | `/api/asistente/cuestionarios/disponibles` | HU13 | Lista cuestionarios publicados para el usuario con inscripción activa. |
+| GET | `/api/asistente/cuestionarios/:id` | HU13 | Detalle con preguntas e intentos; propio o publicado y accesible. |
+| PATCH | `/api/asistente/cuestionarios/:id/publicacion` | HU13 | Publica o despublica el cuestionario; solo docente responsable. |
+| GET | `/api/asistente/cuestionarios/:id/calificaciones` | HU13 | Lista notas de los intentos; solo docente responsable. |
 | DELETE | `/api/asistente/cuestionarios/:id` | HU13 | Elimina un cuestionario propio. |
-| POST | `/api/asistente/cuestionarios/:id/intentos` | HU13 | Inicia un intento del cuestionario. |
+| POST | `/api/asistente/cuestionarios/:id/intentos` | HU13 | Inicia un intento del cuestionario propio o publicado y accesible. |
 | GET | `/api/asistente/intentos` | HU16 | Lista el historial de evaluaciones del usuario. |
 | GET | `/api/asistente/intentos/:id` | HU13/HU16 | Devuelve el intento con respuestas, corrección y evaluación. |
 | POST | `/api/asistente/intentos/:id/responder` | HU13/HU16 | Registra respuestas, evalúa y finaliza el intento. |
@@ -1070,6 +1073,8 @@ usuario, aplica cuota de 10 cuestionarios por día y registra el consumo en
     "tokens_entrada": 2400,
     "tokens_salida": 900,
     "fecha_creacion": "2026-11-19T18:30:00.000Z",
+    "publicado": false,
+    "fecha_publicacion": null,
     "preguntas": [
       {
         "id": "9b8c7d6e-5f4a-4b3c-8d2e-1f0a9b8c7d6e",
@@ -1102,10 +1107,43 @@ Acepta `limit` (1–50, por defecto 20) y `offset` (por defecto 0). Devuelve
 `data` con el resumen de cada cuestionario (sin preguntas) y `meta` con `page`,
 `limit`, `total` y `totalPages`.
 
+**`GET /api/asistente/cuestionarios/disponibles`**
+
+Acepta la misma paginación que `GET /api/asistente/cuestionarios`. Devuelve los
+cuestionarios `publicado = true` de materias en las que el usuario tiene una
+inscripción `activa`. No revela preguntas ni correcciones. Un usuario sin
+inscripción activa recibe `data: []`.
+
 **`GET /api/asistente/cuestionarios/:id`**
 
-Devuelve el cuestionario propio con `preguntas`, sus `opciones` y el historial
-de `intentos`. Un ID inválido responde `400`; uno ajeno o inexistente, `404`.
+Devuelve el cuestionario con `preguntas`, sus `opciones` y el historial de
+`intentos`. Es accesible si el usuario es el propietario o si está publicado y
+tiene inscripción `activa` en la materia; en caso contrario responde `404`. Un
+ID inválido responde `400`.
+
+**`PATCH /api/asistente/cuestionarios/:id/publicacion`**
+
+**Body**
+
+```json
+{ "publicado": true }
+```
+
+Publica (`true`) o despublica (`false`) un cuestionario. Requiere rol `docente`
+y que el docente sea el responsable de la materia (`materias.docente_id`). Un
+docente no responsable recibe `404`; cualquier otro rol recibe `403`. `false`
+deja `fecha_publicacion` en `null`. Los administradores no pueden publicar
+cuestionarios ajenos.
+
+**`GET /api/asistente/cuestionarios/:id/calificaciones`**
+
+Acepta `limit` (1–50, por defecto 20) y `offset` (por defecto 0). Devuelve las
+calificaciones de los intentos de los estudiantes para un cuestionario propio
+cuyo docente responsable sea el solicitante. Cada elemento contiene
+`estudiante_id`, `estudiante_nombre`, `puntuacion`, `estado`, `fecha_inicio`,
+`fecha_finalizacion`, `respuestas_correctas` y `total_preguntas`; `meta` usa el
+formato estándar. Requiere rol `docente`; un docente no responsable recibe
+`404`.
 
 **`DELETE /api/asistente/cuestionarios/:id`**
 
@@ -1116,8 +1154,9 @@ devuelve `404`.
 **`POST /api/asistente/cuestionarios/:id/intentos`**
 
 Crea un intento en estado `en_progreso` y devuelve `intento` y `cuestionario`
-con sus preguntas, sin revelar la corrección. Un cuestionario sin preguntas
-responde `422`.
+con sus preguntas, sin revelar la corrección. El cuestionario debe ser propio o
+estar publicado y pertenecer a una materia con inscripción `activa`; en caso
+contrario responde `404`. Un cuestionario sin preguntas responde `422`.
 
 **`GET /api/asistente/intentos`**
 
