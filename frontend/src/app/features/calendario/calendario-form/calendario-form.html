@@ -42,6 +42,7 @@
                     formControlName="titulo"
                     maxlength="200"
                     [class.is-invalid]="tituloControl.invalid && tituloControl.touched"
+                    [attr.aria-invalid]="tituloControl.invalid && tituloControl.touched"
                     aria-describedby="titulo-ayuda titulo-error"
                   />
                   <div id="titulo-ayuda" class="form-text">Entre 3 y 200 caracteres.</div>
@@ -83,9 +84,11 @@
                       class="form-control"
                       formControlName="fecha_inicio"
                       [class.is-invalid]="fechaInicioControl.invalid && fechaInicioControl.touched"
+                      [attr.aria-invalid]="fechaInicioControl.invalid && fechaInicioControl.touched"
+                      [attr.aria-describedby]="fechaInicioControl.invalid && fechaInicioControl.touched ? 'fecha-inicio-error' : null"
                     />
                     @if (fechaInicioControl.invalid && fechaInicioControl.touched) {
-                      <div class="invalid-feedback d-block" role="alert">
+                      <div id="fecha-inicio-error" class="invalid-feedback d-block" role="alert">
                         La fecha de inicio es obligatoria.
                       </div>
                     }
@@ -101,9 +104,15 @@
                       [class.is-invalid]="
                         form.hasError('rangoInvalido') && fechaFinControl.touched
                       "
+                      [attr.aria-invalid]="
+                        form.hasError('rangoInvalido') && fechaFinControl.touched
+                      "
+                      [attr.aria-describedby]="
+                        form.hasError('rangoInvalido') && fechaFinControl.touched ? 'fecha-fin-error' : null
+                      "
                     />
                     @if (form.hasError('rangoInvalido') && fechaFinControl.touched) {
-                      <div class="invalid-feedback d-block" role="alert">
+                      <div id="fecha-fin-error" class="invalid-feedback d-block" role="alert">
                         La fecha de fin no puede ser anterior a la fecha de inicio.
                       </div>
                     }
@@ -144,6 +153,7 @@
                     formControlName="descripcion"
                     [attr.maxlength]="largoMaximoDescripcion"
                     [class.is-invalid]="descripcionControl.invalid && descripcionControl.touched"
+                    [attr.aria-invalid]="descripcionControl.invalid && descripcionControl.touched"
                     aria-describedby="descripcion-ayuda"
                   ></textarea>
                   <div id="descripcion-ayuda" class="form-text">

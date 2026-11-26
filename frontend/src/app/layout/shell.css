@@ -7,7 +7,7 @@
 }
 
 /* --------------------------------------------------------------------------
-   Sidebar
+   Sidebar: azul petróleo, único bloque oscuro de la interfaz
    -------------------------------------------------------------------------- */
 
 .sidebar {
@@ -19,17 +19,11 @@
   width: 280px;
   padding: 1.25rem 1rem 1rem;
   overflow-y: auto;
-  background:
-    radial-gradient(240px circle at 50% -10%, rgba(56, 189, 248, 0.14), transparent 60%),
-    linear-gradient(180deg, rgba(13, 21, 48, 0.98), rgba(10, 17, 40, 0.98));
-  border-right: 1px solid var(--mingo-border);
+  background: linear-gradient(180deg, var(--mingo-nav), var(--mingo-nav-deep));
+  border-right: 1px solid var(--mingo-nav-border);
   transform: translateX(-100%);
   visibility: hidden;
-  transition:
-    transform 0.22s ease,
-    width 0.22s ease,
-    padding 0.22s ease,
-    visibility 0.22s ease;
+  transition: transform 0.22s ease, width 0.22s ease, padding 0.22s ease, visibility 0.22s ease;
 }
 
 .sidebar.open {
@@ -41,8 +35,8 @@
   position: fixed;
   inset: 0;
   z-index: 1035;
-  background: rgba(2, 6, 23, 0.7);
-  backdrop-filter: blur(4px);
+  background: rgba(28, 39, 51, 0.6);
+  backdrop-filter: blur(3px);
 }
 
 .brand {
@@ -63,12 +57,12 @@
   flex: 0 0 auto;
   width: 44px;
   height: 44px;
-  border-radius: 14px;
-  background: linear-gradient(135deg, var(--mingo-primary), var(--mingo-ai));
-  border: 1px solid rgba(56, 189, 248, 0.45);
+  border-radius: 12px;
+  background: var(--mingo-accent);
+  border: 1px solid rgba(255, 255, 255, 0.18);
   color: #ffffff;
   font-size: 1.25rem;
-  box-shadow: 0 12px 28px rgba(37, 99, 235, 0.35);
+  box-shadow: var(--mingo-shadow-sm);
 }
 
 .brand-name {
@@ -80,7 +74,7 @@
 }
 
 .brand-subtitle {
-  color: var(--mingo-muted);
+  color: var(--mingo-nav-text-muted);
   font-size: 0.72rem;
 }
 
@@ -106,7 +100,7 @@
 .nav-section-title {
   padding: 0 0.65rem;
   margin-bottom: 0.35rem;
-  color: rgba(148, 163, 184, 0.75);
+  color: var(--mingo-nav-text-muted);
   font-size: 0.66rem;
   font-weight: 700;
   letter-spacing: 0.16em;
@@ -120,16 +114,21 @@
   padding: 0.55rem 0.6rem;
   border: 1px solid transparent;
   border-radius: var(--mingo-radius-sm);
-  color: #cbd5e1;
+  color: var(--mingo-nav-text);
   font-size: 0.9rem;
   font-weight: 500;
-  transition: 0.18s ease;
+  transition: background-color 0.18s ease, border-color 0.18s ease, color 0.18s ease;
 }
 
 .nav-item:hover {
-  background: rgba(148, 163, 184, 0.08);
-  border-color: rgba(148, 163, 184, 0.16);
+  background: var(--mingo-nav-soft);
+  border-color: var(--mingo-nav-border);
   color: #ffffff;
+}
+
+.nav-item:focus-visible {
+  outline: 2px solid #fcd34d;
+  outline-offset: -2px;
 }
 
 .nav-icon {
@@ -139,41 +138,39 @@
   width: 32px;
   height: 32px;
   border-radius: 9px;
-  background: rgba(148, 163, 184, 0.08);
-  border: 1px solid rgba(148, 163, 184, 0.16);
-  color: #94a3b8;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--mingo-nav-border);
+  color: var(--mingo-nav-text-muted);
   font-size: 0.92rem;
-  transition: 0.18s ease;
+  transition: color 0.18s ease, border-color 0.18s ease;
 }
 
 .nav-item:hover .nav-icon {
-  color: #e2e8f0;
-  border-color: rgba(148, 163, 184, 0.3);
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.32);
 }
 
 .nav-item.active {
-  background: linear-gradient(90deg, rgba(37, 99, 235, 0.28), rgba(37, 99, 235, 0.08));
-  border-color: rgba(37, 99, 235, 0.45);
+  background: var(--mingo-nav-soft);
+  border-color: var(--mingo-nav-border);
   color: #ffffff;
-  box-shadow:
-    inset 3px 0 0 var(--mingo-ai),
-    0 8px 22px rgba(37, 99, 235, 0.16);
+  font-weight: 700;
+  box-shadow: inset 3px 0 0 var(--mingo-accent);
 }
 
 .nav-item.active .nav-icon {
-  background: rgba(37, 99, 235, 0.28);
-  border-color: rgba(56, 189, 248, 0.5);
-  color: var(--mingo-ai);
-  box-shadow: 0 0 14px rgba(56, 189, 248, 0.22);
+  background: rgba(180, 83, 9, 0.24);
+  border-color: rgba(245, 158, 11, 0.5);
+  color: #fcd34d;
 }
 
 .nav-ai {
   margin-left: auto;
   padding: 0.1rem 0.4rem;
   border-radius: 999px;
-  background: var(--mingo-ai-soft);
-  border: 1px solid rgba(56, 189, 248, 0.35);
-  color: var(--mingo-ai);
+  background: rgba(245, 158, 11, 0.16);
+  border: 1px solid rgba(245, 158, 11, 0.42);
+  color: #fcd34d;
   font-size: 0.6rem;
   font-weight: 700;
   letter-spacing: 0.08em;
@@ -195,10 +192,8 @@
   margin-top: auto;
   padding: 1rem;
   border-radius: var(--mingo-radius);
-  background:
-    radial-gradient(140px circle at 100% 0%, rgba(56, 189, 248, 0.22), transparent 70%),
-    rgba(37, 99, 235, 0.1);
-  border: 1px solid rgba(37, 99, 235, 0.35);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--mingo-nav-border);
 }
 
 .ai-promo-title {
@@ -210,7 +205,7 @@
 
 .ai-promo-text {
   margin-bottom: 0.75rem;
-  color: var(--mingo-muted);
+  color: var(--mingo-nav-text-muted);
   font-size: 0.78rem;
   line-height: 1.5;
 }
@@ -219,18 +214,16 @@
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
-  color: var(--mingo-ai);
+  color: #fcd34d;
   font-size: 0.78rem;
   font-weight: 700;
 }
 
 .ai-promo-link:hover {
-  color: #bae6fd;
+  color: #fde68a;
 }
 
-/* --------------------------------------------------------------------------
-   Tarjeta de usuario y cierre de sesion
-   -------------------------------------------------------------------------- */
+/* Tarjeta de usuario y cierre de sesión */
 
 .sidebar-user {
   display: flex;
@@ -238,17 +231,15 @@
   gap: 0.65rem;
   margin-top: 0.85rem;
   padding: 0.6rem 0.65rem;
-  border: 1px solid var(--mingo-border-soft);
+  border: 1px solid var(--mingo-nav-border);
   border-radius: var(--mingo-radius);
-  background: rgba(148, 163, 184, 0.06);
-  transition:
-    border-color 0.2s ease,
-    background 0.2s ease;
+  background: rgba(255, 255, 255, 0.06);
+  transition: border-color 0.2s ease, background 0.2s ease;
 }
 
 .sidebar-user:hover {
-  border-color: rgba(37, 99, 235, 0.4);
-  background: rgba(37, 99, 235, 0.1);
+  border-color: rgba(245, 158, 11, 0.5);
+  background: rgba(255, 255, 255, 0.1);
 }
 
 .user-avatar {
@@ -258,12 +249,11 @@
   width: 34px;
   height: 34px;
   border-radius: 50%;
-  background: linear-gradient(135deg, var(--mingo-primary), var(--mingo-ai));
+  background: rgba(180, 83, 9, 0.9);
   color: #ffffff;
   font-size: 0.72rem;
   font-weight: 700;
   letter-spacing: 0.04em;
-  box-shadow: 0 0 16px rgba(56, 189, 248, 0.35);
 }
 
 .sidebar-user .user-avatar {
@@ -295,7 +285,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: var(--mingo-muted);
+  color: var(--mingo-nav-text-muted);
   font-size: 0.68rem;
 }
 
@@ -304,9 +294,7 @@
   flex: 0 0 auto;
 }
 
-/* --------------------------------------------------------------------------
-   Area principal y barra superior
-   -------------------------------------------------------------------------- */
+/* Área principal y barra superior */
 
 .main-area {
   display: flex;
@@ -325,9 +313,22 @@
   justify-content: space-between;
   gap: 1rem;
   padding: 0.75rem 1rem;
-  background: rgba(6, 11, 24, 0.78);
+  background: var(--mingo-surface);
   border-bottom: 1px solid var(--mingo-border);
-  backdrop-filter: blur(14px);
+}
+
+.topbar-section-eyebrow {
+  color: var(--mingo-text-muted);
+}
+
+.topbar-section-dot {
+  background: var(--mingo-accent);
+}
+
+.topbar-section-icon {
+  background: var(--mingo-accent-soft);
+  border: 1px solid var(--mingo-accent-soft);
+  color: var(--mingo-accent-hover);
 }
 
 .content {

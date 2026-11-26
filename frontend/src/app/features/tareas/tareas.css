@@ -10,7 +10,7 @@
   border: 1px solid var(--mingo-border);
   border-radius: var(--mingo-radius-lg);
   background:
-    linear-gradient(160deg, rgba(251, 191, 36, 0.07), transparent 45%),
+    linear-gradient(160deg, rgba(161, 98, 7, 0.119), transparent 45%),
     var(--mingo-surface);
   box-shadow: var(--mingo-shadow-sm);
 }
@@ -27,7 +27,7 @@
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-  color: #e2e8f0;
+  color: var(--mingo-text);
   font-size: 0.8rem;
   font-weight: 700;
   letter-spacing: 0.1em;
@@ -78,7 +78,7 @@
 
 .task-upcoming-title {
   overflow: hidden;
-  color: #ffffff;
+  color: var(--mingo-text);
   font-size: 0.85rem;
   font-weight: 600;
   text-overflow: ellipsis;
@@ -95,7 +95,7 @@
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
-  color: #fca5a5;
+  color: var(--mingo-danger);
   font-size: 0.78rem;
   font-weight: 600;
   white-space: nowrap;
@@ -106,7 +106,7 @@
   margin: 0;
   display: -webkit-box;
   overflow: hidden;
-  color: #ffffff;
+  color: var(--mingo-text);
   font-size: 1.02rem;
   font-weight: 700;
   letter-spacing: -0.01em;
@@ -160,11 +160,11 @@
 
 .task-meta-row dd {
   margin: 0;
-  color: #e2e8f0;
+  color: var(--mingo-text);
 }
 
 .task-overdue {
-  color: #fca5a5;
+  color: var(--mingo-danger);
   font-weight: 700;
 }
 
@@ -174,7 +174,7 @@
 }
 
 .task-page-indicator strong {
-  color: #ffffff;
+  color: var(--mingo-text);
 }
 
 @media (max-width: 575.98px) {

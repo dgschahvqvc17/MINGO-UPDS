@@ -1,93 +1,98 @@
-# MINGO Design System
+# Sistema de diseño MINGO — Pizarra + ámbar
 
-## Color Palette
+Lienzo gris pizarra claro, tinta carbón, azul petróleo **solo en navegación** y ámbar
+como acento de acciones. Todas las variables se definen en `styles.css`.
 
-| Variable | Hex | Usage |
-|----------|-----|-------|
-| `--mingo-bg` | `#060B18` | Main application background |
-| `--mingo-surface` | `#0A1128` | Card backgrounds, containers |
-| `--mingo-surface-strong` | `#0D1530` | Darker surface variations |
-| `--mingo-border` | `#1E293B` | Borders and dividers |
-| `--mingo-border-soft` | `rgba(148, 163, 184, 0.16)` | Subtle borders |
-| `--mingo-text` | `#FFFFFF` | Primary text |
-| `--mingo-muted` | `#94A3B8` | Secondary/placeholder text |
-| `--mingo-primary` | `#2563EB` | Brand color (blue-600) |
-| `--mingo-primary-strong` | `#1D4ED8` | Darker primary |
-| `--mingo-primary-soft` | `rgba(37, 99, 235, 0.16)` | Light primary |
-| `--mingo-ai` | `#38BDF8` | AI/cyan color (blue-400) |
-| `--mingo-ai-soft` | `rgba(56, 189, 248, 0.14)` | Light AI |
-| `--mingo-success` | `#10B981` | Success/emerald |
-| `--mingo-success-soft` | `rgba(16, 185, 129, 0.14)` | Light success |
-| `--mingo-danger` | `#F87171` | Error/danger |
-| `--mingo-danger-soft` | `rgba(248, 113, 113, 0.12)` | Light danger |
+## 1. Paleta
 
-## Typography
+| Variable | Valor | Uso |
+|---|---|---|
+| `--mingo-bg` | `#e9edf1` | Fondo de la aplicación |
+| `--mingo-bg-gradient` | `#f3f6f8 → #e9edf1` | Degradado suave del lienzo |
+| `--mingo-surface` | `#ffffff` | Tarjetas y contenedores |
+| `--mingo-surface-alt` | `#f5f7f9` | Superficies secundarias |
+| `--mingo-surface-hover` | `#eef2f5` | Estado hover de superficies |
+| `--mingo-border` | `#c5cfd8` | Bordes y divisores |
+| `--mingo-border-hover` | `#94a3b1` | Bordes en hover |
+| `--mingo-border-soft` | `rgba(28, 39, 51, 0.12)` | Bordes sutiles y rejillas |
+| `--mingo-text` | `#1c2733` | Texto principal (carbón) |
+| `--mingo-text-muted` | `#4c5b6b` | Texto secundario (contraste ≥ 4.5:1) |
+| `--mingo-text-disabled` | `#778595` | Texto deshabilitado |
+| `--mingo-nav` | `#103f4c` | Azul petróleo de la navegación |
+| `--mingo-nav-deep` | `#0a2f39` | Extremo oscuro del degradado lateral |
+| `--mingo-nav-text` | `#eef5f7` | Texto sobre navegación |
+| `--mingo-nav-text-muted` | `#b6ccd2` | Texto secundario sobre navegación |
+| `--mingo-accent` | `#b45309` | Ámbar: botones primarios y acentos |
+| `--mingo-accent-hover` | `#92400e` | Ámbar oscurecido en hover |
+| `--mingo-accent-soft` | `rgba(180, 83, 9, 0.1)` | Fondos de acento |
+| `--mingo-ai` | `#8a5a12` | Ámbar profundo para elementos de IA |
+| `--mingo-success` | `#15803d` | Estado correcto |
+| `--mingo-warning` | `#a16207` | Estado de advertencia |
+| `--mingo-danger` | `#b91c1c` | Estado de error |
 
-- **Primary Font**: Segoe UI, system-ui, Helvetica Neue, Arial, sans-serif
-- **Text Color**: `--mingo-text` (#FFFFFF) for dark mode
-- **Hierarchy**:
-  - Headings: Bold weight, tight letter-spacing
-  - Subtitles: Regular weight, muted color
-  - Labels: Uppercase, smaller size
+Los alias `--mingo-primary*`, `--mingo-muted`, `--color-*`, `--app-bg` y `--mat-color`
+apuntan a estos tokens para no romper las features heredadas.
 
-## UI Components
+## 2. Tipografía
 
-### Cards
-- **Border Radius**: `--mingo-radius-lg` (1rem)
-- **Border**: 1px solid `--mingo-border`
-- **Background**: `--mingo-surface`
-- **Shadow**: `--mingo-shadow-card`
-- **Hover Effect**: Subtle blue glow on border and shadow
-- **Border on Hover**: `rgba(37, 99, 235, 0.5)`
+- **Fuente**: `Segoe UI`, `system-ui`, `-apple-system`, `Helvetica Neue`, Arial, sans-serif.
+- **Tinta**: `--mingo-text` sobre fondo claro; blanco sobre navegación petróleo.
+- **Jerarquía**: encabezados en negrita con interletrado negativo; `h1` 1.85 rem,
+  `h2` 1.4 rem, `h3` 1.15 rem. Los títulos de página son carbón, sin degradados de texto.
+- **Monoespacio**: `JetBrains Mono`, `Cascadia Code`, `Fira Code`, monospace.
 
-### Icon Badges
-- **Container**: Rounded square (border-radius: `--mingo-radius-sm`)
-- **Background**: `--mingo-primary-soft` or `--mingo-ai-soft`
-- **Border**: 1px solid `rgba(37, 99, 235, 0.35)`
-- **Color**: White or `--mingo-ai`
-- **Size**: 2.75rem × 2.75rem (lg) or 3.5rem × 3.5rem (lg)
+## 3. Componentes
 
-### AI Indicators
-- **Badge**: Rounded pill (border-radius: 999px)
-- **Background**: `--mingo-ai-soft`
-- **Border**: 1px solid `rgba(56, 189, 248, 0.35)`
-- **Color**: `--mingo-ai`
-- **Shadow**: `0 0 18px rgba(56, 189, 248, 0.18)`
-- **Icon**: Bootstrap "stars" icon
+### Tarjetas
+- Fondo `--mingo-surface`, borde `1px solid --mingo-border`, radio `--mingo-radius-lg`.
+- Sombra neutra `--mingo-shadow`; en hover, borde ámbar suave. Sin resplandores azules.
 
-### Status Dots
-- **Size**: 0.5rem diameter
-- **Color**: `--mingo-success`
-- **Shadow**: `0 0 10px rgba(16, 185, 129, 0.7)`
+### Insignias de icono
+- Contenedor redondeado con fondo `--mingo-accent-soft` o `--mingo-ai-soft`.
+- Borde tenue y color `--mingo-accent-hover` o `--mingo-ai`.
 
-### Buttons
-- **Primary**: `--mingo-primary` background, white text
-- **Outline**: Muted color with subtle border
-- **Danger**: `--mingo-danger` with white text
-- **Icon Buttons**: 2.5rem × 2.5rem, padded, with hover states
+### Indicadores de IA
+- Píldora con fondo `--mingo-ai-soft`, borde y texto `--mingo-ai`.
+- Sin cian ni glow: el acento es ámbar profundo para distinguirse de las acciones.
 
-## Layout Structure
+### Puntos de estado
+- 0.5 rem de diámetro, colores `--mingo-success`, `--mingo-warning`, `--mingo-danger`.
+- Animación de pulso desactivada con `prefers-reduced-motion`.
 
-### Sidebar
-- **Width**: 280px (mobile: hidden)
-- **Background**: Linear gradient from `--mingo-surface` to darker shade
-- **Border**: 1px solid `--mingo-border`
-- **Animation**: Smooth translateX transition
+### Botones
+- **Primario**: fondo `--mingo-accent`, texto blanco; hover `--mingo-accent-hover`.
+- **Secundario**: texto carbón, borde `--mingo-border-hover`, hover gris pizarra.
+- **Peligro**: `--mingo-danger` sobre fondo claro.
+- Todos conservan el foco visible (`outline: 2px solid --mingo-nav`).
 
-### Topbar
-- **Background**: `rgba(6, 11, 24, 0.78)`
-- **Border**: 1px solid `--mingo-border`
-- **Spacing**: 1rem padding
-- **Actions**: Right-aligned user chip and action buttons
+## 4. Estructura
 
-### Main Content
-- **Padding**: 1.25rem (mobile), 1.75-3rem (desktop)
-- **Grid System**: Bootstrap 5 grid with gutter classes
+### Barra lateral
+- 280 px en escritorio; oculta y deslizable en móvil; riel colapsado de 84 px.
+- Fondo degradado `--mingo-nav → --mingo-nav-deep`, texto claro.
+- Elemento activo: fondo `--mingo-nav-soft` con barra interior ámbar.
 
-## Implementation Notes
+### Barra superior
+- Fondo `--mingo-surface`, borde inferior `--mingo-border`, posición sticky.
+- Título de sección en carbón, sin `h1` duplicado: cada página aporta su propio `h1`.
 
-1. All components should use the CSS variables defined in `styles.css`
-2. Use Bootstrap Icons for all icons (loaded in `angular.json`)
-3. Follow the card hover pattern: subtle blue glow effect
-4. AI components should use the cyan/blue color scheme consistently
-5. Maintain dark mode compatibility throughout
+### Contenido
+- Padding 1.25 rem en móvil y 1.75–3 rem en escritorio.
+- Grid de Bootstrap 5 con gutters estándar.
+
+## 5. Accesibilidad
+
+- Todos los campos con `label` asociado por `for`/`id`.
+- Errores de validación con `id`, `role="alert"` y `aria-describedby`/`aria-invalid`.
+- Botones de icono con `aria-label` y `type` explícito.
+- Navegación móvil con `aria-controls` y `aria-expanded`.
+- Foco visible nunca se elimina; se respeta `prefers-reduced-motion`.
+- `data-bs-theme="light"` y `theme-color` pizarra en `index.html`.
+
+## 6. Notas de implementación
+
+1. Usar siempre los tokens de `styles.css`; evitar literales de color en componentes.
+2. Bootstrap Icons se carga en `angular.json`.
+3. Preferir Bootstrap 5 antes que CSS propio.
+4. El azul petróleo queda confinado a la navegación; el ámbar a las acciones.
+5. No introducir librerías nuevas ni cambios funcionales en este rediseño.

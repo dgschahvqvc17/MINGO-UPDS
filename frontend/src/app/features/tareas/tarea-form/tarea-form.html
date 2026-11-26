@@ -59,6 +59,8 @@
                     class="form-select"
                     formControlName="materia_id"
                     [class.is-invalid]="tieneError('materia_id', 'required')"
+                    [attr.aria-invalid]="tieneError('materia_id', 'required')"
+                    [attr.aria-describedby]="tieneError('materia_id', 'required') ? 'materia-id-error' : null"
                   >
                     <option value="">Selecciona una materia</option>
                     @for (materia of materias(); track materia.id) {
@@ -68,7 +70,7 @@
                     }
                   </select>
                   @if (tieneError('materia_id', 'required')) {
-                    <div class="invalid-feedback">{{ obtenerMensajeError('materia_id') }}</div>
+                    <div id="materia-id-error" class="invalid-feedback d-block" role="alert">{{ obtenerMensajeError('materia_id') }}</div>
                   }
                 </div>
 
@@ -84,11 +86,13 @@
                     formControlName="titulo"
                     placeholder="Ej: Resolver taller de derivadas"
                     [class.is-invalid]="tieneError('titulo', 'required') || tieneError('titulo', 'minlength') || tieneError('titulo', 'maxlength')"
+                    [attr.aria-invalid]="tieneError('titulo', 'required') || tieneError('titulo', 'minlength') || tieneError('titulo', 'maxlength')"
+                    [attr.aria-describedby]="tieneError('titulo', 'required') || tieneError('titulo', 'minlength') || tieneError('titulo', 'maxlength') ? 'titulo-error titulo-help' : 'titulo-help'"
                   />
                   @if (tieneError('titulo', 'required') || tieneError('titulo', 'minlength') || tieneError('titulo', 'maxlength')) {
-                    <div class="invalid-feedback">{{ obtenerMensajeError('titulo') }}</div>
+                    <div id="titulo-error" class="invalid-feedback d-block" role="alert">{{ obtenerMensajeError('titulo') }}</div>
                   }
-                  <div class="form-text">Entre 3 y 200 caracteres.</div>
+                  <div id="titulo-help" class="form-text">Entre 3 y 200 caracteres.</div>
                 </div>
 
                 <!-- Descripción -->
@@ -101,11 +105,13 @@
                     rows="4"
                     placeholder="Detalles, indicaciones o recursos de la actividad"
                     [class.is-invalid]="tieneError('descripcion', 'maxlength')"
+                    [attr.aria-invalid]="tieneError('descripcion', 'maxlength')"
+                    [attr.aria-describedby]="tieneError('descripcion', 'maxlength') ? 'descripcion-error descripcion-help' : 'descripcion-help'"
                   ></textarea>
                   @if (tieneError('descripcion', 'maxlength')) {
-                    <div class="invalid-feedback">{{ obtenerMensajeError('descripcion') }}</div>
+                    <div id="descripcion-error" class="invalid-feedback d-block" role="alert">{{ obtenerMensajeError('descripcion') }}</div>
                   }
-                  <div class="form-text">
+                  <div id="descripcion-help" class="form-text">
                     {{ descripcionActual() }}/{{ largoMaximoDescripcion }} caracteres.
                   </div>
                 </div>
@@ -158,9 +164,11 @@
                     class="form-control"
                     formControlName="fecha_asignacion"
                     [class.is-invalid]="tieneError('fecha_asignacion', 'required')"
+                    [attr.aria-invalid]="tieneError('fecha_asignacion', 'required')"
+                    [attr.aria-describedby]="tieneError('fecha_asignacion', 'required') ? 'fecha-asignacion-error' : null"
                   />
                   @if (tieneError('fecha_asignacion', 'required')) {
-                    <div class="invalid-feedback">{{ obtenerMensajeError('fecha_asignacion') }}</div>
+                    <div id="fecha-asignacion-error" class="invalid-feedback d-block" role="alert">{{ obtenerMensajeError('fecha_asignacion') }}</div>
                   }
                 </div>
 
@@ -173,14 +181,15 @@
                     class="form-control"
                     formControlName="fecha_entrega"
                     [class.is-invalid]="tieneErrorRango()"
-                    [attr.aria-describedby]="tieneErrorRango() ? 'fecha-entrega-error' : null"
+                    [attr.aria-invalid]="tieneErrorRango()"
+                    [attr.aria-describedby]="tieneErrorRango() ? 'fecha-entrega-error fecha-entrega-help' : 'fecha-entrega-help'"
                   />
                   @if (tieneErrorRango()) {
-                    <div id="fecha-entrega-error" class="invalid-feedback d-block">
+                    <div id="fecha-entrega-error" class="invalid-feedback d-block" role="alert">
                       La fecha de entrega no puede ser anterior a la de asignación.
                     </div>
                   }
-                  <div class="form-text">Opcional. Déjala vacía si no tiene fecha límite.</div>
+                  <div id="fecha-entrega-help" class="form-text">Opcional. Déjala vacía si no tiene fecha límite.</div>
                 </div>
 
                 <!-- Estado -->

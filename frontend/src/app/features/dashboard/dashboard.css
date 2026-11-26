@@ -9,11 +9,11 @@
   align-items: center;
   gap: 1.5rem;
   padding: 1.5rem 2rem;
-  border: 1px solid rgba(56, 189, 248, 0.25);
+  border: 1px solid rgba(180, 83, 9, 0.25);
   border-radius: var(--mingo-radius-xl);
   background:
-    radial-gradient(520px 260px at 92% 20%, rgba(56, 189, 248, 0.16), transparent 70%),
-    radial-gradient(420px 220px at 8% 100%, rgba(16, 185, 129, 0.1), transparent 70%),
+    radial-gradient(520px 260px at 92% 20%, rgba(180, 83, 9, 0.272), transparent 70%),
+    radial-gradient(420px 220px at 8% 100%, rgba(21, 128, 61, 0.17), transparent 70%),
     var(--mingo-surface);
   box-shadow: var(--mingo-shadow-md);
 }
@@ -34,7 +34,7 @@
   align-items: center;
   justify-content: center;
   min-width: 0;
-  filter: drop-shadow(0 12px 26px rgba(2, 132, 199, 0.22));
+  filter: drop-shadow(0 12px 26px rgba(28, 39, 51, 0.16));
 }
 
 @media (max-width: 767.98px) {
@@ -65,13 +65,13 @@
 .role-administrador {
   background-color: var(--mingo-danger-soft);
   color: var(--mingo-danger);
-  border: 1px solid rgba(248, 113, 113, 0.3);
+  border: 1px solid rgba(185, 28, 28, 0.3);
 }
 
 .role-estudiante {
   background-color: var(--mingo-success-soft);
   color: var(--mingo-success);
-  border: 1px solid rgba(16, 185, 129, 0.3);
+  border: 1px solid rgba(21, 128, 61, 0.3);
 }
 
 /* --------------------------------------------------------------------------

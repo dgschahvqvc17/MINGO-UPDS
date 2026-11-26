@@ -6,11 +6,7 @@
   position: relative;
   min-height: 100vh;
   overflow: hidden;
-  background:
-    radial-gradient(1000px 600px at 12% -5%, rgba(37, 99, 235, 0.22), transparent 55%),
-    radial-gradient(800px 520px at 92% 12%, rgba(56, 189, 248, 0.12), transparent 50%),
-    radial-gradient(600px 400px at 30% 80%, rgba(16, 185, 129, 0.08), transparent 40%),
-    var(--mingo-bg);
+  background: linear-gradient(180deg, var(--mingo-surface-alt), var(--mingo-bg));
 }
 
 .login-page::before {
@@ -18,8 +14,8 @@
   position: absolute;
   inset: 0;
   background-image:
-    linear-gradient(rgba(148, 163, 184, 0.06) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(148, 163, 184, 0.06) 1px, transparent 1px);
+    linear-gradient(var(--mingo-border-soft) 1px, transparent 1px),
+    linear-gradient(90deg, var(--mingo-border-soft) 1px, transparent 1px);
   background-size: 48px 48px;
   mask-image: radial-gradient(circle at 50% 40%, black, transparent 75%);
   -webkit-mask-image: radial-gradient(circle at 50% 40%, black, transparent 75%);
@@ -91,19 +87,16 @@
   width: 56px;
   height: 56px;
   border-radius: var(--mingo-radius-lg);
-  background: linear-gradient(135deg, var(--mingo-primary), var(--mingo-ai));
-  border: 1px solid rgba(56, 189, 248, 0.45);
+  background: var(--mingo-accent);
+  border: 1px solid rgba(255, 255, 255, 0.18);
   color: #ffffff;
   font-size: 1.5rem;
-  box-shadow: var(--mingo-glow-primary);
-  transition: all var(--mingo-transition-normal);
+  box-shadow: var(--mingo-shadow-sm);
+  transition: background-color var(--mingo-transition-normal);
 }
 
 .brand-mark:hover {
-  transform: scale(1.05);
-  box-shadow:
-    0 0 0 2px rgba(56, 189, 248, 0.3),
-    0 15px 40px rgba(56, 189, 248, 0.25);
+  background: var(--mingo-accent-hover);
 }
 
 .login-card .brand-mark {
@@ -115,14 +108,10 @@
 }
 
 .brand-name {
-  color: #ffffff;
+  color: var(--mingo-text);
   font-size: 1.25rem;
   font-weight: 800;
   letter-spacing: 0.12em;
-  background: linear-gradient(135deg, var(--mingo-text), var(--mingo-ai));
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
 }
 
 .brand-subtitle {
@@ -133,14 +122,11 @@
 
 .login-title {
   margin: 1.5rem 0 1rem;
+  color: var(--mingo-text);
   font-size: clamp(2.25rem, 3.5vw, 3rem);
   font-weight: 800;
   line-height: 1.12;
   letter-spacing: -0.03em;
-  background: linear-gradient(135deg, var(--mingo-text), var(--mingo-ai));
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
 }
 
 .login-description {
@@ -162,11 +148,6 @@
   display: flex;
   align-items: flex-start;
   gap: 0.85rem;
-  transition: transform var(--mingo-transition-normal);
-}
-
-.login-features li:hover {
-  transform: translateX(5px);
 }
 
 .login-features .icon-badge {
@@ -174,19 +155,13 @@
   width: 44px;
   height: 44px;
   font-size: 1.1rem;
-  transition: all var(--mingo-transition-normal);
-}
-
-.login-features li:hover .icon-badge {
-  transform: scale(1.1);
-  box-shadow: 0 0 20px rgba(56, 189, 248, 0.3);
 }
 
 .login-features strong {
   display: block;
-  color: #ffffff;
+  color: var(--mingo-text);
   font-size: 0.95rem;
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .login-features small {
@@ -203,34 +178,13 @@
   border-radius: var(--mingo-radius-xl);
   background: var(--mingo-surface);
   border: 1px solid var(--mingo-border);
-  box-shadow: var(--mingo-shadow-xl);
-  transition: all var(--mingo-transition-normal);
+  box-shadow: var(--mingo-shadow-lg);
   position: relative;
   overflow: hidden;
 }
 
-.login-card::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(
-    135deg,
-    rgba(37, 99, 235, 0.1) 0%,
-    rgba(56, 189, 248, 0.05) 50%,
-    transparent 100%
-  );
-  opacity: 0;
-  transition: opacity var(--mingo-transition-normal);
-  pointer-events: none;
-}
-
 .login-card:hover {
-  border-color: rgba(37, 99, 235, 0.5);
-  box-shadow: var(--mingo-glow-hover);
-}
-
-.login-card:hover::before {
-  opacity: 1;
+  border-color: var(--mingo-accent);
 }
 
 .login-footer {
@@ -246,7 +200,7 @@
 }
 
 .login-footer i {
-  color: var(--mingo-ai);
+  color: var(--mingo-accent);
 }
 
 /* --------------------------------------------------------------------------
@@ -294,11 +248,14 @@
   transition: color 0.15s ease, background-color 0.15s ease;
 }
 
-.input-wrap-toggle:hover,
+.input-wrap-toggle:hover {
+  color: var(--mingo-accent-hover);
+  background: var(--mingo-accent-soft);
+}
+
 .input-wrap-toggle:focus-visible {
-  color: var(--mingo-text);
-  background: rgba(255, 255, 255, 0.08);
-  outline: none;
+  outline: 2px solid var(--mingo-nav);
+  outline-offset: 2px;
 }
 
 .input-wrap-toggle i {
@@ -306,18 +263,17 @@
 }
 
 .btn-primary {
-  background: linear-gradient(135deg, var(--mingo-primary), var(--mingo-primary-hover));
-  border: none;
+  background: var(--mingo-accent);
+  border: 1px solid var(--mingo-accent);
   border-radius: var(--mingo-radius);
   padding: 0.75rem 1.5rem;
-  font-weight: 600;
-  transition: all var(--mingo-transition-normal);
-  box-shadow: 0 8px 25px rgba(37, 99, 235, 0.25);
+  font-weight: 700;
+  transition: background-color var(--mingo-transition-normal);
 }
 
 .btn-primary:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 12px 30px rgba(37, 99, 235, 0.35);
+  background: var(--mingo-accent-hover);
+  border-color: var(--mingo-accent-hover);
 }
 
 .btn-primary:disabled {
@@ -378,5 +334,13 @@
 
   .login-description {
     font-size: 0.95rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .brand-mark,
+  .input-wrap-toggle,
+  .btn-primary {
+    transition: none;
   }
 }

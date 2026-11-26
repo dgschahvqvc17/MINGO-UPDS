@@ -8,8 +8,8 @@
   border: 1px solid var(--mingo-border);
   border-radius: var(--mingo-radius-xl);
   background:
-    radial-gradient(120% 140% at 100% 0%, rgba(56, 189, 248, 0.16), transparent 55%),
-    radial-gradient(120% 140% at 0% 100%, rgba(37, 99, 235, 0.14), transparent 55%),
+    radial-gradient(120% 140% at 100% 0%, rgba(180, 83, 9, 0.272), transparent 55%),
+    radial-gradient(120% 140% at 0% 100%, rgba(180, 83, 9, 0.238), transparent 55%),
     var(--mingo-surface);
   box-shadow: var(--mingo-shadow-md);
 }

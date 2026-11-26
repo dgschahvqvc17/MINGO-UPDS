@@ -41,7 +41,7 @@
   border-color: var(--mingo-ai);
   box-shadow:
     0 0 0 1px var(--mingo-ai),
-    0 0 18px rgba(56, 189, 248, 0.45);
+    0 0 18px rgba(180, 83, 9, 0.45);
 }
 
 .color-option .bi {
@@ -71,7 +71,7 @@
 
 .preview-name {
   overflow: hidden;
-  color: #ffffff;
+  color: var(--mingo-text);
   font-weight: 600;
   text-overflow: ellipsis;
   white-space: nowrap;

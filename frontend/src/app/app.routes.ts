@@ -9,6 +9,7 @@ export const routes: Routes = [
   // Ruta pública para login
   {
     path: 'auth/login',
+    title: 'Iniciar sesión | MINGO',
     loadComponent: () => import('./features/auth/login/login').then((m) => m.LoginPage),
   },
 
@@ -24,6 +25,7 @@ export const routes: Routes = [
   // Ruta pública para showcase (solo para desarrollo/demo)
   {
     path: 'ui-showcase',
+    title: 'Componentes | MINGO',
     loadComponent: () => import('./ui-showcase.component').then((m) => m.UiShowcaseComponent),
   },
 
@@ -44,12 +46,14 @@ export const routes: Routes = [
       // Dashboard para estudiantes
       {
         path: 'dashboard',
+        title: 'Panel de control | MINGO',
         loadComponent: () => import('./features/dashboard/dashboard').then((m) => m.DashboardPage),
       },
 
       // Administración (solo para administradores)
       {
         path: 'administracion',
+        title: 'Administración | MINGO',
         canActivate: [roleGuard],
         data: { roles: ['administrador'] },
         loadComponent: () =>
@@ -59,6 +63,7 @@ export const routes: Routes = [
       // Rutas de gestión de usuarios dentro de administración
       {
         path: 'administracion/usuarios/:id',
+        title: 'Detalle del usuario | MINGO',
         canActivate: [roleGuard],
         data: { roles: ['administrador'] },
         loadComponent: () =>
@@ -66,6 +71,7 @@ export const routes: Routes = [
       },
       {
         path: 'administracion/usuarios/:id/roles',
+        title: 'Roles del usuario | MINGO',
         canActivate: [roleGuard],
         data: { roles: ['administrador'] },
         loadComponent: () =>
@@ -75,20 +81,24 @@ export const routes: Routes = [
       // Otras rutas protegidas
       {
         path: 'materias',
+        title: 'Materias | MINGO',
         loadComponent: () => import('./features/materias/materias').then((m) => m.MateriasPage),
       },
       {
         path: 'materias/nueva',
+        title: 'Nueva materia | MINGO',
         canActivate: [roleGuard],
         data: { roles: ['administrador'] },
         loadComponent: () => import('./features/materias/materia-form/materia-form').then((m) => m.MateriaFormPage),
       },
       {
         path: 'materias/:id',
+        title: 'Detalle de la materia | MINGO',
         loadComponent: () => import('./features/materias/materia-detalle/materia-detalle').then((m) => m.MateriaDetallePage),
       },
       {
         path: 'materias/:id/editar',
+        title: 'Editar materia | MINGO',
         canActivate: [roleGuard],
         data: { roles: ['administrador'] },
         loadComponent: () => import('./features/materias/materia-form/materia-form').then((m) => m.MateriaFormPage),
@@ -96,6 +106,7 @@ export const routes: Routes = [
 
       {
         path: 'tareas',
+        title: 'Tareas | MINGO',
         loadComponent: () => import('./features/tareas/tareas').then((m) => m.TareasPage),
       },
       {
@@ -117,6 +128,7 @@ export const routes: Routes = [
 
       {
         path: 'calendario',
+        title: 'Calendario académico | MINGO',
         loadComponent: () =>
           import('./features/calendario/calendario').then((m) => m.CalendarioPage),
       },
@@ -190,6 +202,7 @@ export const routes: Routes = [
 
       {
         path: 'asistente-ia',
+        title: 'Asistente IA | MINGO',
         loadComponent: () =>
           import('./features/asistente-ia/asistente-ia').then((m) => m.AsistenteIaPage),
       },

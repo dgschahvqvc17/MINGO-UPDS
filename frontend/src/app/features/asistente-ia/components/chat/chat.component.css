@@ -26,7 +26,7 @@
 .list-group-item.active {
   background-color: var(--mingo-primary);
   border-color: var(--mingo-primary);
-  color: #ffffff;
+  color: var(--mingo-text);
 }
 
 .list-group-item.active .chat-texto-secundario {
@@ -38,7 +38,7 @@
 }
 
 .list-group-item.active .chat-eliminar {
-  color: #ffffff;
+  color: var(--mingo-text);
 }
 
 .chat-mensajes {
@@ -46,7 +46,7 @@
   min-height: 320px;
   overflow-y: auto;
   background-color: var(--mingo-bg);
-  background-image: radial-gradient(circle at 50% 0%, rgba(37, 99, 235, 0.08), transparent 60%);
+  background-image: radial-gradient(circle at 50% 0%, rgba(180, 83, 9, 0.136), transparent 60%);
   color: var(--mingo-text);
   scrollbar-color: var(--mingo-border) transparent;
 }
@@ -62,7 +62,7 @@
 .chat-burbuja-usuario {
   background-color: var(--mingo-primary);
   border-bottom-right-radius: var(--mingo-radius-sm);
-  color: #ffffff;
+  color: var(--mingo-text);
 }
 
 .chat-burbuja-asistente {
@@ -102,5 +102,5 @@
 }
 
 .chat-burbuja-usuario .chat-fuentes-titulo {
-  color: #ffffff;
+  color: var(--mingo-text);
 }

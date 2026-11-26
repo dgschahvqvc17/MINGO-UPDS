@@ -1,10 +1,10 @@
 .notificaciones-page .card {
   background: var(--mingo-surface, #ffffff);
-  border-color: rgba(37, 99, 235, 0.16);
+  border-color: rgba(180, 83, 9, 0.272);
 }
 
 .notificaciones-page .notificacion-no-leida {
-  border-left: 3px solid var(--mingo-ai, #2563eb);
+  border-left: 3px solid var(--mingo-ai);
   padding-left: 0.85rem !important;
 }
 

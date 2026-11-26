@@ -34,7 +34,7 @@
         <div class="d-flex align-items-center gap-2">
           <i class="bi bi-exclamation-triangle-fill"></i>
           <div class="flex-fill">{{ error() }}</div>
-          <button class="btn btn-sm btn-outline-danger" (click)="cargarDatos()">
+          <button type="button" class="btn btn-sm btn-outline-danger" (click)="cargarDatos()">
             Reintentar
           </button>
         </div>
@@ -229,12 +229,13 @@
       <!-- Acciones -->
       <footer class="mt-4 pt-4 border-top">
         <div class="d-flex justify-content-between align-items-center">
-          <button class="btn btn-outline-secondary" (click)="cancelar()" [disabled]="guardando()">
+          <button type="button" class="btn btn-outline-secondary" (click)="cancelar()" [disabled]="guardando()">
             Cancelar
           </button>
           
           <div class="d-flex gap-2">
             <button 
+              type="button"
               class="btn btn-primary"
               (click)="guardarCambios()"
               [disabled]="!tieneCambios() || guardando() || rolesSeleccionados().length === 0"

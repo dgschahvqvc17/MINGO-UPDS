@@ -19,7 +19,7 @@
   width: 2.5rem;
   height: 2.5rem;
   border-radius: var(--mingo-radius);
-  background: rgba(148, 163, 184, 0.1);
+  background: rgba(71, 85, 105, 0.17);
   border: 1px solid var(--mingo-border-soft);
   font-size: 1.25rem;
 }
@@ -83,7 +83,7 @@
   padding: 0.2rem 0.6rem;
   border-radius: var(--mingo-radius-full);
   border: 1px solid var(--mingo-border-soft);
-  background: rgba(148, 163, 184, 0.1);
+  background: rgba(71, 85, 105, 0.17);
   color: var(--mingo-text-muted);
   font-size: 0.68rem;
   font-weight: 700;
@@ -104,19 +104,19 @@
 
 .doc-badge--info {
   color: var(--mingo-ai);
-  border-color: rgba(56, 189, 248, 0.4);
+  border-color: rgba(180, 83, 9, 0.4);
   background: var(--mingo-ai-soft);
 }
 
 .doc-badge--success {
   color: var(--mingo-success);
-  border-color: rgba(16, 185, 129, 0.4);
+  border-color: rgba(21, 128, 61, 0.4);
   background: var(--mingo-success-soft);
 }
 
 .doc-badge--danger {
   color: var(--mingo-danger);
-  border-color: rgba(248, 113, 113, 0.4);
+  border-color: rgba(185, 28, 28, 0.4);
   background: var(--mingo-danger-soft);
 }
 

@@ -57,13 +57,15 @@
                   formControlName="nombre"
                   placeholder="Ej: Matemáticas Discretas"
                   [class.is-invalid]="tieneError('nombre', 'required') || tieneError('nombre', 'minlength')"
+                  [attr.aria-invalid]="tieneError('nombre', 'required') || tieneError('nombre', 'minlength')"
+                  [attr.aria-describedby]="tieneError('nombre', 'required') || tieneError('nombre', 'minlength') ? 'nombre-error nombre-help' : 'nombre-help'"
                 />
                 @if (tieneError('nombre', 'required') || tieneError('nombre', 'minlength')) {
-                  <div class="invalid-feedback">
+                  <div id="nombre-error" class="invalid-feedback d-block" role="alert">
                     {{ obtenerMensajeError('nombre') }}
                   </div>
                 }
-                <div class="form-text">Nombre completo de la asignatura académica</div>
+                <div id="nombre-help" class="form-text">Nombre completo de la asignatura académica</div>
               </div>
 
               <!-- Código y Docente -->
@@ -80,13 +82,15 @@
                       formControlName="codigo"
                       placeholder="Ej: MAT101"
                       [class.is-invalid]="tieneError('codigo', 'required') || tieneError('codigo', 'pattern')"
+                      [attr.aria-invalid]="tieneError('codigo', 'required') || tieneError('codigo', 'pattern')"
+                      [attr.aria-describedby]="tieneError('codigo', 'required') || tieneError('codigo', 'pattern') ? 'codigo-error codigo-help' : 'codigo-help'"
                     />
                     @if (tieneError('codigo', 'required') || tieneError('codigo', 'pattern')) {
-                      <div class="invalid-feedback">
+                      <div id="codigo-error" class="invalid-feedback d-block" role="alert">
                         {{ obtenerMensajeError('codigo') }}
                       </div>
                     }
-                    <div class="form-text">Código único de la asignatura</div>
+                    <div id="codigo-help" class="form-text">Código único de la asignatura</div>
                   </div>
                 </div>
 
@@ -101,6 +105,8 @@
                       formControlName="docente_id"
                       [disabled]="!esAdmin()"
                       [class.is-invalid]="tieneError('docente_id', 'required')"
+                      [attr.aria-invalid]="tieneError('docente_id', 'required')"
+                      [attr.aria-describedby]="tieneError('docente_id', 'required') ? 'docente-id-error docente-id-help' : 'docente-id-help'"
                     >
                       <option value="" disabled>Selecciona un docente</option>
                       @for (docente of docentes(); track docente.id) {
@@ -108,11 +114,11 @@
                       }
                     </select>
                     @if (tieneError('docente_id', 'required')) {
-                      <div class="invalid-feedback">
+                      <div id="docente-id-error" class="invalid-feedback d-block" role="alert">
                         {{ obtenerMensajeError('docente_id') }}
                       </div>
                     }
-                    <div class="form-text">Docente responsable de la materia</div>
+                    <div id="docente-id-help" class="form-text">Docente responsable de la materia</div>
                   </div>
                 </div>
               </div>
@@ -130,6 +136,8 @@
                     formControlName="periodo_academico"
                     placeholder="Ej: 2024-1"
                     [class.is-invalid]="tieneError('periodo_academico', 'required') || tieneError('periodo_academico', 'pattern')"
+                    [attr.aria-invalid]="tieneError('periodo_academico', 'required') || tieneError('periodo_academico', 'pattern')"
+                    [attr.aria-describedby]="tieneError('periodo_academico', 'required') || tieneError('periodo_academico', 'pattern') ? 'periodo-error periodo-help' : 'periodo-help'"
                   />
                   <button
                     class="btn btn-outline-secondary"
@@ -142,11 +150,11 @@
                   </button>
                 </div>
                 @if (tieneError('periodo_academico', 'required') || tieneError('periodo_academico', 'pattern')) {
-                  <div class="invalid-feedback">
+                  <div id="periodo-error" class="invalid-feedback d-block" role="alert">
                     {{ obtenerMensajeError('periodo_academico') }}
                   </div>
                 }
-                <div class="form-text">
+                <div id="periodo-help" class="form-text">
                   @if (descripcionPeriodo()) {
                     <span class="form-period-ok">{{ descripcionPeriodo() }}</span>
                   } @else {
@@ -165,13 +173,15 @@
                   rows="3"
                   placeholder="Breve descripción de la materia, contenidos, objetivos, etc."
                   [class.is-invalid]="tieneError('descripcion', 'maxlength')"
+                  [attr.aria-invalid]="tieneError('descripcion', 'maxlength')"
+                  [attr.aria-describedby]="tieneError('descripcion', 'maxlength') ? 'descripcion-error descripcion-help' : 'descripcion-help'"
                 ></textarea>
                 @if (tieneError('descripcion', 'maxlength')) {
-                  <div class="invalid-feedback">
+                  <div id="descripcion-error" class="invalid-feedback d-block" role="alert">
                     {{ obtenerMensajeError('descripcion') }}
                   </div>
                 }
-                <div class="form-text">
+                <div id="descripcion-help" class="form-text">
                   Máximo 500 caracteres. {{ form.controls.descripcion.value.length }}/500
                 </div>
               </div>
@@ -197,14 +207,16 @@
                   formControlName="color"
                   aria-label="Color personalizado hexadecimal"
                   [class.is-invalid]="tieneError('color', 'pattern')"
+                  [attr.aria-invalid]="tieneError('color', 'pattern')"
+                  [attr.aria-describedby]="tieneError('color', 'pattern') ? 'color-error color-help' : 'color-help'"
                 />
                 @if (tieneError('color', 'pattern')) {
-                  <div class="invalid-feedback mb-2">
+                  <div id="color-error" class="invalid-feedback d-block mb-2" role="alert">
                     {{ obtenerMensajeError('color') }}
                   </div>
                 }
 
-                <div class="form-text mb-3">
+                <div id="color-help" class="form-text mb-3">
                   Selecciona un color para identificar esta materia
                 </div>
 

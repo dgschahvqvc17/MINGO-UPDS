@@ -131,9 +131,11 @@
                     class="form-control"
                     formControlName="nombre"
                     [class.is-invalid]="tieneErrorCreacion('nombre', 'required')"
+                    [attr.aria-invalid]="tieneErrorCreacion('nombre', 'required')"
+                    [attr.aria-describedby]="tieneErrorCreacion('nombre', 'required') ? 'nuevo-nombre-error' : null"
                   />
                   @if (tieneErrorCreacion('nombre', 'required')) {
-                    <div class="invalid-feedback" role="alert">El nombre es obligatorio.</div>
+                    <div id="nuevo-nombre-error" class="invalid-feedback d-block" role="alert">El nombre es obligatorio.</div>
                   }
                 </div>
 
@@ -145,9 +147,11 @@
                     class="form-control"
                     formControlName="apellido"
                     [class.is-invalid]="tieneErrorCreacion('apellido', 'required')"
+                    [attr.aria-invalid]="tieneErrorCreacion('apellido', 'required')"
+                    [attr.aria-describedby]="tieneErrorCreacion('apellido', 'required') ? 'nuevo-apellido-error' : null"
                   />
                   @if (tieneErrorCreacion('apellido', 'required')) {
-                    <div class="invalid-feedback" role="alert">El apellido es obligatorio.</div>
+                    <div id="nuevo-apellido-error" class="invalid-feedback d-block" role="alert">El apellido es obligatorio.</div>
                   }
                 </div>
 
@@ -159,11 +163,13 @@
                     class="form-control"
                     formControlName="correo"
                     [class.is-invalid]="tieneErrorCreacion('correo', 'required') || tieneErrorCreacion('correo', 'email')"
+                    [attr.aria-invalid]="tieneErrorCreacion('correo', 'required') || tieneErrorCreacion('correo', 'email')"
+                    [attr.aria-describedby]="tieneErrorCreacion('correo', 'required') || tieneErrorCreacion('correo', 'email') ? 'nuevo-correo-error' : null"
                   />
                   @if (tieneErrorCreacion('correo', 'required')) {
-                    <div class="invalid-feedback" role="alert">El correo es obligatorio.</div>
+                    <div id="nuevo-correo-error" class="invalid-feedback d-block" role="alert">El correo es obligatorio.</div>
                   } @else if (tieneErrorCreacion('correo', 'email')) {
-                    <div class="invalid-feedback" role="alert">Ingresa un correo válido.</div>
+                    <div id="nuevo-correo-error" class="invalid-feedback d-block" role="alert">Ingresa un correo válido.</div>
                   }
                 </div>
 
@@ -195,11 +201,12 @@
                     formControlName="claveTemporal"
                     autocomplete="off"
                     [class.is-invalid]="tieneErrorCreacion('claveTemporal', 'minlength')"
-                    aria-describedby="nueva-clave-ayuda"
+                    [attr.aria-invalid]="tieneErrorCreacion('claveTemporal', 'minlength')"
+                    aria-describedby="nueva-clave-ayuda nueva-clave-error"
                   />
                   <div id="nueva-clave-ayuda" class="form-text">Mínimo 8 caracteres.</div>
                   @if (tieneErrorCreacion('claveTemporal', 'minlength')) {
-                    <div class="invalid-feedback" role="alert">La clave debe tener al menos 8 caracteres.</div>
+                    <div id="nueva-clave-error" class="invalid-feedback d-block" role="alert">La clave debe tener al menos 8 caracteres.</div>
                   }
                 </div>
 
@@ -233,10 +240,11 @@
           <div class="row g-3">
             <!-- Búsqueda por texto -->
             <div class="col-md-6 col-lg-4">
-              <label class="form-label small fw-medium">Buscar por nombre, apellido o correo</label>
+              <label for="filtro-busqueda" class="form-label small fw-medium">Buscar por nombre, apellido o correo</label>
               <div class="input-with-icon">
-                <i class="bi bi-search"></i>
+                <i class="bi bi-search" aria-hidden="true"></i>
                 <input 
+                  id="filtro-busqueda"
                   type="text" 
                   class="form-control" 
                   placeholder="Ej: Juan Pérez o juan@universidad.edu"
@@ -249,8 +257,9 @@
 
             <!-- Filtro por estado -->
             <div class="col-md-6 col-lg-3">
-              <label class="form-label small fw-medium">Estado</label>
+              <label for="filtro-estado" class="form-label small fw-medium">Estado</label>
               <select 
+                id="filtro-estado"
                 class="form-select" 
                 [ngModel]="filtros().estado"
                 (ngModelChange)="filtros.update(f => ({ ...f, estado: $event }))"
@@ -263,8 +272,9 @@
 
             <!-- Filtro por rol -->
             <div class="col-md-6 col-lg-3">
-              <label class="form-label small fw-medium">Rol</label>
+              <label for="filtro-rol" class="form-label small fw-medium">Rol</label>
               <select 
+                id="filtro-rol"
                 class="form-select" 
                 [ngModel]="filtros().rol"
                 (ngModelChange)="filtros.update(f => ({ ...f, rol: $event }))"
@@ -280,6 +290,7 @@
             <div class="col-md-6 col-lg-2 d-flex align-items-end">
               <div class="d-flex gap-2 w-100">
                 <button 
+                  type="button"
                   class="btn btn-primary flex-fill"
                   (click)="aplicarFiltros()"
                   [disabled]="loading()"
@@ -289,12 +300,14 @@
                 </button>
                 @if (filtrosActivos()) {
                   <button 
+                    type="button"
                     class="btn btn-outline-secondary"
                     (click)="limpiarFiltros()"
                     [disabled]="loading()"
+                    aria-label="Limpiar filtros"
                     title="Limpiar filtros"
                   >
-                    <i class="bi bi-x-lg"></i>
+                    <i class="bi bi-x-lg" aria-hidden="true"></i>
                   </button>
                 }
               </div>
@@ -333,22 +346,26 @@
                 class="btn btn-outline-secondary"
                 (click)="paginaAnterior()"
                 [disabled]="paginacion().offset === 0 || loading()"
+                aria-label="Página anterior"
                 title="Página anterior"
               >
-                <i class="bi bi-chevron-left"></i>
+                <i class="bi bi-chevron-left" aria-hidden="true"></i>
               </button>
               <button 
                 type="button" 
                 class="btn btn-outline-secondary"
                 (click)="paginaSiguiente()"
                 [disabled]="paginacion().offset + paginacion().limit >= paginacion().total || loading()"
+                aria-label="Página siguiente"
                 title="Página siguiente"
               >
-                <i class="bi bi-chevron-right"></i>
+                <i class="bi bi-chevron-right" aria-hidden="true"></i>
               </button>
             </div>
 
+            <label class="visually-hidden" for="tamano-pagina">Registros por página</label>
             <select 
+              id="tamano-pagina"
               class="form-select form-select-sm w-auto" 
               [ngModel]="paginacion().limit"
               (ngModelChange)="cambiarLimite($event)"
@@ -376,7 +393,7 @@
         <div class="alert alert-danger" role="alert">
           <i class="bi bi-exclamation-triangle-fill me-2"></i>
           {{ error() }}
-          <button class="btn btn-sm btn-outline-danger ms-2" (click)="cargarUsuarios()">
+          <button type="button" class="btn btn-sm btn-outline-danger ms-2" (click)="cargarUsuarios()">
             Reintentar
           </button>
         </div>
@@ -389,7 +406,7 @@
           <p class="text-muted mb-0">
             @if (filtrosActivos()) {
               No hay usuarios que coincidan con los filtros aplicados.
-              <button class="btn btn-link p-0 ms-1" (click)="limpiarFiltros()">
+              <button type="button" class="btn btn-link p-0 ms-1" (click)="limpiarFiltros()">
                 Limpiar filtros
               </button>
             } @else {
@@ -479,31 +496,37 @@
                   <td class="text-end">
                     <div class="btn-group" role="group">
                       <button 
+                        type="button"
                         class="btn btn-sm btn-outline-primary"
                         (click)="verDetalles(usuario.id)"
+                        [attr.aria-label]="'Ver detalles de ' + obtenerNombreCompleto(usuario)"
                         title="Ver detalles"
                       >
-                        <i class="bi bi-eye"></i>
+                        <i class="bi bi-eye" aria-hidden="true"></i>
                       </button>
                       <button 
+                        type="button"
                         class="btn btn-sm btn-outline-warning"
                         (click)="editarRoles(usuario.id)"
                         [disabled]="!validarNoAutoModificacion(usuario.id)"
+                        [attr.aria-label]="'Editar roles de ' + obtenerNombreCompleto(usuario)"
                         [title]="obtenerMensajeValidacion(usuario.id, 'editar roles')"
                       >
-                        <i class="bi bi-shield-check"></i>
+                        <i class="bi bi-shield-check" aria-hidden="true"></i>
                       </button>
                       <button 
+                        type="button"
                         class="btn btn-sm"
                         [class]="usuario.estado === 'activo' ? 'btn-outline-danger' : 'btn-outline-success'"
                         (click)="cambiarEstado(usuario)"
                         [disabled]="!validarNoAutoModificacion(usuario.id)"
+                        [attr.aria-label]="usuario.estado === 'activo' ? 'Desactivar a ' + obtenerNombreCompleto(usuario) : 'Activar a ' + obtenerNombreCompleto(usuario)"
                         [title]="obtenerMensajeValidacion(usuario.id, usuario.estado === 'activo' ? 'desactivar' : 'activar')"
                       >
                         @if (usuario.estado === 'activo') {
-                          <i class="bi bi-x-circle"></i>
+                          <i class="bi bi-x-circle" aria-hidden="true"></i>
                         } @else {
-                          <i class="bi bi-check-circle"></i>
+                          <i class="bi bi-check-circle" aria-hidden="true"></i>
                         }
                       </button>
                     </div>
