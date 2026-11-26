@@ -406,7 +406,7 @@ Reglas:
   `public.usuario_puede_ver_tarea(uuid)` para evitar recursión RLS.
 - DDL: `supabase/migrations/0002_hu04_tareas.sql` (idempotente), ampliado por
   `0018_roles_docente_inscripciones.sql` y
-  `0021_tareas_visibles_y_ventanas_cuestionario.sql` (pendiente de aplicar).
+  `0021_tareas_visibles_y_ventanas_cuestionario.sql` (aplicada en `dev`).
 
 ### 3.7. `tarea_estados`
 
@@ -634,7 +634,7 @@ Reglas:
 - DDL: `supabase/migrations/0010_hu13_cuestionarios.sql` (idempotente),
   `supabase/migrations/0020_publicacion_cuestionarios.sql` (idempotente) y
   `supabase/migrations/0021_tareas_visibles_y_ventanas_cuestionario.sql`
-  (idempotente; **pendiente de aplicar en `dev`**).
+  (idempotente; aplicada en `dev`).
 
 ### 3.14. `preguntas`
 
@@ -1498,7 +1498,7 @@ están implementadas en `supabase/migrations/0009_hu12_chat.sql`.
 | `supabase/migrations/0018_roles_docente_inscripciones.sql` | Rol `docente`, columnas `docente_id` y `requiere_cambio_clave`, tablas `inscripciones` y `tarea_estados`, políticas RLS por docente/inscripción y redefinición de `match_fragmentos` y `obtener_estadisticas_tareas` (idempotente; conserva datos). |
 | `supabase/migrations/0019_fix_recursion_materias.sql` | Función `SECURITY DEFINER` `usuario_puede_ver_materia` y política SELECT de `materias` sin recursión `42P17` (idempotente; conserva datos). |
 | `supabase/migrations/0020_publicacion_cuestionarios.sql` | Columnas `publicado` y `fecha_publicacion`, RLS de lectura para inscritos activos y actualización restringida al docente responsable (idempotente; aplicada en `dev`). |
-| `supabase/migrations/0021_tareas_visibles_y_ventanas_cuestionario.sql` | Columnas `fecha_inicio` y `fecha_limite` en `cuestionarios`, backfill de 7 días, restricción de ventana, índice, permisos de actualización, función `usuario_puede_ver_tarea` y política SELECT corregida en `tareas` (idempotente; conserva datos; **pendiente de aplicar en `dev`**). |
+| `supabase/migrations/0021_tareas_visibles_y_ventanas_cuestionario.sql` | Columnas `fecha_inicio` y `fecha_limite` en `cuestionarios`, backfill de 7 días, restricción de ventana, índice, permisos de actualización, función `usuario_puede_ver_tarea` y política SELECT corregida en `tareas` (idempotente; conserva datos; aplicada en `dev`). |
 
 - El script `backend/scripts/run-migrations.js` (`npm run migrate`) aplica estas
   migraciones en orden: identidad, materias, tareas, calendario, documentos,

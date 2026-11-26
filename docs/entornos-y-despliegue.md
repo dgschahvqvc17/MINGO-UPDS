@@ -482,12 +482,24 @@ El navegador llama siempre a `https://d4qnw8e73f6co.cloudfront.net/api/*`;
 CloudFront reenvía esas peticiones a la API sin CORS entre dominios. La URL
 `execute-api` queda como salida de referencia, no se expone al frontend.
 
-Última actualización autorizada: el parámetro `AllowedOrigins` de
-`mingo-hu09-dev` se actualizó con el changeset `mingo-dev-cors-20261126`
-(`UPDATE_COMPLETE`). La Lambda `mingo-hu09-dev-api` quedó en
-`CodeSha256: rpYxeMj709/pUbDlX/3Rpi0rrsgpfAPHvVnL3hkK6hk=` y el frontend sirve
-el bundle con hash `main-IHC6DL3W.js` (invalidación
-`I4AWMNBV5E4UJTIA6WDEPDD0KY`). `prod` no se tocó.
+Última actualización autorizada (2026-11-26): el usuario aplicó la migración
+`0021` en Supabase `dev`; luego se actualizó `mingo-hu09-dev-api` con el código
+de `40587bb` (`CodeSha256: KMGUFZw0jbtNM+tsWU5877rc2X6gG1e5OGSvz9h6mqc=`,
+`CodeSize: 32469110`, `State: Active`) y se sincronizó el frontend al bucket
+`mingo-frontend-dev-591015654164` sin `--delete`. CloudFront sirve el bundle
+`main-WAWNAWX5.js`; la invalidación fue `I2YCH41US1JFYPYG1VQJCWEWFU`.
+`GET /api/health` respondió `200` después del despliegue. `prod` no se tocó.
+
+El paquete Lambda se construyó con `npm ci --omit=dev --omit=optional` en un
+directorio temporal, excluyendo mapas, pruebas, documentación, bundles de
+navegador de `officeparser` y envoltorios base64 de `tesseract.js-core`. El ZIP
+resultante usa rutas POSIX y tiene 32,5 MB, por debajo del límite directo de
+Lambda. No se incluyó `.env`, `tests/` ni binarios nativos de Windows.
+
+El changeset anterior `mingo-dev-cors-20261126` dejó el parámetro
+`AllowedOrigins` en `UPDATE_COMPLETE`. No se borraron los objetos heredados
+bajo el prefijo `browser/` del bucket frontend: la publicación usa la raíz del
+bucket y no se autorizó una eliminación.
 
 Permisos observables del perfil `mingo-agente`: `describe-stacks
 --stack-name mingo-frontend-dev` y las actualizaciones autorizadas funcionan;
