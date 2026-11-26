@@ -112,7 +112,7 @@ Resources:
         Comment: MINGO frontend estatico + API (dev) v3
         PriceClass: PriceClass_100
         IPV6Enabled: true
-        HttpVersion: http2and3
+        HttpVersion: http2
         DefaultRootObject: index.html
         Origins:
           - Id: FrontendS3Origin

@@ -512,6 +512,22 @@ invalidación `I8D2RYEK81OPNTAG1DGUUTZZ0H`. CloudFront sirve
 entorno ni presupuestos; el presupuesto compartido estaba activo con gasto real
 `$0` y pronosticado `$0.007`. `prod` no se tocó.
 
+Cambio adicional autorizado el mismo día: en Chrome, el `POST
+/api/asistente/plan` terminaba en `net::ERR_CONNECTION_CLOSED` antes de llegar
+a API Gateway; con QUIC desactivado en el navegador funcionaba. Se actualizó
+`infra/frontend-template.yaml` y se creó/ejecutó el changeset
+`mingo-frontend-http2-20261126`, pero CloudFormation no pudo completarlo porque
+el perfil `mingo-agente` carece de `cloudfront:GetFunction`; el rollback devolvió
+la distribución a `http2and3`. Con autorización explícita se aplicó el mismo
+cambio con `aws cloudfront update-distribution` (ETag `E1PA6795UKMFR9`) sobre
+`E3KT1CRPPEGF3B`: `HttpVersion: http2`. La distribución quedó `Deployed` y
+verificada con `HttpVersion: http2`, `GET /api/health` → `200` y bundle
+`main-F3UHZPRX.js`. No se crearon recursos ni se cambiaron roles, variables ni
+presupuestos; `prod` no se tocó. El stack `mingo-frontend-dev` quedó en
+`UPDATE_ROLLBACK_COMPLETE` por el fallo de permisos de CloudFormation; la
+plantilla del repositorio ya declara `http2`, pero el stack no se pudo
+sincronizar con CloudFormation. No se requiere desactivar QUIC en el navegador.
+
 Nota: la Lambda `dev` conserva `NODE_ENV=production` en su configuración,
 valor previo a este cambio; no se modificó porque cambiar variables de entorno
 requiere autorización explícita separada.
@@ -529,8 +545,9 @@ bucket y no se autorizó una eliminación.
 
 Permisos observables del perfil `mingo-agente`: `describe-stacks
 --stack-name mingo-frontend-dev` y las actualizaciones autorizadas funcionan;
-`cloudfront:GetInvalidation` y `cloudformation:ListStacks` devuelven
-`AccessDenied`. Esto no autoriza por sí solo nuevas operaciones: cada
+`cloudfront:GetInvalidation`, `cloudfront:GetFunction`,
+`cloudfront:GetOriginRequestPolicy`, `iam:SimulatePrincipalPolicy` y
+`cloudformation:ListStacks` devuelven `AccessDenied`. Esto no autoriza por sí solo nuevas operaciones: cada
 reedición o redespliegue requiere aprobación explícita en el momento.
 
 ## 7. Frontend en S3 + CloudFront
@@ -548,7 +565,8 @@ hacia la API Gateway HTTP API del stack del backend.
 ```text
 Servicio: CloudFront pay-as-you-go + S3 privado con OAC + proxy /api/*.
 Costo esperado: $0/mes dentro del Always Free (1 TB y 10 M peticiones).
-Límites: 1 distribución, PriceClass_100, sin WAF, sin Lambda@Edge,
+Límites: 1 distribución, PriceClass_100, HttpVersion http2 (sin HTTP/3),
+sin WAF, sin Lambda@Edge,
 sin Origin Shield, sin logs en tiempo real, sin dominio propio
 (se usa el dominio *.cloudfront.net, por lo que no se necesitan
 ACM ni Route 53). Invalidación máxima: 1.000 paths/mes (gratis).
