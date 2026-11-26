@@ -149,6 +149,7 @@ function construirPrompt({
     `Dias disponibles: ${diasDisponibles.join(', ')}.`,
     'Reglas:',
     '- Distribuye los temas en sesiones consecutivas hasta la fecha de evaluacion.',
+    '- Ninguna fecha_inicio puede ser posterior a la fecha de evaluacion.',
     '- Respeta los dias disponibles y no superes los minutos por dia.',
     '- Cada sesion debe tener tema concreto, actividades accionables y duracion entre 5 y 480 minutos.',
     '- Usa fechas ISO 8601 con zona horaria para fecha_inicio.',

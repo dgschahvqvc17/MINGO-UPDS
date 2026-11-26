@@ -154,6 +154,21 @@ describe('PlanEstudioService (HU15)', () => {
     );
   });
 
+  it('ajusta al dia de la evaluacion las sesiones generadas despues de esa fecha', async () => {
+    const { service, iaService } = crearServicio();
+    iaService.generarPlan.mockResolvedValue({
+      ...PROPUESTA_IA,
+      contenido: {
+        ...PROPUESTA_IA.contenido,
+        sesiones: [{ ...PROPUESTA_IA.contenido.sesiones[0], fecha_inicio: '2026-12-12T09:00:00Z' }],
+      },
+    });
+
+    const propuesta = await service.proponer(ENTRADA);
+
+    expect(propuesta.sesiones[0].fecha_inicio).toBe('2026-12-10T09:00:00Z');
+  });
+
   it('incluye tareas y evaluaciones de la materia en el contexto de la IA', async () => {
     const { service, tareaRepository, calendarioRepository, iaService } = crearServicio();
     tareaRepository.listarTareas.mockResolvedValue({
@@ -256,6 +271,40 @@ describe('PlanEstudioService (HU15)', () => {
       }),
     ).rejects.toThrow(ApiError);
     expect(planRepository.crearPlan).not.toHaveBeenCalled();
+  });
+
+  it('acepta una sesion con desplazamiento cuya fecha local es la de la evaluacion', async () => {
+    const { service, planRepository } = crearServicio();
+
+    await service.confirmar({
+      ...ENTRADA,
+      sesiones: [
+        {
+          tema: 'Repaso',
+          actividades: 'Repasar apuntes',
+          fechaInicio: '2026-12-10T23:00:00-05:00',
+          duracionMinutos: 60,
+        },
+      ],
+    });
+
+    expect(planRepository.crearPlan).toHaveBeenCalledTimes(1);
+  });
+
+  it('acepta editar una sesion con desplazamiento en la fecha de la evaluacion', async () => {
+    const { service, planRepository } = crearServicio();
+
+    await service.actualizarSesion('sesion-id', {
+      fechaInicio: '2026-12-10T23:00:00-05:00',
+    });
+
+    expect(planRepository.actualizarSesion).toHaveBeenCalledWith(
+      USUARIO_ID,
+      'sesion-id',
+      expect.objectContaining({
+        fecha_inicio: new Date('2026-12-11T04:00:00Z'),
+      }),
+    );
   });
 
   it('rechaza mas sesiones que el maximo permitido', async () => {

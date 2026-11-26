@@ -1439,9 +1439,12 @@ opcional con `on delete set null`, estados `pendiente`, `en_progreso` y
 `completada`, restricciones de longitud para título y descripción, índices por
 usuario+estado, usuario+fecha límite y materia, trigger de
 `fecha_actualizacion` y RLS por `auth.uid() = usuario_id`. Las políticas de
-inserción y actualización exigen además que la materia, si se indica, pertenezca
-al usuario. El progreso agregado no tiene tabla propia: se calcula en el backend
-a partir de materias, tareas, sesiones, intentos de cuestionario y objetivos.
+inserción y actualización exigen además que la materia, si se indica, sea
+accesible para el usuario: la migración `0023` reutiliza la función
+`usuario_puede_ver_materia(uuid)` de `0019`, que admite propiedad, docencia e
+inscripción activa. El progreso agregado no tiene tabla propia: se calcula en el
+backend a partir de materias, tareas, sesiones, intentos de cuestionario y
+objetivos.
 La migración es idempotente; la aplica el usuario de forma manual, nunca el
 agente. `supabase/migrations/0016_hu17_restringir_permisos_objetivos.sql`
 retira `TRUNCATE`, `TRIGGER` y `REFERENCES` a `authenticated`: Supabase concede
@@ -1503,7 +1506,8 @@ están implementadas en `supabase/migrations/0009_hu12_chat.sql`.
 | `supabase/migrations/0019_fix_recursion_materias.sql` | Función `SECURITY DEFINER` `usuario_puede_ver_materia` y política SELECT de `materias` sin recursión `42P17` (idempotente; conserva datos). |
 | `supabase/migrations/0020_publicacion_cuestionarios.sql` | Columnas `publicado` y `fecha_publicacion`, RLS de lectura para inscritos activos y actualización restringida al docente responsable (idempotente; aplicada en `dev`). |
 | `supabase/migrations/0021_tareas_visibles_y_ventanas_cuestionario.sql` | Columnas `fecha_inicio` y `fecha_limite` en `cuestionarios`, backfill de 7 días, restricción de ventana, índice, permisos de actualización, función `usuario_puede_ver_tarea` y política SELECT corregida en `tareas` (idempotente; conserva datos; aplicada en `dev`). |
-| `supabase/migrations/0022_acceso_estudiantes_publicacion.sql` | Funciones `usuario_puede_resolver_cuestionario` y `validar_intento_unico_estudiante`; RLS de SELECT en `preguntas`, `opciones_pregunta` y `eventos_calendario` para inscritos activos; INSERT de intentos para estudiantes inscritos; trigger de intento único; RPC `obtener_eventos_proximos` con visibilidad por materia y guard de identidad (idempotente; conserva datos; **pendiente de aplicar en `dev`**). |
+| `supabase/migrations/0022_acceso_estudiantes_publicacion.sql` | Funciones `usuario_puede_resolver_cuestionario` y `validar_intento_unico_estudiante`; RLS de SELECT en `preguntas`, `opciones_pregunta` y `eventos_calendario` para inscritos activos; INSERT de intentos para estudiantes inscritos; trigger de intento único; RPC `obtener_eventos_proximos` con visibilidad por materia y guard de identidad (idempotente; conserva datos; aplicada en `dev`). |
+| `supabase/migrations/0023_fix_objetivos_materias_accesibles.sql` | Políticas INSERT y UPDATE de `objetivos_estudio` basadas en `usuario_puede_ver_materia` para permitir materias compartidas por docencia o inscripción activa (idempotente; conserva datos; **pendiente de aplicar en `dev`**). |
 
 - El script `backend/scripts/run-migrations.js` (`npm run migrate`) aplica las
   migraciones `0001`–`0018` en orden. Las migraciones `0019` en adelante se

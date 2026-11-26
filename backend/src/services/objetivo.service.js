@@ -103,8 +103,9 @@ class ObjetivoService {
   }
 
   /**
-   * La materia es opcional, pero si se indica debe pertenecer al usuario.
-   * Un recurso ajeno se trata como inexistente para no filtrar informacion.
+   * La materia es opcional, pero si se indica debe ser accesible para el
+   * usuario segun RLS: propiedad, docencia o inscripcion activa. Una materia
+   * ajena se trata como inexistente para no filtrar informacion.
    *
    * @param {string | null | undefined} materiaId
    */

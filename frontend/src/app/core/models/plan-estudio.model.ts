@@ -102,6 +102,29 @@ export function aFechaLocal(fechaIso: string): string {
   return `${año}-${mes}-${dia}T${horas}:${minutos}`;
 }
 
+/**
+ * Convierte una fecha local de `datetime-local` a ISO 8601 conservando el dia
+ * del calendario del estudiante en la propia cadena (por ejemplo,
+ * `2026-12-10T09:00:00-05:00`). Asi el servidor puede compararla con la fecha
+ * de la evaluacion sin confundir el desplazamiento con un dia distinto.
+ */
 export function aIsoConZona(fechaLocal: string): string {
-  return new Date(fechaLocal).toISOString();
+  if (!fechaLocal) {
+    return '';
+  }
+
+  const fecha = new Date(fechaLocal);
+  if (Number.isNaN(fecha.getTime())) {
+    return '';
+  }
+
+  const desplazamientoMinutos = -fecha.getTimezoneOffset();
+  const signo = desplazamientoMinutos >= 0 ? '+' : '-';
+  const horas = String(Math.floor(Math.abs(desplazamientoMinutos) / 60)).padStart(2, '0');
+  const minutos = String(Math.abs(desplazamientoMinutos) % 60).padStart(2, '0');
+  const base = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(fechaLocal)
+    ? `${fechaLocal}:00`
+    : fechaLocal;
+
+  return `${base}${signo}${horas}:${minutos}`;
 }

@@ -42,6 +42,42 @@ function finDelDia() {
 }
 
 /**
+ * Devuelve la fecha de calendario de una fecha ISO 8601. Si la fecha lleva
+ * desplazamiento, los primeros diez caracteres son la fecha local del
+ * estudiante; si termina en Z, son la fecha UTC.
+ *
+ * @param {unknown} valor
+ * @returns {string | null}
+ */
+function fechaCalendario(valor) {
+  const texto =
+    typeof valor === 'string' ? valor : valor instanceof Date ? valor.toISOString() : '';
+  const coincidencia = /^\d{4}-\d{2}-\d{2}/.exec(texto);
+  return coincidencia ? coincidencia[0] : null;
+}
+
+/**
+ * Traslada al dia de la evaluacion las sesiones que el proveedor programo
+ * despues de esa fecha, conservando la hora y la zona horaria originales.
+ * Evita que una propuesta generada por IA no se pueda confirmar despues.
+ *
+ * @param {Array<object>} sesiones
+ * @param {string} fechaExamen
+ * @returns {Array<object>}
+ */
+function limitarSesionesAFechaExamen(sesiones, fechaExamen) {
+  return sesiones.map((sesion) => {
+    const fechaSesion = fechaCalendario(sesion.fecha_inicio);
+
+    if (!fechaSesion || fechaSesion <= fechaExamen) {
+      return sesion;
+    }
+
+    return { ...sesion, fecha_inicio: `${fechaExamen}${sesion.fecha_inicio.slice(10)}` };
+  });
+}
+
+/**
  * @param {Array<object>} tareas
  * @returns {string}
  */
@@ -234,7 +270,10 @@ class PlanEstudioService {
       minutos_por_dia: entrada.minutosPorDia,
       dias_disponibles: entrada.diasDisponibles,
       resumen: generado.contenido.resumen,
-      sesiones: generado.contenido.sesiones.map((sesion, indice) => ({
+      sesiones: limitarSesionesAFechaExamen(
+        generado.contenido.sesiones,
+        entrada.fechaExamen,
+      ).map((sesion, indice) => ({
         ...sesion,
         orden: indice + 1,
       })),
@@ -399,18 +438,18 @@ class PlanEstudioService {
     const datos = { ...cambios };
 
     if (datos.fechaInicio !== undefined) {
+      const fechaSesion = fechaCalendario(datos.fechaInicio);
+
+      if (fechaSesion && fechaSesion > plan.fecha_examen) {
+        throw ApiError.badRequest('La sesion no puede programarse despues de la evaluacion.');
+      }
+
       datos.fecha_inicio = new Date(datos.fechaInicio);
       delete datos.fechaInicio;
     }
     if (datos.duracionMinutos !== undefined) {
       datos.duracion_minutos = datos.duracionMinutos;
       delete datos.duracionMinutos;
-    }
-
-    const fechaInicio = datos.fecha_inicio ?? new Date(sesion.fecha_inicio);
-
-    if (fechaInicio.toISOString().slice(0, 10) > plan.fecha_examen) {
-      throw ApiError.badRequest('La sesion no puede programarse despues de la evaluacion.');
     }
 
     const actualizada = await this.planRepository.actualizarSesion(
@@ -480,13 +519,15 @@ class PlanEstudioService {
     }
 
     for (const sesion of sesiones) {
-      const inicio = new Date(sesion.fechaInicio ?? sesion.fecha_inicio);
+      const fechaInicio = sesion.fechaInicio ?? sesion.fecha_inicio;
+      const inicio = new Date(fechaInicio);
 
       if (Number.isNaN(inicio.getTime())) {
         throw ApiError.badRequest('La fecha de una sesion no es valida.');
       }
 
-      if (inicio.toISOString().slice(0, 10) > fechaExamen) {
+      const fechaSesion = fechaCalendario(fechaInicio);
+      if (fechaSesion && fechaSesion > fechaExamen) {
         throw ApiError.badRequest('Una sesion no puede programarse despues de la evaluacion.');
       }
     }
