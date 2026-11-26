@@ -4,6 +4,7 @@
  * de las citas del RAG. No genera embeddings ni toca la base de datos.
  */
 const { ErrorProcesamiento } = require('./procesamiento.error');
+const { asegurarPolyfillDomMatrix } = require('../../utils/polyfill-dom-matrix');
 
 const EXTENSIONES_POR_MIME = {
   'application/pdf': '.pdf',
@@ -85,6 +86,8 @@ class ExtractorContenidoService {
    * @returns {Promise<{ paginas: Array<{ numero: number | null, texto: string }>, numeroPaginas: number }>}
    */
   async extraerPdf(buffer) {
+    // Antes de cargar pdf-parse: pdfjs-dist construye una DOMMatrix al iniciar.
+    asegurarPolyfillDomMatrix();
     const { PDFParse } = require('pdf-parse');
     const parser = new PDFParse({ data: buffer });
 
