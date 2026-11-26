@@ -482,13 +482,24 @@ El navegador llama siempre a `https://d4qnw8e73f6co.cloudfront.net/api/*`;
 CloudFront reenvía esas peticiones a la API sin CORS entre dominios. La URL
 `execute-api` queda como salida de referencia, no se expone al frontend.
 
-Última actualización autorizada (2026-11-26): el usuario aplicó la migración
-`0021` en Supabase `dev`; luego se actualizó `mingo-hu09-dev-api` con el código
-de `40587bb` (`CodeSha256: KMGUFZw0jbtNM+tsWU5877rc2X6gG1e5OGSvz9h6mqc=`,
-`CodeSize: 32469110`, `State: Active`) y se sincronizó el frontend al bucket
-`mingo-frontend-dev-591015654164` sin `--delete`. CloudFront sirve el bundle
-`main-WAWNAWX5.js`; la invalidación fue `I2YCH41US1JFYPYG1VQJCWEWFU`.
-`GET /api/health` respondió `200` después del despliegue. `prod` no se tocó.
+Última actualización autorizada (2026-11-26): el usuario aplicó manualmente la
+migración `0022` en Supabase `dev`; luego se actualizó `mingo-hu09-dev-api` con
+el código de `e7cd0a1` (`CodeSha256:
+xVhlfNLlQmt9TCwpfyy/1J4TBQiBZlxZXWrLp1X1Q9s=`, `CodeSize: 32469321`,
+`State: Active`, `LastUpdateStatus: Successful`). Se sincronizó el frontend al
+bucket `mingo-frontend-dev-591015654164` sin `--delete`. El primer `sync` usó
+`dist/frontend` y no sobrescribió el `index.html` de la raíz, que seguía
+apuntando a `main-WAWNAWX5.js`; se corrigió sincronizando
+`dist/frontend/browser` a la raíz del bucket, según la sección 7.4. Las
+invalidaciones autorizadas fueron `IBFC0ZBJND39NDD91VDVX2CS4G` e
+`I9ZQT41V1PH6EXI51X7VU9IG3A`; la segunda fue necesaria porque la primera se
+ejecutó antes de corregir el `index.html`. CloudFront sirve el bundle
+`main-MQH2N2PN.js` (verificado con `HTTP 200`). `GET /api/health` respondió
+`200` después del despliegue. `prod` no se tocó.
+
+Nota: la Lambda `dev` conserva `NODE_ENV=production` en su configuración,
+valor previo a este cambio; no se modificó porque cambiar variables de entorno
+requiere autorización explícita separada.
 
 El paquete Lambda se construyó con `npm ci --omit=dev --omit=optional` en un
 directorio temporal, excluyendo mapas, pruebas, documentación, bundles de
