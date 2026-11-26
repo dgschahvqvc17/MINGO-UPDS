@@ -1585,8 +1585,8 @@ corregidas y verificadas en `dev`.
 
 ### 15.2. Parámetros de la plantilla `infra/template.yaml`
 
-`Environment`, `BucketName`, `FrontendOrigin`, `ProcessorConcurrency`, `ApiConcurrency`,
-`CorsOrigins`, `ApiRoleArn`, `SupabaseUrl`, `SupabaseServiceRoleKey`, `SupabaseAnonKey`, `AiApiKey`,
+`Environment`, `BucketName`, `AllowedOrigins`, `ProcessorConcurrency`, `ApiConcurrency`,
+`ApiRoleArn`, `SupabaseUrl`, `SupabaseServiceRoleKey`, `SupabaseAnonKey`, `AiApiKey`,
 `AiProvider`, `AiBaseUrl`, `AiChatModel`, `AiEmbeddingModel`, `AiEmbeddingDimensions`,
 `NotificacionesEmail`, `RecordatorioCron`, `RecordatoriosRoleArn`, `SchedulerInvocationRoleArn`.
 

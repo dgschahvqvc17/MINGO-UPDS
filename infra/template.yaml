@@ -18,14 +18,13 @@ Parameters:
     Default: mingo-documentos
     Description: Nombre global del bucket de documentos.
 
-  FrontendOrigin:
-    Type: String
-    Default: http://localhost:4200
+  AllowedOrigins:
+    Type: CommaDelimitedList
+    Default: http://localhost:4200,http://localhost:4300,https://d4qnw8e73f6co.cloudfront.net
     Description: >
-      Origen exacto del frontend autorizado a subir por CORS.
+      Origenes exactos autorizados por CORS para la subida directa a S3 y para
+      la API Express. Incluir el origen de CloudFront del frontend desplegado.
       En produccion se reemplaza por el dominio del sitio.
-    AllowedPattern: '^https?://[^/]+$'
-    ConstraintDescription: Debe ser un origen sin ruta, por ejemplo https://mingo.example.com
 
   ProcessorConcurrency:
     Type: Number
@@ -44,13 +43,6 @@ Parameters:
     Description: >
       Concurrencia reservada de la Lambda de la API solo en prod. En dev se
       omite: la cuenta compartida no puede reservar concurrencia.
-
-  CorsOrigins:
-    Type: String
-    Default: 'http://localhost:4200,https://d4qnw8e73f6co.cloudfront.net'
-    Description: >
-      Origenes autorizados por CORS en Express, separados por coma. El frontend
-      desplegado llama a la API por el mismo origen de CloudFront.
 
   ApiRoleArn:
     Type: String
@@ -197,8 +189,7 @@ Resources:
       CorsConfiguration:
         CorsRules:
           - Id: subida-directa-desde-el-frontend
-            AllowedOrigins:
-              - !Ref FrontendOrigin
+            AllowedOrigins: !Ref AllowedOrigins
             AllowedMethods:
               - PUT
             AllowedHeaders:
@@ -534,7 +525,7 @@ Resources:
         Variables:
           NODE_ENV: production
           API_PREFIX: /api
-          CORS_ORIGINS: !Ref CorsOrigins
+          CORS_ORIGINS: !Join [',', !Ref AllowedOrigins]
           SUPABASE_URL: !Ref SupabaseUrl
           SUPABASE_ANON_KEY: !Ref SupabaseAnonKey
           SUPABASE_SERVICE_ROLE_KEY: !Ref SupabaseServiceRoleKey

@@ -52,7 +52,7 @@ Archivo `backend/.env` (no se versiona). Plantilla en `backend/.env.example`.
 | `NODE_ENV` | Sí | `development` | `development` \| `test` \| `production`. |
 | `PORT` | No | `4000` | Puerto local. |
 | `API_PREFIX` | No | `/api` | Prefijo de la API. |
-| `CORS_ORIGINS` | Sí | `http://localhost:4200` | Orígenes separados por coma. |
+| `CORS_ORIGINS` | Sí | `http://localhost:4200,http://localhost:4300,https://d4qnw8e73f6co.cloudfront.net` | Orígenes separados por coma; deben coincidir con `AllowedOrigins` de la plantilla. |
 | `SUPABASE_URL` | Sí | `https://xxxx.supabase.co` | URL del proyecto. |
 | `SUPABASE_ANON_KEY` | Sí | `eyJ...` | Clave pública. |
 | `SUPABASE_SERVICE_ROLE_KEY` | No | `eyJ...` | Operaciones administrativas; nunca al frontend. |
@@ -428,8 +428,10 @@ schedule horario sin reintentos. El schedule queda `DISABLED` en `dev` y
 
 Parámetros de la API HTTP: `ApiRoleArn` (ARN de un rol IAM que crea el usuario;
 el agente no crea roles), `ApiConcurrency` (solo se aplica en `prod`) y
-`CorsOrigins` (orígenes separados por coma; por defecto `localhost:4200` y el
-dominio de CloudFront de `dev`). La Lambda de la API usa `serverless-http`,
+`AllowedOrigins` (orígenes separados por coma; por defecto `localhost:4200`,
+`localhost:4300` y el dominio de CloudFront de `dev`). Ese mismo parámetro
+configura el CORS de S3 para la subida directa y el `CORS_ORIGINS` de Express.
+La Lambda de la API usa `serverless-http`,
 ARM64, 512 MB, timeout de 30 s y un log group con retención de 7 días en `dev`.
 La API Gateway HTTP API tiene un stage `$default`, throttling de 20 req/s con
 bursto de 40 y sin logs de acceso ni caché. Gasto esperado `$0` con tráfico de
@@ -754,6 +756,6 @@ Retención de logs: 7 días en desarrollo, 30 días en producción.
 | `413` al subir | Archivo mayor a 20 MB. | Reducir o dividir el archivo. |
 | `429` en chat | Cuota de IA agotada. | Esperar o ajustar cuota. |
 | Lambda sin acceso a S3 | Rol IAM sin permisos. | Revisar política del rol. |
-| CORS bloqueado | Origen no incluido. | Actualizar `CORS_ORIGINS`. |
+| CORS bloqueado al subir a S3 | Origen no incluido en el bucket. | Redesplegar con `AllowedOrigins` actualizado. |
 | Build de Angular falla por presupuesto | Bundle mayor al límite. | Revisar imports y lazy loading. |
 | Cold start alto | Paquete grande. | Reducir dependencias. |
