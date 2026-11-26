@@ -482,7 +482,7 @@ El navegador llama siempre a `https://d4qnw8e73f6co.cloudfront.net/api/*`;
 CloudFront reenvía esas peticiones a la API sin CORS entre dominios. La URL
 `execute-api` queda como salida de referencia, no se expone al frontend.
 
-Última actualización autorizada (2026-11-26): el usuario aplicó manualmente la
+Actualización anterior autorizada (2026-11-26): el usuario aplicó manualmente la
 migración `0022` en Supabase `dev`; luego se actualizó `mingo-hu09-dev-api` con
 el código de `e7cd0a1` (`CodeSha256:
 xVhlfNLlQmt9TCwpfyy/1J4TBQiBZlxZXWrLp1X1Q9s=`, `CodeSize: 32469321`,
@@ -496,6 +496,21 @@ invalidaciones autorizadas fueron `IBFC0ZBJND39NDD91VDVX2CS4G` e
 ejecutó antes de corregir el `index.html`. CloudFront sirve el bundle
 `main-MQH2N2PN.js` (verificado con `HTTP 200`). `GET /api/health` respondió
 `200` después del despliegue. `prod` no se tocó.
+
+Última actualización autorizada (2026-11-26): el usuario aplicó manualmente la
+migración `0023` en Supabase `dev`; luego se actualizó directamente el código de
+`mingo-hu09-dev-api` con el commit `e5c93e4` (`CodeSha256:
+KfdAqCNgrEq7LnTYPIMcdoxSJMFwLkm8fUl7E+zfJLk=`, `CodeSize: 35672113`,
+`State: Active`, `LastUpdateStatus: Successful`). El ZIP se construyó con
+`npm ci --omit=dev --omit=optional` en un directorio temporal, excluyendo mapas,
+pruebas, documentación, bundles de navegador de `officeparser` y envoltorios
+base64 de `tesseract.js-core`; no incluyó `.env`. Se sincronizó
+`dist/frontend/browser` a la raíz del bucket sin `--delete` y se creó la
+invalidación `I8D2RYEK81OPNTAG1DGUUTZZ0H`. CloudFront sirve
+`main-F3UHZPRX.js` (verificado con `HTTP 200`) y `GET /api/health` respondió
+`200`. No se crearon recursos AWS nuevos, no se cambiaron roles, variables de
+entorno ni presupuestos; el presupuesto compartido estaba activo con gasto real
+`$0` y pronosticado `$0.007`. `prod` no se tocó.
 
 Nota: la Lambda `dev` conserva `NODE_ENV=production` en su configuración,
 valor previo a este cambio; no se modificó porque cambiar variables de entorno
